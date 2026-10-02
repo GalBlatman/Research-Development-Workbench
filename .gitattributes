@@ -1,0 +1,8 @@
+* text=auto eol=lf
+policies/rubric-v4.md -text
+docs/product-spec.md -text
+docs/execution-plan.md -text
+docs/reference/interface-wireframe.html -text
+policies/rubric-v4.md whitespace=-blank-at-eol
+docs/product-spec.md whitespace=-blank-at-eol
+docs/execution-plan.md whitespace=-blank-at-eol

@@ -1,0 +1,30 @@
+{
+  "recorded_on": "2026-10-02",
+  "copy_method": "byte-for-byte; Git attributes disable text conversion for governing documents",
+  "documents": [
+    {
+      "source_filename": "Research_Idea_Rubric_v4.md",
+      "repository_path": "policies/rubric-v4.md",
+      "source_sha256": "a94c195f1f95547cad00d9f2bdcd384cca58ae85bf40646d4b36146379b8f26d",
+      "repository_sha256": "a94c195f1f95547cad00d9f2bdcd384cca58ae85bf40646d4b36146379b8f26d"
+    },
+    {
+      "source_filename": "Research_Development_App_Spec_v1.md",
+      "repository_path": "docs/product-spec.md",
+      "source_sha256": "a5eaffb4ac19207e3d0fa8a1ec704792678934d6c5479a95b9bb16421797eeb6",
+      "repository_sha256": "a5eaffb4ac19207e3d0fa8a1ec704792678934d6c5479a95b9bb16421797eeb6"
+    },
+    {
+      "source_filename": "Research_Development_Workbench_Execution_Plan_v1.md",
+      "repository_path": "docs/execution-plan.md",
+      "source_sha256": "5e9029b59e5977865bd1a3abbb606ce1771fe32de73a03a3fb5fee7a31b2d4d8",
+      "repository_sha256": "5e9029b59e5977865bd1a3abbb606ce1771fe32de73a03a3fb5fee7a31b2d4d8"
+    },
+    {
+      "source_filename": "Research_Development_App_Wireframes.html",
+      "repository_path": "docs/reference/interface-wireframe.html",
+      "source_sha256": "bf417e2d9a8d9d9da5b3a604b453153eaf07ab985689a0bd6da1fa44f2a1542f",
+      "repository_sha256": "bf417e2d9a8d9d9da5b3a604b453153eaf07ab985689a0bd6da1fa44f2a1542f"
+    }
+  ]
+}

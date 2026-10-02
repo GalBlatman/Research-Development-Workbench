@@ -1,0 +1,15 @@
+{
+  "rubric_id": "research-idea-protocol",
+  "version": "4",
+  "canonical_path": "policies/rubric-v4.md",
+  "canonical_sha256": "a94c195f1f95547cad00d9f2bdcd384cca58ae85bf40646d4b36146379b8f26d",
+  "status": "scaffold_not_executable",
+  "executable": false,
+  "implementation_task": "RDW-002",
+  "dimensions": [],
+  "routes": [],
+  "hard_stops": [],
+  "readiness_profiles": [],
+  "rules": [],
+  "note": "No policy transcription or executable rules implemented in RDW-001."
+}

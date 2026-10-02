@@ -1,0 +1,16 @@
+name: Foundation checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - run: node scripts/check.mjs
+      - run: node scripts/publication-guard.mjs --tracked
+# Python/domain and frontend build jobs are added when locked dependencies and
+# actual modules exist. No secrets, provider credentials or private fixtures.

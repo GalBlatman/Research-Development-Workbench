@@ -1,0 +1,7 @@
+{
+  "status": "scaffold_not_executable",
+  "implementation_task": "RDW-002",
+  "synthetic_only": true,
+  "cases": [],
+  "acceptance_reference": "docs/product-spec.md#212-deterministic-golden-cases"
+}

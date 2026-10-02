@@ -1,0 +1,19 @@
+[project]
+name = "research-development-workbench"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# Development dependency versions and uv.lock are pending Python setup.
+# No backend tests or application packages exist during RDW-001.
