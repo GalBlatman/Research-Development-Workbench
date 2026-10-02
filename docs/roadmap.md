@@ -3,7 +3,7 @@
 | Item | Scope | Dependency | State |
 |---|---|---|---|
 | RDW-001 | Bootstrap repository and governance | Canonical rubric/spec | Complete |
-| RDW-002 | Domain model and deterministic rubric engine | RDW-001; Python environment and locked tooling | Current implementation |
+| RDW-002 | Domain model and deterministic rubric engine | RDW-001; Python environment and locked tooling | Complete |
 | RDW-003 | Source/document core and project persistence | RDW-002 | Pending |
 | RDW-004 | Minimal end-to-end app using a fake model | RDW-003 | Pending |
 | GATE-1 | Independent architecture/acceptance audit | RDW-004 | Required before RDW-005 |
