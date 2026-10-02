@@ -1,15 +1,440 @@
 {
   "rubric_id": "research-idea-protocol",
   "version": "4",
+  "implementation_version": "4.1.0",
   "canonical_path": "policies/rubric-v4.md",
   "canonical_sha256": "a94c195f1f95547cad00d9f2bdcd384cca58ae85bf40646d4b36146379b8f26d",
-  "status": "scaffold_not_executable",
-  "executable": false,
-  "implementation_task": "RDW-002",
-  "dimensions": [],
-  "routes": [],
-  "hard_stops": [],
-  "readiness_profiles": [],
-  "rules": [],
-  "note": "No policy transcription or executable rules implemented in RDW-001."
+  "status": "implemented",
+  "executable": true,
+  "dimensions": [
+    {
+      "id": 1,
+      "name": "Consequential puzzle",
+      "weight": 10,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 2,
+      "name": "Audience-relative interestingness",
+      "weight": 10,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 3,
+      "name": "Theoretical advance",
+      "weight": 15,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 4,
+      "name": "Explanatory logic and mechanism",
+      "weight": 15,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 5,
+      "name": "Constructs, levels, and timing",
+      "weight": 8,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 6,
+      "name": "Discriminating implications and intellectual risk",
+      "weight": 9,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 7,
+      "name": "Coherence, reach, and usefulness",
+      "weight": 8,
+      "block": "idea",
+      "source": "v4 §4, §8.1"
+    },
+    {
+      "id": 8,
+      "name": "Construct–evidence alignment",
+      "weight": 10,
+      "block": "study",
+      "source": "v4 §5, §8.1"
+    },
+    {
+      "id": 9,
+      "name": "Credibility for the claimed inference",
+      "weight": 10,
+      "block": "study",
+      "source": "v4 §5, §8.1"
+    },
+    {
+      "id": 10,
+      "name": "Informative setting and sampling",
+      "weight": 5,
+      "block": "study",
+      "source": "v4 §5, §8.1"
+    }
+  ],
+  "rules": [
+    {
+      "id": "ROUTE-TOTAL",
+      "source": "v4 §§2.1, 8.1",
+      "consequence": "ESTABLISH/TEST I and P not applicable"
+    },
+    {
+      "id": "DISCOVERY-PENDING",
+      "source": "v4 §§2.1, 8.1",
+      "consequence": "Unarticulated explanatory account pending"
+    },
+    {
+      "id": "UNINSPECTED-BLOCK",
+      "source": "v4 §§3.1, 8.3",
+      "consequence": "Withhold affected total"
+    },
+    {
+      "id": "AUDIENCE-QUESTION",
+      "source": "v4 §§8.3",
+      "consequence": "Withhold final intellectual assessment"
+    },
+    {
+      "id": "PREMISE-NO-BASIS",
+      "source": "v4 §§8.2",
+      "consequence": "d1 maximum 3; I cap 39"
+    },
+    {
+      "id": "PREMISE-CONDITIONAL",
+      "source": "v4 §§8.2",
+      "consequence": "Conditional, no unqualified excellence/full-study commitment"
+    },
+    {
+      "id": "PREMISE-CONTRADICTED",
+      "source": "v4 §§8.2",
+      "consequence": "Block explanatory version as stated"
+    },
+    {
+      "id": "NO-ADVANCE",
+      "source": "v4 §§8.3",
+      "consequence": "I cap 39"
+    },
+    {
+      "id": "NO-CONSEQUENTIAL-STAKE",
+      "source": "v4 §§8.3",
+      "consequence": "I cap 69"
+    },
+    {
+      "id": "DESIGN-MISMATCH",
+      "source": "v4 §§8.3",
+      "consequence": "P cap 39; block submission"
+    },
+    {
+      "id": "INFERENCE-UNSUPPORTED",
+      "source": "v4 §§8.3",
+      "consequence": "P cap 39"
+    },
+    {
+      "id": "PROMISE-OVERREACH",
+      "source": "v4 §§8.3",
+      "consequence": "Use mapped existing idea/project rule; no extra penalty"
+    },
+    {
+      "id": "HIGH-SCORE-BENCHMARK",
+      "source": "v4 §§3.1",
+      "consequence": "Withhold unsupported exceptional rating"
+    },
+    {
+      "id": "EDITORIAL-UNCALIBRATED",
+      "source": "v4 §§3.3",
+      "consequence": "No editorial acceptance conversion"
+    },
+    {
+      "id": "PREDECESSORS-INSPECTED",
+      "source": "v4 §§8.4",
+      "consequence": "Required exceptional-idea predecessor inspection"
+    },
+    {
+      "id": "STAGE-PREREQUISITES",
+      "source": "v4 §§8.5",
+      "consequence": "No indispensable unresolved prerequisite for claimed stage"
+    },
+    {
+      "id": "CONSEQUENTIAL-STAKE",
+      "source": "v4 §§8.5",
+      "consequence": "Defensible consequential stake"
+    },
+    {
+      "id": "SUPPORT-VERIFIED",
+      "source": "v4 §§8.5",
+      "consequence": "No indispensable support check unverified"
+    },
+    {
+      "id": "PROMISE-ALIGNED",
+      "source": "v4 §§8.5",
+      "consequence": "Aligned honest contribution promise"
+    },
+    {
+      "id": "DELIVERED-SUPPORT",
+      "source": "v4 §§8.5",
+      "consequence": "Delivered support for completed route claim"
+    },
+    {
+      "id": "ROUTE-NO-HARD-STOP",
+      "source": "v4 §§8.5",
+      "consequence": "No route-appropriate hard stop"
+    },
+    {
+      "id": "CONTRIBUTION-STUDY-SPECIFIED",
+      "source": "v4 §§8.5",
+      "consequence": "Sufficiently specified next-stage contribution and study"
+    },
+    {
+      "id": "PILOT-PREREQUISITES",
+      "source": "v4 §§8.5",
+      "consequence": "Indispensable next-stage prerequisites established or in bounded pilot"
+    },
+    {
+      "id": "STAGE-MISMATCH",
+      "source": "v4 §§8.5",
+      "consequence": "Central mismatch defeats proposed stage"
+    },
+    {
+      "id": "KNOWLEDGE-NEED",
+      "source": "v4 §§2.2",
+      "consequence": "Consequential knowledge need"
+    },
+    {
+      "id": "IDENTIFIABLE-INCREMENT",
+      "source": "v4 §§2.2",
+      "consequence": "Identifiable knowledge increment"
+    },
+    {
+      "id": "CREDIBLE-BOUNDED-ACTION",
+      "source": "v4 §§2.2",
+      "consequence": "Credible resource-bounded action addresses main uncertainty"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "strong_idea",
+      "source": "v4 §§8.4–8.5",
+      "minimum_total": 70,
+      "floors": [
+        [
+          3,
+          7
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          1,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          7,
+          4
+        ]
+      ],
+      "requirements": [
+        "identified_audience",
+        "no_unresolved_premise",
+        "no_idea_hard_stop"
+      ]
+    },
+    {
+      "id": "exceptional_idea",
+      "source": "v4 §§8.4–8.5",
+      "minimum_total": 80,
+      "floors": [
+        [
+          3,
+          8
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          1,
+          7
+        ],
+        [
+          2,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          6
+        ]
+      ],
+      "requirements": [
+        "close_predecessors_inspected",
+        "required_benchmarks_inspected",
+        "no_unresolved_premise"
+      ]
+    },
+    {
+      "id": "strong_project",
+      "source": "v4 §§8.4–8.5",
+      "minimum_total": 60,
+      "floors": [
+        [
+          8,
+          6
+        ],
+        [
+          9,
+          6
+        ]
+      ],
+      "requirements": [
+        "strong_idea",
+        "stage_prerequisites",
+        "no_mismatch"
+      ]
+    },
+    {
+      "id": "exceptional_project",
+      "source": "v4 §§8.4–8.5",
+      "minimum_total": 70,
+      "floors": [
+        [
+          8,
+          7
+        ],
+        [
+          9,
+          7
+        ]
+      ],
+      "requirements": [
+        "exceptional_idea",
+        "stage_prerequisites",
+        "no_mismatch"
+      ]
+    },
+    {
+      "id": "submission_explain",
+      "source": "v4 §8.5",
+      "minimum_total": 50,
+      "floors": [
+        [
+          3,
+          5
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "requirements": [
+        "completed_study",
+        "consequential_stake",
+        "aligned_promise",
+        "no_hard_stop",
+        "support_verified"
+      ]
+    },
+    {
+      "id": "submission_route",
+      "source": "v4 §8.5",
+      "minimum_total": null,
+      "floors": [
+        [
+          8,
+          5
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "requirements": [
+        "adequate_completed_route",
+        "delivered_support",
+        "aligned_promise",
+        "no_hard_stop"
+      ]
+    },
+    {
+      "id": "proposal_readiness",
+      "source": "v4 §8.5",
+      "minimum_total": null,
+      "floors": [],
+      "requirements": [
+        "contribution_study_specified",
+        "pilot_prerequisites",
+        "no_stage_mismatch"
+      ]
+    }
+  ],
+  "anchors": [
+    "Required element absent, contradictory or invalid after assessment",
+    "Label/aspiration only",
+    "Major defect",
+    "Plausible beginning with central weakness",
+    "Near ordinary reference with consequential weakness",
+    "Solid ordinary accepted-paper treatment",
+    "Clearly stronger in specified respect",
+    "Notable supported strength",
+    "Exceptional relative to inspected published benchmarks",
+    "Rare/field-shaping with outstanding comparison",
+    "Decade-class exemplar on this dimension, not perfection"
+  ],
+  "routes": [
+    "EXPLAIN",
+    "ESTABLISH",
+    "TEST"
+  ],
+  "route_items": [
+    "knowledge_need",
+    "increment",
+    "scope_precision",
+    "capacity_to_learn",
+    "evidence_strategy",
+    "next_use"
+  ],
+  "rounding": "nearest_whole_half_up_after_gates",
+  "report_obligations": [
+    "Retain unrounded totals and integer profiles",
+    "Show uncapped/reported scores and reasons",
+    "Null is not zero",
+    "Record source/inspection limits",
+    "Separate proposed/completed endorsements",
+    "Editorial field UNCALIBRATED",
+    "Report provisional/borderline gates",
+    "No advance credit for repairs",
+    "Expected strength requires comparable capped branches and common budget"
+  ]
 }
