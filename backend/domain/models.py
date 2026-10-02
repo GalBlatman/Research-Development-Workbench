@@ -100,7 +100,7 @@ class DocumentVersion(Frozen):
     document_id: Text
     project_id: Text
     version: Revision
-    content_sha256: Hash
+    content_sha256: Hash | None
     original_storage_reference: Text
     role: Text
 

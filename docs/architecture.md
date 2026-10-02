@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance, pure domain contracts and deterministic policy are implemented through RDW-002; all other modules remain planned.
+Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance/domain/policy and scoped text/Markdown source/persistence foundations are implemented through RDW-003; other modules remain planned. PostgreSQL is canonical; SQLite shares the same contracts for local tests (ADR 0003).
 
 ## Ownership boundaries
 

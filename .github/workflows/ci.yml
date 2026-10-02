@@ -14,6 +14,23 @@ jobs:
       - run: node scripts/publication-guard.mjs --tracked
   domain-policy:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
+        env:
+          POSTGRES_USER: rdw_test
+          POSTGRES_PASSWORD: rdw_test
+          POSTGRES_DB: rdw_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rdw_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RDW_TEST_POSTGRES_DSN: postgresql://rdw_test:rdw_test@127.0.0.1:5432/rdw_test
+      RDW_REQUIRE_POSTGRES: '1'
     defaults:
       run:
         working-directory: backend
@@ -27,4 +44,4 @@ jobs:
       - run: uv run --locked pytest -q
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
-      - run: uv run --locked mypy domain policy_engine
+      - run: uv run --locked mypy domain policy_engine persistence services

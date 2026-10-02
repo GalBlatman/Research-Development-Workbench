@@ -1,0 +1,19 @@
+# ADR 0003: one scoped persistence contract, PostgreSQL canonical store
+
+Status: accepted within owner-authorized RDW-003, 2026-10-02.
+
+Implement ordinary relational scoped records with canonical Pydantic payloads and SHA-256 digests. PostgreSQL is the canonical store from spec §13.1. Psycopg 3.3.6 is exactly pinned in backend/uv.lock. SQLite is only the explicitly allowed lightweight local/test adapter, using the same schema, repository and domain contracts. No ORM, competing data model, vector/graph database or deployed service is introduced. Adapter transactions use PostgreSQL transaction contexts and nested SQLite savepoints; imports either commit completely or leave no project records.
+
+Store project heads and admission controls separately from append-only project revisions, source metadata/versions/anchors and evaluation snapshots. Database triggers reject history UPDATE and DELETE; later authorized privacy-deletion work must explicitly reconcile these guards with spec §18.6. The current task does not promise a complete deletion/backup system. Original bytes live in a separate private filesystem adapter with scoped opaque keys and integrity checks. A failed database append can leave an unreferenced private original; orphan cleanup/retention is a later operational concern, never a published record or overwritten original.
+
+Reuse RDW-002 Project, DocumentVersion and EvaluationSnapshot. DocumentVersion content_sha256 now permits null for genuinely missing originals instead of inventing an empty-file hash. This is a storage availability extension, not rubric policy. SourceRecord accepts only declared original uploads/pastes/attributed excerpts; model inference/interpretation remains ProjectObject. This contract validates declared provenance, not whether a caller's assertion of authorship is true. Pasted attribution remains user-reported, not automatically independently verified.
+
+Exact UTF-8 text/Markdown is retained without newline normalization. Location offsets are Unicode codepoints and 1-based lines; Markdown sections exclude fenced-code headings. Anchors identify document/version, offsets and quoted-text hash. Roles, parser version, source bytes hash and extraction availability are explicit. Superseded versions are retained; latest is derived rather than rewriting history.
+
+Every repository operation checks stored workspace ownership and project scope. Server identity is an internal trusted input, not a permission granted by model/browser text. Retrieval additionally requires selected admitted versions and rechecks admission before returning. No matching snippets do not establish absence. SQL credentials are for the persistence module only; policy engine stays network/model/database-free. RLS/host identity/coauthor roles remain later hardening decisions; no production security completeness is claimed.
+
+Record export is deterministic JSON. Default export omits source text and all original bytes; explicit source-text inclusion applies only to admitted versions. External text residency is recorded separately from the original extraction/evidence state, preserving scientific status and references. Imports preserve IDs, complete revision history, provenance, assessments/null statuses and snapshots, reject overwrite, and restore admission controls atomically. Imported original references may be unavailable in another file store; this is explicit, never fabricated content.
+
+CI runs identical adapter tests on PostgreSQL 17 from a resolved immutable official image digest and SQLite. Public rdw_test credentials are solely synthetic values for the ephemeral CI service, not production secrets. No local PostgreSQL/docker tools were found; actual PostgreSQL validation is therefore performed in CI before merge.
+
+Technical basis: https://www.psycopg.org/psycopg3/docs/basic/transactions.html ; https://www.postgresql.org/docs/17/ddl-rowsecurity.html .
