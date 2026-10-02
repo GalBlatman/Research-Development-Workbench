@@ -4,7 +4,7 @@
 |---|---|---|---|
 | RDW-001 | Bootstrap repository and governance | Canonical rubric/spec | Complete |
 | RDW-002 | Domain model and deterministic rubric engine | RDW-001; Python environment and locked tooling | Complete |
-| RDW-003 | Source/document core and project persistence | RDW-002 | Pending |
+| RDW-003 | Source/document core and project persistence | RDW-002 | Complete |
 | RDW-004 | Minimal end-to-end app using a fake model | RDW-003 | Pending |
 | GATE-1 | Independent architecture/acceptance audit | RDW-004 | Required before RDW-005 |
 | RDW-005 | Real bounded LLM evaluation workflow | GATE-1 passed; provider/data/budget decisions | Pending |

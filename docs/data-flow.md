@@ -1,6 +1,6 @@
 # Intended data flow
 
-No application flow exists at foundation.
+RDW-003 implements authorized original text/Markdown -> separate private original store -> immutable source versions/anchors -> scoped admitted lexical search, plus immutable project/snapshot persistence and portable record JSON. There is no UI/model evaluation workflow.
 
 Future: authorized user inputs -> immutable private file store/document versions -> isolated parsing -> anchored text and coverage -> server-authorized retrieval packet -> bounded workflow -> provider adapter -> anchor/semantic verification -> pure policy engine -> inspectable report and proposed actions. Structured records live in PostgreSQL behind authorized services; original files remain separate.
 
