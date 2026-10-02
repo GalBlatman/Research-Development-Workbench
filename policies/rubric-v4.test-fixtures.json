@@ -1,7 +1,274 @@
 {
-  "status": "scaffold_not_executable",
+  "status": "implemented",
   "implementation_task": "RDW-002",
   "synthetic_only": true,
-  "cases": [],
-  "acceptance_reference": "docs/product-spec.md#212-deterministic-golden-cases"
+  "acceptance_reference": "docs/product-spec.md#212-deterministic-golden-cases",
+  "cases": [
+    {
+      "id": "G01-midpoint",
+      "ratings": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "expected": {
+        "idea": "50",
+        "study": "50",
+        "project": "50"
+      }
+    },
+    {
+      "id": "G02-exceptional",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "expected": {
+        "idea": "80",
+        "study": "80",
+        "project": "80"
+      },
+      "gate": "exceptional_project"
+    },
+    {
+      "id": "G03-idea-only",
+      "ratings": [
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        null,
+        null,
+        null
+      ],
+      "study": false,
+      "expected": {
+        "idea": "70",
+        "study": null,
+        "project": null
+      }
+    },
+    {
+      "id": "G04-establish",
+      "route": "ESTABLISH",
+      "expected": {
+        "idea": null,
+        "study": "50",
+        "project": null
+      },
+      "idea_status": "not_applicable"
+    },
+    {
+      "id": "G05-test",
+      "route": "TEST",
+      "expected": {
+        "idea": null,
+        "study": "50",
+        "project": null
+      },
+      "idea_status": "not_applicable"
+    },
+    {
+      "id": "G06-discovery",
+      "articulated": false,
+      "stage": "DISCOVERY PROPOSAL",
+      "study": false,
+      "expected": {
+        "idea": null,
+        "study": null,
+        "project": null
+      }
+    },
+    {
+      "id": "G07-uninspected",
+      "ratings": [
+        5,
+        5,
+        5,
+        null,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "expected": {
+        "idea": null,
+        "study": "50",
+        "project": null
+      }
+    },
+    {
+      "id": "G08-premise-no-basis",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "findings": {
+        "PREMISE-NO-BASIS": "TRUE"
+      },
+      "expected": {
+        "idea": "39",
+        "study": "80",
+        "project": "59.5"
+      },
+      "d1": 3
+    },
+    {
+      "id": "G09-premise-plan",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "findings": {
+        "PREMISE-CONDITIONAL": "TRUE"
+      },
+      "expected": {
+        "idea": "80",
+        "study": "80",
+        "project": "80"
+      },
+      "label": "PREMISE-CONDITIONAL"
+    },
+    {
+      "id": "G10-design-mismatch",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        3,
+        3,
+        3
+      ],
+      "findings": {
+        "DESIGN-MISMATCH": "TRUE"
+      },
+      "expected": {
+        "idea": "80",
+        "study": "30",
+        "project": "39"
+      },
+      "project_uncapped": "55"
+    },
+    {
+      "id": "G11-cap-propagation",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "findings": {
+        "NO-ADVANCE": "TRUE",
+        "DESIGN-MISMATCH": "TRUE"
+      },
+      "expected": {
+        "idea": "39",
+        "study": "80",
+        "project": "39"
+      },
+      "project_before_caps": "59.5"
+    },
+    {
+      "id": "G12-unrounded",
+      "ratings": [
+        7,
+        5,
+        7,
+        7,
+        8,
+        8,
+        7,
+        5,
+        5,
+        5
+      ],
+      "expected": {
+        "idea": "69.6",
+        "study": "50",
+        "project": "59.8"
+      },
+      "display": 70,
+      "gate_false": "strong_idea"
+    },
+    {
+      "id": "G13-benchmark-withheld",
+      "ratings": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "benchmarks": false,
+      "expected": {
+        "idea": null,
+        "study": null,
+        "project": null
+      }
+    },
+    {
+      "id": "G14-scenarios",
+      "scenario": "expected",
+      "expected_strength": "66.8"
+    },
+    {
+      "id": "G15-stop",
+      "scenario": "stop"
+    },
+    {
+      "id": "G16-invalid-scenarios",
+      "scenario": "invalid"
+    }
+  ]
 }

@@ -17,16 +17,16 @@ test('governing copies retain recorded source bytes', () => {
   }
 });
 
-test('policy scaffolds cannot be mistaken for an implemented engine', () => {
+test('implemented policy and golden fixtures match the canonical baseline', () => {
   const manifest = JSON.parse(fs.readFileSync('policies/rubric-v4.manifest.json', 'utf8'));
-  assert.equal(manifest.executable, false);
-  assert.equal(manifest.status, 'scaffold_not_executable');
-  assert.deepEqual(manifest.rules, []);
+  assert.equal(manifest.executable, true);
+  assert.equal(manifest.status, 'implemented');
+  assert.ok(manifest.rules.length >= 27);
   const baseline = JSON.parse(fs.readFileSync('docs/baselines.json', 'utf8'));
   assert.equal(manifest.canonical_sha256, baseline.documents[0].source_sha256);
   const fixtures = JSON.parse(fs.readFileSync('policies/rubric-v4.test-fixtures.json', 'utf8'));
   assert.equal(fixtures.synthetic_only, true);
-  assert.deepEqual(fixtures.cases, []);
+  assert.equal(fixtures.cases.length, 16);
 });
 
 test('guard rejects obvious private categories and synthetic credentials', () => {

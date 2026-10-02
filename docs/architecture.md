@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Only governance and check tooling are established now.
+Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance, pure domain contracts and deterministic policy are implemented through RDW-002; all other modules remain planned.
 
 ## Ownership boundaries
 

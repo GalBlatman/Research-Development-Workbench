@@ -6,4 +6,4 @@ Execute only the named task. Preserve module boundaries; stop and report when re
 
 Never expose private references, uploads, unpublished research, builder exports or credentials. Review every staged file and run node scripts/check.mjs and required task tests before completion. No new external service, agent, database or major dependency without a documented accepted architecture decision. No software license has been selected.
 
-Workflow: short-lived task branch -> required checks -> human review -> merge. The initial local main commit is the RDW-001 bootstrap exception. Push/remote CI remain pending; no direct-push authorization is implied. RDW-002 is proposed, not started.
+Workflow: short-lived task branch -> required checks -> human review -> merge. The initial local main commit is the RDW-001 bootstrap exception. Main integration requires successful task checks and documented review; follow the owner-authorized integration workflow. RDW-002 implements pure domain/policy only; do not begin persistence without the next named task.
