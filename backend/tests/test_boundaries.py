@@ -51,5 +51,12 @@ def test_policy_import_without_network_or_model_clients():
     )
 
 
-def test_frontend_remains_placeholder():
-    assert sorted(p.name for p in (ROOT / "frontend").iterdir()) == ["README.md"]
+def test_model_adapter_cannot_access_network_or_persistence():
+    allowed = {"typing", "domain"}
+    for filename in (ROOT / "backend/model_adapters").glob("*.py"):
+        tree = ast.parse(filename.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                assert all(alias.name.split(".")[0] in allowed for alias in node.names)
+            if isinstance(node, ast.ImportFrom) and node.level == 0:
+                assert (node.module or "").split(".")[0] in allowed

@@ -1,7 +1,3 @@
-# Pure domain and v4 policy
+# Backend
 
-domain/models.py contains frozen typed research records, independent states, source-version references and immutable evaluation snapshots. policy_engine accepts a validated manifest plus explicitly supported semantic findings and manually assessed ratings; it returns exact scores, availability states, gates and structured rule trace. It reads no files and calls no network/model/database service.
-
-From this directory: uv sync --locked; uv run --locked pytest -q; uv run --locked ruff check .; uv run --locked ruff format --check .; uv run --locked mypy domain policy_engine persistence services. Tests use synthetic inputs only. Caller loads the manifest explicitly and supplies its canonical policy hash; engine does not inspect documents or verify scientific truth.
-
-Pydantic contracts roundtrip JSON with null/status preserved. Calculation results are immutable Python value objects containing exact Fraction values; display fields must never be fed back into calculations. RDW-003 adds PostgreSQL/SQLite scoped persistence, immutable source versions, text/Markdown anchors and authorized lexical source services. No application server is implemented; see persistence/README.md.
+Pydantic domain/source/application contracts, pure v4 policy, scoped PostgreSQL/SQLite persistence, source service and RDW-004 FastAPI/workflow/fake-adapter boundary. The fake adapter has no network/model/database access. Policy calculations remain independent of HTTP, models and persistence. See docs/development.md for locked setup, loopback runtime and complete checks. No real provider, authentication, durable worker or deployment is implemented.

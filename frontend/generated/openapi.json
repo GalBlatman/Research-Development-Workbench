@@ -1,0 +1,2330 @@
+{
+  "components": {
+    "schemas": {
+      "AddSource": {
+        "additionalProperties": false,
+        "properties": {
+          "admitted": {
+            "title": "Admitted",
+            "type": "boolean"
+          },
+          "attribution": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Attribution",
+            "type": "string"
+          },
+          "authorized": {
+            "const": true,
+            "title": "Authorized",
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "title",
+          "attribution",
+          "text",
+          "authorized",
+          "admitted"
+        ],
+        "title": "AddSource",
+        "type": "object"
+      },
+      "Adoption": {
+        "enum": [
+          "proposed",
+          "accepted",
+          "rejected",
+          "superseded"
+        ],
+        "title": "Adoption",
+        "type": "string"
+      },
+      "AssessmentView": {
+        "additionalProperties": false,
+        "properties": {
+          "account_articulated": {
+            "title": "Account Articulated",
+            "type": "boolean"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "ratings": {
+            "items": {
+              "$ref": "#/components/schemas/Rating"
+            },
+            "title": "Ratings",
+            "type": "array"
+          },
+          "route_assessment": {
+            "items": {
+              "$ref": "#/components/schemas/RouteItem"
+            },
+            "title": "Route Assessment",
+            "type": "array"
+          },
+          "study_assessable": {
+            "title": "Study Assessable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account_articulated",
+          "study_assessable",
+          "ratings",
+          "findings",
+          "route_assessment"
+        ],
+        "title": "AssessmentView",
+        "type": "object"
+      },
+      "Benchmark": {
+        "additionalProperties": false,
+        "properties": {
+          "comparison": {
+            "minLength": 1,
+            "title": "Comparison",
+            "type": "string"
+          },
+          "dimension_reason": {
+            "minLength": 1,
+            "title": "Dimension Reason",
+            "type": "string"
+          },
+          "inspected": {
+            "title": "Inspected",
+            "type": "boolean"
+          },
+          "published_reference": {
+            "minLength": 1,
+            "title": "Published Reference",
+            "type": "string"
+          },
+          "relevant": {
+            "title": "Relevant",
+            "type": "boolean"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          }
+        },
+        "required": [
+          "comparison",
+          "dimension_reason",
+          "published_reference",
+          "inspected",
+          "relevant",
+          "verification"
+        ],
+        "title": "Benchmark",
+        "type": "object"
+      },
+      "Brief": {
+        "additionalProperties": false,
+        "properties": {
+          "core_insight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Core Insight"
+          },
+          "intended_contribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intended Contribution"
+          },
+          "kind": {
+            "const": "brief",
+            "default": "brief",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "stakes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stakes"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "Brief",
+        "type": "object"
+      },
+      "Claim": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_type": {
+            "enum": [
+              "premise",
+              "mechanism",
+              "prediction",
+              "assumption",
+              "contribution"
+            ],
+            "title": "Claim Type",
+            "type": "string"
+          },
+          "construct_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Construct Ids",
+            "type": "array"
+          },
+          "kind": {
+            "const": "claim",
+            "default": "claim",
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "claim_type"
+        ],
+        "title": "Claim",
+        "type": "object"
+      },
+      "Comparison": {
+        "additionalProperties": false,
+        "properties": {
+          "account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Account Ids",
+            "type": "array"
+          },
+          "discrimination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Discrimination"
+          },
+          "expected_observations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Observations",
+            "type": "array"
+          },
+          "kind": {
+            "const": "comparison",
+            "default": "comparison",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_ids",
+          "expected_observations"
+        ],
+        "title": "Comparison",
+        "type": "object"
+      },
+      "Construct": {
+        "additionalProperties": false,
+        "properties": {
+          "definition": {
+            "minLength": 1,
+            "title": "Definition",
+            "type": "string"
+          },
+          "kind": {
+            "const": "construct",
+            "default": "construct",
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Level"
+          },
+          "timing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Timing"
+          }
+        },
+        "required": [
+          "definition"
+        ],
+        "title": "Construct",
+        "type": "object"
+      },
+      "CoverageView": {
+        "additionalProperties": false,
+        "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/SourceAnchor"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "version",
+          "state",
+          "anchors",
+          "note"
+        ],
+        "title": "CoverageView",
+        "type": "object"
+      },
+      "CreateProject": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized": {
+            "const": true,
+            "title": "Authorized",
+            "type": "boolean"
+          },
+          "idea": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Idea",
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/components/schemas/Route",
+            "default": "EXPLAIN"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/Stage",
+            "default": "DISCOVERY PROPOSAL"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "idea",
+          "authorized"
+        ],
+        "title": "CreateProject",
+        "type": "object"
+      },
+      "EditProject": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idea": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Idea",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "idea"
+        ],
+        "title": "EditProject",
+        "type": "object"
+      },
+      "EvaluateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "fixture": {
+            "default": "limited",
+            "enum": [
+              "limited",
+              "scored"
+            ],
+            "title": "Fixture",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "EvaluateRequest",
+        "type": "object"
+      },
+      "EvidenceCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "checked_by": {
+            "minLength": 1,
+            "title": "Checked By",
+            "type": "string"
+          },
+          "claim_id": {
+            "minLength": 1,
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "object_of_verification": {
+            "minLength": 1,
+            "title": "Object Of Verification",
+            "type": "string"
+          },
+          "outcome": {
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "source_refs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "check_id",
+          "claim_id",
+          "object_of_verification",
+          "provenance",
+          "checked_by",
+          "outcome"
+        ],
+        "title": "EvidenceCheck",
+        "type": "object"
+      },
+      "EvidenceState": {
+        "enum": [
+          "documented_or_verified",
+          "specified_but_untested",
+          "contested",
+          "missing",
+          "not_inspected",
+          "contradicted",
+          "not_applicable"
+        ],
+        "title": "EvidenceState",
+        "type": "string"
+      },
+      "ExactValue": {
+        "additionalProperties": false,
+        "properties": {
+          "denominator": {
+            "title": "Denominator",
+            "type": "integer"
+          },
+          "numerator": {
+            "title": "Numerator",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "numerator",
+          "denominator"
+        ],
+        "title": "ExactValue",
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "reasoning": {
+            "minLength": 1,
+            "title": "Reasoning",
+            "type": "string"
+          },
+          "rule_id": {
+            "minLength": 1,
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "scope": {
+            "minLength": 1,
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_refs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "value": {
+            "$ref": "#/components/schemas/Truth"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          }
+        },
+        "required": [
+          "rule_id",
+          "value",
+          "reasoning",
+          "scope",
+          "verification"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "Freshness": {
+        "enum": [
+          "current",
+          "affected_by_change",
+          "superseded"
+        ],
+        "title": "Freshness",
+        "type": "string"
+      },
+      "GateView": {
+        "additionalProperties": false,
+        "properties": {
+          "missed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missed",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provisional": {
+            "title": "Provisional",
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/Truth"
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "provisional",
+          "missed"
+        ],
+        "title": "GateView",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Origin": {
+        "enum": [
+          "user_text",
+          "document_extraction",
+          "model_inference",
+          "development_suggestion"
+        ],
+        "title": "Origin",
+        "type": "string"
+      },
+      "PolicyResult": {
+        "additionalProperties": false,
+        "properties": {
+          "editorial_status": {
+            "const": "UNCALIBRATED",
+            "title": "Editorial Status",
+            "type": "string"
+          },
+          "effective_ratings": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Effective Ratings",
+            "type": "array"
+          },
+          "endorsement_stage": {
+            "title": "Endorsement Stage",
+            "type": "string"
+          },
+          "gates": {
+            "items": {
+              "$ref": "#/components/schemas/GateView"
+            },
+            "title": "Gates",
+            "type": "array"
+          },
+          "idea": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "idea_uncapped": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "policy_manifest_sha256": {
+            "title": "Policy Manifest Sha256",
+            "type": "string"
+          },
+          "policy_sha256": {
+            "title": "Policy Sha256",
+            "type": "string"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "project_before_caps": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "project_uncapped": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "route": {
+            "$ref": "#/components/schemas/Route"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/Stage"
+          },
+          "study": {
+            "$ref": "#/components/schemas/ScoreView"
+          },
+          "trace": {
+            "items": {
+              "$ref": "#/components/schemas/TraceView"
+            },
+            "title": "Trace",
+            "type": "array"
+          }
+        },
+        "required": [
+          "route",
+          "stage",
+          "snapshot_id",
+          "policy_sha256",
+          "policy_manifest_sha256",
+          "idea_uncapped",
+          "idea",
+          "study",
+          "project_uncapped",
+          "project_before_caps",
+          "project",
+          "effective_ratings",
+          "gates",
+          "trace",
+          "label",
+          "endorsement_stage",
+          "editorial_status"
+        ],
+        "title": "PolicyResult",
+        "type": "object"
+      },
+      "Project": {
+        "additionalProperties": false,
+        "properties": {
+          "objects": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProjectObject"
+            },
+            "title": "Objects",
+            "type": "array"
+          },
+          "project_id": {
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "route": {
+            "$ref": "#/components/schemas/Route"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/Stage"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "workspace_id": {
+            "minLength": 1,
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "workspace_id",
+          "title",
+          "revision",
+          "route",
+          "stage"
+        ],
+        "title": "Project",
+        "type": "object"
+      },
+      "ProjectObject": {
+        "additionalProperties": false,
+        "properties": {
+          "adoption": {
+            "$ref": "#/components/schemas/Adoption"
+          },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "evidence_state": {
+            "$ref": "#/components/schemas/EvidenceState"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness",
+            "default": "current"
+          },
+          "generated_by_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Generated By Run Id"
+          },
+          "object_id": {
+            "minLength": 1,
+            "title": "Object Id",
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "payload": {
+            "discriminator": {
+              "mapping": {
+                "brief": "#/components/schemas/Brief",
+                "claim": "#/components/schemas/Claim",
+                "comparison": "#/components/schemas/Comparison",
+                "construct": "#/components/schemas/Construct",
+                "question": "#/components/schemas/Question",
+                "study": "#/components/schemas/Study"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Question"
+              },
+              {
+                "$ref": "#/components/schemas/Construct"
+              },
+              {
+                "$ref": "#/components/schemas/Claim"
+              },
+              {
+                "$ref": "#/components/schemas/Study"
+              },
+              {
+                "$ref": "#/components/schemas/Comparison"
+              },
+              {
+                "$ref": "#/components/schemas/Brief"
+              }
+            ],
+            "title": "Payload"
+          },
+          "project_id": {
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source_refs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "object_id",
+          "project_id",
+          "revision",
+          "payload",
+          "origin",
+          "adoption",
+          "evidence_state"
+        ],
+        "title": "ProjectObject",
+        "type": "object"
+      },
+      "ProjectView": {
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewIndex"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project",
+          "sources",
+          "reviews"
+        ],
+        "title": "ProjectView",
+        "type": "object"
+      },
+      "Provenance": {
+        "enum": [
+          "user_reported",
+          "source_text_inspected",
+          "analysis_artifact_inspected",
+          "app_reproduced"
+        ],
+        "title": "Provenance",
+        "type": "string"
+      },
+      "PublicDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "content_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Sha256"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "project_id",
+          "version",
+          "content_sha256",
+          "role"
+        ],
+        "title": "PublicDocument",
+        "type": "object"
+      },
+      "Question": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audience"
+          },
+          "kind": {
+            "const": "question",
+            "default": "question",
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Question",
+        "type": "object"
+      },
+      "Rating": {
+        "additionalProperties": false,
+        "properties": {
+          "benchmark": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Benchmark"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dimension": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Dimension",
+            "type": "integer"
+          },
+          "inspected_material": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Inspected Material",
+            "type": "array"
+          },
+          "main_limitation": {
+            "minLength": 1,
+            "title": "Main Limitation",
+            "type": "string"
+          },
+          "plausible_range": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 10.0,
+                    "minimum": 0.0,
+                    "type": "integer"
+                  },
+                  {
+                    "maximum": 10.0,
+                    "minimum": 0.0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plausible Range"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "rationale": {
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          }
+        },
+        "required": [
+          "dimension",
+          "rating",
+          "status",
+          "rationale",
+          "main_limitation",
+          "verification"
+        ],
+        "title": "Rating",
+        "type": "object"
+      },
+      "ReviewIndex": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "revision"
+        ],
+        "title": "ReviewIndex",
+        "type": "object"
+      },
+      "ReviewSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "contribution": {
+            "minLength": 1,
+            "title": "Contribution",
+            "type": "string"
+          },
+          "deliverable": {
+            "minLength": 1,
+            "title": "Deliverable",
+            "type": "string"
+          },
+          "disclaimer": {
+            "const": "Fake fixture output; no scientific assessment or semantic verification.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "fixture": {
+            "enum": [
+              "limited",
+              "scored"
+            ],
+            "title": "Fixture",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "next_action": {
+            "minLength": 1,
+            "title": "Next Action",
+            "type": "string"
+          },
+          "obstacle": {
+            "minLength": 1,
+            "title": "Obstacle",
+            "type": "string"
+          },
+          "outcome_branches": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Outcome Branches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contribution",
+          "obstacle",
+          "limitations",
+          "next_action",
+          "deliverable",
+          "outcome_branches",
+          "fixture",
+          "disclaimer"
+        ],
+        "title": "ReviewSummary",
+        "type": "object"
+      },
+      "ReviewView": {
+        "additionalProperties": false,
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/AssessmentView"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageView"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/PolicyResult"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/SnapshotView"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReviewSummary"
+          }
+        },
+        "required": [
+          "snapshot",
+          "summary",
+          "assessment",
+          "policy",
+          "stale",
+          "coverage"
+        ],
+        "title": "ReviewView",
+        "type": "object"
+      },
+      "RevisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "RevisionRequest",
+        "type": "object"
+      },
+      "Route": {
+        "enum": [
+          "EXPLAIN",
+          "ESTABLISH",
+          "TEST"
+        ],
+        "title": "Route",
+        "type": "string"
+      },
+      "RouteItem": {
+        "additionalProperties": false,
+        "properties": {
+          "item": {
+            "enum": [
+              "knowledge_need",
+              "increment",
+              "scope_precision",
+              "capacity_to_learn",
+              "evidence_strategy",
+              "next_use"
+            ],
+            "title": "Item",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ADEQUATE FOR STAGE",
+              "DEVELOPMENT NEEDED",
+              "BLOCKING",
+              "NOT INSPECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "status",
+          "reason"
+        ],
+        "title": "RouteItem",
+        "type": "object"
+      },
+      "Scope": {
+        "enum": [
+          "INITIAL_SCREEN",
+          "TARGETED_CHECK",
+          "FULL_EVALUATION",
+          "REVISION_REVIEW"
+        ],
+        "title": "Scope",
+        "type": "string"
+      },
+      "ScoreView": {
+        "additionalProperties": false,
+        "properties": {
+          "displayed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayed"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExactValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "value",
+          "displayed",
+          "status",
+          "reason"
+        ],
+        "title": "ScoreView",
+        "type": "object"
+      },
+      "SnapshotView": {
+        "additionalProperties": false,
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/PublicDocument"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "model_configuration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Configuration"
+          },
+          "policy_implementation_version": {
+            "title": "Policy Implementation Version",
+            "type": "string"
+          },
+          "policy_manifest_sha256": {
+            "title": "Policy Manifest Sha256",
+            "type": "string"
+          },
+          "policy_sha256": {
+            "title": "Policy Sha256",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "project",
+          "documents",
+          "policy_version",
+          "policy_sha256",
+          "policy_manifest_sha256",
+          "policy_implementation_version",
+          "prompt_version",
+          "model_configuration",
+          "scope"
+        ],
+        "title": "SnapshotView",
+        "type": "object"
+      },
+      "SourceAnchor": {
+        "additionalProperties": false,
+        "properties": {
+          "anchor_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Anchor Id",
+            "type": "string"
+          },
+          "document_id": {
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "end": {
+            "minimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "line_end": {
+            "minimum": 1,
+            "title": "Line End",
+            "type": "integer"
+          },
+          "line_start": {
+            "minimum": 1,
+            "title": "Line Start",
+            "type": "integer"
+          },
+          "location_kind": {
+            "const": "section",
+            "default": "section",
+            "title": "Location Kind",
+            "type": "string"
+          },
+          "quoted_text_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Quoted Text Sha256",
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "anchor_id",
+          "document_id",
+          "version",
+          "start",
+          "end",
+          "line_start",
+          "line_end",
+          "quoted_text_sha256"
+        ],
+        "title": "SourceAnchor",
+        "type": "object"
+      },
+      "SourceRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attribution"
+          },
+          "document_id": {
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "media_type": {
+            "enum": [
+              "text/plain",
+              "text/markdown"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "project_id": {
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "rights_declaration": {
+            "minLength": 1,
+            "title": "Rights Declaration",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/SourceRole"
+          },
+          "source_kind": {
+            "enum": [
+              "uploaded_original",
+              "pasted_original",
+              "pasted_excerpt"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "workspace_id": {
+            "minLength": 1,
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "workspace_id",
+          "project_id",
+          "title",
+          "source_kind",
+          "role",
+          "media_type",
+          "rights_declaration"
+        ],
+        "title": "SourceRecord",
+        "type": "object"
+      },
+      "SourceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "anchor_id": {
+            "minLength": 1,
+            "title": "Anchor Id",
+            "type": "string"
+          },
+          "document_id": {
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "version",
+          "anchor_id"
+        ],
+        "title": "SourceReference",
+        "type": "object"
+      },
+      "SourceRole": {
+        "enum": [
+          "project_draft",
+          "author_note",
+          "closest_predecessor",
+          "literature",
+          "alternative_account",
+          "method_or_measure",
+          "context"
+        ],
+        "title": "SourceRole",
+        "type": "string"
+      },
+      "SourceView": {
+        "additionalProperties": false,
+        "properties": {
+          "admitted": {
+            "title": "Admitted",
+            "type": "boolean"
+          },
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/SourceAnchor"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRecord"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "version",
+          "state",
+          "admitted",
+          "text",
+          "anchors"
+        ],
+        "title": "SourceView",
+        "type": "object"
+      },
+      "Stage": {
+        "enum": [
+          "EARLY IDEA",
+          "DISCOVERY PROPOSAL",
+          "SPECIFIED STUDY PROPOSAL",
+          "COMPLETED STUDY"
+        ],
+        "title": "Stage",
+        "type": "string"
+      },
+      "Status": {
+        "enum": [
+          "assessed",
+          "pending",
+          "not_applicable",
+          "conditional",
+          "contested",
+          "unresolved"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "Study": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Claim Ids",
+            "type": "array"
+          },
+          "comparisons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Comparisons",
+            "type": "array"
+          },
+          "design": {
+            "minLength": 1,
+            "title": "Design",
+            "type": "string"
+          },
+          "inference": {
+            "minLength": 1,
+            "title": "Inference",
+            "type": "string"
+          },
+          "kind": {
+            "const": "study",
+            "default": "study",
+            "title": "Kind",
+            "type": "string"
+          },
+          "measures": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Measures",
+            "type": "array"
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sample"
+          }
+        },
+        "required": [
+          "inference",
+          "design"
+        ],
+        "title": "Study",
+        "type": "object"
+      },
+      "TraceView": {
+        "additionalProperties": false,
+        "properties": {
+          "consequence": {
+            "title": "Consequence",
+            "type": "string"
+          },
+          "reasoning": {
+            "title": "Reasoning",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/Truth"
+          }
+        },
+        "required": [
+          "rule_id",
+          "value",
+          "consequence",
+          "reasoning",
+          "source"
+        ],
+        "title": "TraceView",
+        "type": "object"
+      },
+      "Truth": {
+        "enum": [
+          "TRUE",
+          "FALSE",
+          "UNKNOWN"
+        ],
+        "title": "Truth",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Verification": {
+        "enum": [
+          "supported",
+          "needs_revision",
+          "unresolved"
+        ],
+        "title": "Verification",
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "title": "Research Development Workbench — fake local slice",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/demo": {
+      "get": {
+        "operationId": "demo_api_demo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Demo Api Demo Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Demo"
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/projects": {
+      "post": {
+        "operationId": "create_api_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create"
+      }
+    },
+    "/api/projects/{project_id}": {
+      "get": {
+        "operationId": "project_api_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project"
+      },
+      "patch": {
+        "operationId": "edit_api_projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit"
+      }
+    },
+    "/api/projects/{project_id}/evaluations": {
+      "post": {
+        "operationId": "evaluate_api_projects__project_id__evaluations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate"
+      }
+    },
+    "/api/projects/{project_id}/exports/{format}": {
+      "get": {
+        "operationId": "export_api_projects__project_id__exports__format__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "enum": [
+                "json",
+                "markdown"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export"
+      }
+    },
+    "/api/projects/{project_id}/proposals/{object_id}/accept": {
+      "post": {
+        "operationId": "accept_api_projects__project_id__proposals__object_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept"
+      }
+    },
+    "/api/projects/{project_id}/reviews/{snapshot_id}": {
+      "get": {
+        "operationId": "review_api_projects__project_id__reviews__snapshot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review"
+      }
+    },
+    "/api/projects/{project_id}/sources": {
+      "post": {
+        "operationId": "source_api_projects__project_id__sources_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source"
+      }
+    },
+    "/api/projects/{project_id}/sources/{document_id}/{version}/{anchor_id}": {
+      "get": {
+        "operationId": "read_source_api_projects__project_id__sources__document_id___version___anchor_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "anchor_id",
+            "required": true,
+            "schema": {
+              "title": "Anchor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Read Source Api Projects  Project Id  Sources  Document Id   Version   Anchor Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Source"
+      }
+    }
+  }
+}
