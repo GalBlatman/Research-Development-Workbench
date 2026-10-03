@@ -19,7 +19,12 @@ const child = spawn(
   ],
   {
     cwd: "../backend",
-    env: { ...process.env, RDW_RUNTIME_ROOT: runtime },
+    env: {
+      ...process.env,
+      RDW_RUNTIME_ROOT: runtime,
+      RDW_DATABASE_MODE: "local-sqlite",
+      RDW_PROVIDER: "fake",
+    },
     stdio: "inherit",
   },
 );

@@ -566,6 +566,11 @@ export interface components {
              * @default User decision
              */
             reason: string;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
         };
         /** Dependency */
         Dependency: {
@@ -588,6 +593,11 @@ export interface components {
             /** Object Id */
             object_id?: string | null;
             /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
+            /**
              * Workspace
              * @enum {string}
              */
@@ -607,6 +617,11 @@ export interface components {
         EvaluateRequest: {
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
             /**
              * Scope
              * @default INITIAL_SCREEN
@@ -844,6 +859,11 @@ export interface components {
             generated_by_run_id: string | null;
             /** Object Id */
             object_id: string;
+            /**
+             * Operation Id
+             * @default null
+             */
+            operation_id: string | null;
             origin: components["schemas"]["Origin"];
             /** Payload */
             payload: components["schemas"]["Question"] | components["schemas"]["Construct"] | components["schemas"]["Claim"] | components["schemas"]["Study"] | components["schemas"]["Comparison"] | components["schemas"]["Brief"] | components["schemas"]["ResearchRecord"];
@@ -1033,6 +1053,11 @@ export interface components {
             object_id?: string | null;
             record: components["schemas"]["ResearchRecord"];
             /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
+            /**
              * Source Refs
              * @default []
              */
@@ -1171,6 +1196,11 @@ export interface components {
         RevisionRequest: {
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
         };
         /**
          * Route
@@ -1194,19 +1224,29 @@ export interface components {
         };
         /** RunHandle */
         RunHandle: {
+            /** Duration Seconds */
+            duration_seconds?: number | null;
             /** Error Code */
             error_code?: string | null;
             /** Expected Revision */
             expected_revision: number;
+            /** Failure Kind */
+            failure_kind?: ("timeout_uncertain" | "transport_uncertain" | "budget_exhausted" | "interrupted_uncertain" | "provider" | "contract" | "conflict") | null;
+            /** Finished At */
+            finished_at?: string | null;
             /** Project Id */
             project_id: string;
             provider_run?: components["schemas"]["ProviderRun"] | null;
+            /** Request Key */
+            request_key?: string | null;
             /** Result Revision */
             result_revision?: number | null;
             /** Run Id */
             run_id: string;
             /** Snapshot Id */
             snapshot_id?: string | null;
+            /** Started At */
+            started_at?: string | null;
             /**
              * State
              * @enum {string}
@@ -1236,6 +1276,11 @@ export interface components {
             evaluation_target: "manuscript_as_written" | "current_project_as_clarified";
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
             route: components["schemas"]["Route"];
             /** Session Goal */
             session_goal: string;
@@ -1429,6 +1474,11 @@ export interface components {
             dimensions: number[];
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
         };
         /** TraceView */
         TraceView: {
@@ -1520,6 +1570,11 @@ export interface components {
         WorkspaceCheckRequest: {
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Retry Failed
+             * @default false
+             */
+            retry_failed: boolean;
             /**
              * Workspace
              * @enum {string}

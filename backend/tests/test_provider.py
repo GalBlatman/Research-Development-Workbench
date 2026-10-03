@@ -333,7 +333,7 @@ def test_explicit_failures_no_retry_or_private_error_leak(packet, monkeypatch, s
     assert "synthetic-private-error" not in caught.value.metadata.model_dump_json()
 
 
-@pytest.mark.parametrize("status", [429, 500, 400])
+@pytest.mark.parametrize("status", [429, 500, 400, 404])
 def test_retry_bounds_and_attempt_budget(packet, monkeypatch, status):
     _, _, task = packet
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-placeholder")
@@ -351,7 +351,7 @@ def test_retry_bounds_and_attempt_budget(packet, monkeypatch, status):
     )
     with pytest.raises(ProviderFailure) as caught:
         model.interpret(InterpretationTask(context=task.context))
-    assert len(calls) == (1 if status == 400 else 2)
+    assert len(calls) == (1 if status in (400, 404) else 2)
     assert len(caught.value.metadata.calls) == len(calls)
     assert "synthetic-private-provider-error" not in caught.value.metadata.model_dump_json()
 
@@ -448,6 +448,7 @@ def test_real_configured_api_run_handle_reload_and_source_separation(
     model, checker, requests = adapter(monkeypatch)
     monkeypatch.setenv("RDW_PROVIDER", "openai")
     monkeypatch.setenv("RDW_RUNTIME_ROOT", str(tmp_path / "private-runtime"))
+    monkeypatch.setenv("RDW_DATABASE_MODE", "local-sqlite")
     # Each worker owns its own connection/client; mocks replace transport only.
     monkeypatch.setattr(
         "api.app.OpenAIAdapter",
@@ -688,3 +689,27 @@ def test_checking_contract_explicit_targets_and_rejects_omissions(packet, monkey
     with pytest.raises(ProviderFailure, match="INCOMPLETE_CHECK"):
         checker.review(task, candidate)
     assert len(requests) == 1
+
+
+def test_publication_race_retains_incurred_checking_usage(packet, monkeypatch):
+    from domain.application import EditProject
+    from persistence.repository import Conflict
+
+    w, view, _ = packet
+    pid, revision = view["project"]["project_id"], view["project"]["revision"]
+
+    def change(kind, output):
+        if kind == "rdw_checking":
+            w.edit(
+                pid, EditProject(expected_revision=revision, idea="Synthetic edit during checking.")
+            )
+        return output
+
+    model, checker, requests = adapter(monkeypatch, change)
+    w.adapter, w.verifier = model, checker
+    with pytest.raises(Conflict) as caught:
+        w.run(pid, revision)
+    assert len(requests) == 2
+    assert caught.value.provider_metadata and len(caught.value.provider_metadata.calls) == 2
+    assert sum(c.input_tokens for c in caught.value.provider_metadata.calls) == 800
+    assert not w.bundle(pid).snapshots

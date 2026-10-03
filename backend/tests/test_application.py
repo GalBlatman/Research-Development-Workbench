@@ -445,6 +445,7 @@ def test_provider_contract_has_no_snapshot_or_fixture(app_client):
     assert set(schema["components"]["schemas"]["EvaluateRequest"]["properties"]) == {
         "expected_revision",
         "scope",
+        "retry_failed",
     }
     response = client.post(
         f"/api/projects/{identifier}/evaluations",

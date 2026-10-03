@@ -6,7 +6,7 @@ From backend run uv sync --locked, uv run --locked pytest -q, uv run --locked ru
 
 ## Run the local fake app
 
-Choose an explicit private runtime directory outside the checkout and references. Set RDW_RUNTIME_ROOT to that directory. If RDW_POSTGRES_DSN is configured, it is the canonical backend; otherwise the local demo uses SQLite in the private directory. No runtime data is tracked. In backend run:
+Choose an explicit private runtime directory outside the checkout and references. Set RDW_RUNTIME_ROOT to that directory. Set RDW_DATABASE_MODE=postgres and RDW_POSTGRES_DSN for canonical PostgreSQL persistence. An explicitly selected RDW_DATABASE_MODE=local-sqlite uses SQLite for a lightweight local demo; there is no automatic fallback. See [private-pilot.md](private-pilot.md) for startup, migration, backup and recovery commands. No runtime data is tracked. In backend run:
 
 ```text
 uv sync --locked
@@ -47,4 +47,4 @@ A model development request proposes one bounded record and runs its focused che
 
 When saving an edit, classify consequential meaning changes, wording-only changes or resource-only changes explicitly. The server applies conservative specification dependency groups plus optional named object dependencies and admitted source versions. Affected suggestions require a fresh request or an explicit manual alternative. Check a workspace alone to create a fresh immutable review for its existing rubric dimensions; this does not overwrite/merge a prior integrated assessment. Initial, full and revision review scopes are available separately. The frontend renders these server outcomes without calculating policy.
 
-History opens stored reviews, revisions, adoption actions and source versions. Current JSON/Markdown and next-action Markdown retain provenance and evidence distinctions. A historical revision JSON uses stored snapshots and original source/version/anchor identities; it never reapplies today's policy to old records. GATE-2 is the next required independent audit and has not been started.
+History opens stored reviews, revisions, adoption actions and source versions. Current JSON/Markdown and next-action Markdown retain provenance and evidence distinctions. A historical revision JSON uses stored snapshots and original source/version/anchor identities; it never reapplies today's policy to old records. GATE-2 passed on its recorded baseline. GATE-3 remains the next independent audit and has not been started.

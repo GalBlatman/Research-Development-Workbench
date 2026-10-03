@@ -1,6 +1,8 @@
 """Administrator-only immutable artifacts and exclusive run reservations."""
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import TypeVar
 
@@ -19,17 +21,46 @@ T = TypeVar("T", bound=Frozen)
 
 class AdminStore:
     def __init__(self, root: Path):
-        self.root = root
+        self.root = root.resolve()
         root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, category: str, identity: str) -> Path:
+        if category not in {
+            "projects",
+            "variants",
+            "runs",
+            "splits",
+            "claims",
+            "batch_slots",
+            "annotations",
+        }:
+            raise ValueError("Unknown administrator artifact category")
         folder = self.root / category
         folder.mkdir(exist_ok=True)
         return folder / (content_hash(identity) + ".json")
 
     def write(self, category: str, identity: str, value: Frozen) -> None:
-        with self._path(category, identity).open("x", encoding="utf-8", newline="\n") as f:
-            f.write(value.model_dump_json(indent=2) + "\n")
+        target = self._path(category, identity)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                dir=target.parent,
+                prefix=".stage-",
+                suffix=".tmp",
+                delete=False,
+            ) as stream:
+                temporary = Path(stream.name)
+                stream.write(value.model_dump_json(indent=2) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            # Atomic publish without overwrite: supported local NTFS/ext4 runtime.
+            os.link(temporary, target)
+        finally:
+            if temporary:
+                temporary.unlink(missing_ok=True)
 
     def read(self, category: str, identity: str, contract: type[T]) -> T:
         return contract.model_validate_json(
