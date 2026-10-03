@@ -7,6 +7,7 @@ from domain.models import EvidenceState, Origin
 from domain.sources import ProjectBundle, StoredSnapshot, canonical
 from policy_engine.manifest import Manifest
 from services.configuration import ROOT
+from services.provenance import imported_object
 from services.workbench import Workbench
 
 
@@ -132,11 +133,7 @@ def _portable_bundle(serialized: str) -> ProjectBundle:
             raise ValueError("Historical snapshot references unavailable source version")
     revisions = tuple(
         project.model_copy(
-            update={
-                "objects": tuple(
-                    obj.model_copy(update={"imported": True}) for obj in project.objects
-                )
-            }
+            update={"objects": tuple(imported_object(obj, anchor_refs) for obj in project.objects)}
         )
         for project in bundle.revisions
     )

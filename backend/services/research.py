@@ -31,6 +31,7 @@ from domain.research import (
 )
 from model_adapters.runtime import ProviderFailure, provider_session
 from persistence.repository import Conflict
+from services.exporting import sanitize_export
 
 if TYPE_CHECKING:
     from services.workbench import Workbench
@@ -307,7 +308,7 @@ class ResearchService:
             )
             versions = changed(
                 project,
-                "resources" if request.change == "resources" else request.record.workspace,
+                request.record.workspace,
                 request.object_id,
                 request.change == "wording",
             )
@@ -677,29 +678,33 @@ class ResearchService:
         versions |= {(d.document_id, d.version) for s in reviews for d in s.snapshot.documents}
         # Choose source versions by immutable project chronology, not later current admissions.
         return json.dumps(
-            {
-                "schema_version": "rdw-history-1",
-                "project": project.model_dump(mode="json"),
-                "reviews": [
-                    s.model_dump(
-                        mode="json",
-                        exclude={
-                            "snapshot": {"documents": {"__all__": {"original_storage_reference"}}}
-                        },
-                    )
-                    for s in reviews
-                ],
-                "source_versions": [
-                    v.document.model_dump(mode="json", exclude={"original_storage_reference"})
-                    for v in bundle.versions
-                    if (v.document.document_id, v.document.version) in versions
-                ],
-                "anchors": [
-                    a.model_dump(mode="json")
-                    for a in bundle.anchors
-                    if (a.document_id, a.version) in versions
-                ],
-            },
+            sanitize_export(
+                {
+                    "schema_version": "rdw-history-1",
+                    "project": project.model_dump(mode="json"),
+                    "reviews": [
+                        s.model_dump(
+                            mode="json",
+                            exclude={
+                                "snapshot": {
+                                    "documents": {"__all__": {"original_storage_reference"}}
+                                }
+                            },
+                        )
+                        for s in reviews
+                    ],
+                    "source_versions": [
+                        v.document.model_dump(mode="json", exclude={"original_storage_reference"})
+                        for v in bundle.versions
+                        if (v.document.document_id, v.document.version) in versions
+                    ],
+                    "anchors": [
+                        a.model_dump(mode="json")
+                        for a in bundle.anchors
+                        if (a.document_id, a.version) in versions
+                    ],
+                }
+            ),
             ensure_ascii=False,
             sort_keys=True,
             indent=2,

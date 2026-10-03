@@ -3,9 +3,12 @@
 import argparse
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+
+import psycopg
 
 from domain.application import AddSource, CreateProject, EditProject
 from domain.models import Route, Stage
@@ -164,7 +167,14 @@ def health(config: LocalConfiguration) -> dict[str, str]:
             "database_connectivity": "FAIL",
             "error_code": "DATABASE_FILE_MISSING",
         }
-    database = config.database()
+    try:
+        database = config.database()
+    except (ValueError, OSError, sqlite3.DatabaseError, psycopg.Error):
+        return {
+            **report,
+            "database_connectivity": "FAIL",
+            "error_code": "DATABASE_CONNECTION_FAILED",
+        }
     try:
         database.execute("SELECT 1")
         report["database_connectivity"] = "PASS"
@@ -173,13 +183,26 @@ def health(config: LocalConfiguration) -> dict[str, str]:
             report["schema_version"] = (
                 "PASS" if database.schema_version() == SCHEMA_VERSION else "FAIL"
             )
-        except ValueError:
+        except (ValueError, OSError, sqlite3.DatabaseError, psycopg.Error):
             report["schema_version"] = "FAIL"
+        if report["schema_version"] != "PASS":
+            return {
+                **report,
+                "persisted_state_integrity": "NOT_RUN",
+                "error_code": "INCOMPATIBLE_DATABASE_SCHEMA",
+            }
         try:
             inspect_state(database, config.runtime)
             report["persisted_state_integrity"] = "PASS"
-        except (ValueError, KeyError, OSError):
+        except (ValueError, KeyError, OSError, sqlite3.DatabaseError, psycopg.Error):
             report["persisted_state_integrity"] = "FAIL"
+            report["error_code"] = "PERSISTED_STATE_INTEGRITY_FAILED"
+    except (OSError, sqlite3.DatabaseError, psycopg.Error):
+        return {
+            **report,
+            "database_connectivity": "FAIL",
+            "error_code": "DATABASE_CONNECTION_FAILED",
+        }
     finally:
         database.close()
     # Isolated tests use synthetic temporary data only; do not write to the pilot projects.

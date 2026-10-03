@@ -1,5 +1,5 @@
 import sqlite3
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Literal
@@ -43,6 +43,31 @@ class Database:
     @classmethod
     def postgres(cls, dsn: str) -> "Database":
         return cls(psycopg.connect(dsn, autocommit=True), "postgres")
+
+    def connection_factory(self) -> Callable[[], "Database"]:
+        """Capture connection identity on its owner thread; reopen only inside the worker."""
+        if isinstance(self.connection, sqlite3.Connection):
+            filename = next(
+                row[2]
+                for row in self.execute("PRAGMA database_list").fetchall()
+                if row[1] == "main"
+            )
+            if not filename:
+                raise ValueError("WORKER_REQUIRES_PERSISTENT_DATABASE")
+            return lambda: Database.sqlite(filename)
+        dsn = self.connection.info.dsn
+        schema = self.execute("SELECT current_schema()").fetchone()[0]
+
+        def connect() -> "Database":
+            database = Database.postgres(dsn)
+            database.execute(
+                psycopg.sql.SQL("SET search_path TO {}")
+                .format(psycopg.sql.Identifier(schema))
+                .as_string()
+            )
+            return database
+
+        return connect
 
     def execute(self, sql: str, parameters: Sequence[object] = ()) -> Any:
         if self.dialect == "postgres":
