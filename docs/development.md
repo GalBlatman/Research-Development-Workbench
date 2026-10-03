@@ -21,7 +21,7 @@ pnpm build
 pnpm dev
 ```
 
-Open http://127.0.0.1:5173. Paste your text for a limited fake review or load the synthetic example, authorize local idea/source processing, create the project, add the prefilled synthetic source, then run the scored fixture. Bookmark the project URL for reload. Arbitrary text gets pending judgments; the scored fixture rejects changed/mismatched material. Fake outputs do not evaluate science. Binding only to loopback is required; this slice has no authentication and must not be deployed/exposed to other users.
+Open http://127.0.0.1:5173. Paste your text for a limited fake review or load the synthetic example, authorize local idea/source processing, create the project, add the prefilled synthetic source, then run fake evaluation. Bookmark the project URL for reload. Arbitrary text gets pending judgments; fixture choice is internal and changed/mismatched material keeps judgments pending. Fake outputs do not evaluate science. Binding only to loopback is required; this slice has no authentication and must not be deployed/exposed to other users.
 
 ## Contracts and browser tests
 

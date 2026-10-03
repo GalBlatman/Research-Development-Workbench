@@ -12,10 +12,12 @@ from domain.models import (
     Frozen,
     Hash,
     Project,
+    ReviewContent,
     ReviewSummary,
     Revision,
     Text,
 )
+from domain.results import PolicyResult
 
 
 def digest(data: bytes) -> str:
@@ -167,13 +169,66 @@ class Admission(Frozen):
     admitted: StrictBool
 
 
+class HistoricalCoverage(Frozen):
+    document_id: Text
+    title: Text
+    version: Revision
+    state: Text
+    anchors: tuple[SourceAnchor, ...]
+    note: Text
+
+    @model_validator(mode="after")
+    def scoped_anchors(self) -> Self:
+        if any(
+            (a.document_id, a.version) != (self.document_id, self.version) for a in self.anchors
+        ):
+            raise ValueError("Historical anchor outside included version")
+        return self
+
+
+class HistoricalExclusion(Frozen):
+    document_id: Text
+    title: Text
+    version: Revision
+    reason: Text
+
+
 class StoredSnapshot(Frozen):
     snapshot: EvaluationSnapshot
     assessment: Assessment | None = None
-    review: ReviewSummary | None = None
+    review: ReviewSummary | ReviewContent | None = None
+    policy_result: PolicyResult | None = None
+    coverage: tuple[HistoricalCoverage, ...] | None = None
+    exclusions: tuple[HistoricalExclusion, ...] | None = None
 
     @model_validator(mode="after")
     def same_target(self) -> Self:
+        historical = (self.policy_result, self.coverage, self.exclusions)
+        if any(v is not None for v in historical):
+            if any(v is None for v in historical) or self.review is None:
+                raise ValueError(
+                    "Historical rendering requires complete policy/coverage/exclusions"
+                )
+            result = self.policy_result
+            assert result is not None
+            if (
+                result.snapshot_id,
+                result.policy_sha256,
+                result.policy_manifest_sha256,
+                result.policy_version,
+                result.policy_implementation_version,
+            ) != (
+                self.snapshot.snapshot_id,
+                self.snapshot.policy_sha256,
+                self.snapshot.policy_manifest_sha256,
+                self.snapshot.policy_version,
+                self.snapshot.policy_implementation_version,
+            ):
+                raise ValueError("Historical policy identity must match frozen snapshot")
+            versions = {(d.document_id, d.version) for d in self.snapshot.documents}
+            assert self.coverage is not None
+            if {(c.document_id, c.version) for c in self.coverage} != versions:
+                raise ValueError("Historical coverage must match included snapshot versions")
         if self.review is not None and self.assessment is None:
             raise ValueError("Application review requires its frozen assessment")
         if self.assessment is not None and self.assessment.snapshot != self.snapshot:

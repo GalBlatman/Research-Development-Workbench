@@ -1,66 +1,16 @@
-from typing import Literal
-
 from domain.models import (
     Finding,
     Frozen,
     Project,
     Rating,
+    ReviewContent,
     ReviewSummary,
-    Route,
     RouteItem,
     Scope,
-    Stage,
-    Status,
-    Truth,
 )
-from domain.sources import SourceAnchor, SourceRecord
-
-
-class ExactValue(Frozen):
-    numerator: int
-    denominator: int
-
-
-class ScoreView(Frozen):
-    value: ExactValue | None
-    displayed: int | None
-    status: Status
-    reason: str
-
-
-class TraceView(Frozen):
-    rule_id: str
-    value: Truth
-    consequence: str
-    reasoning: str
-    source: str
-
-
-class GateView(Frozen):
-    name: str
-    state: Truth
-    provisional: bool
-    missed: tuple[str, ...]
-
-
-class PolicyResult(Frozen):
-    route: Route
-    stage: Stage
-    snapshot_id: str
-    policy_sha256: str
-    policy_manifest_sha256: str
-    idea_uncapped: ScoreView
-    idea: ScoreView
-    study: ScoreView
-    project_uncapped: ScoreView
-    project_before_caps: ScoreView
-    project: ScoreView
-    effective_ratings: tuple[tuple[int, int | None], ...]
-    gates: tuple[GateView, ...]
-    trace: tuple[TraceView, ...]
-    label: str
-    endorsement_stage: str
-    editorial_status: Literal["UNCALIBRATED"]
+from domain.results import PolicyResult as PolicyResult
+from domain.sources import HistoricalCoverage as CoverageView
+from domain.sources import HistoricalExclusion, SourceAnchor, SourceRecord
 
 
 class SourceView(Frozen):
@@ -112,19 +62,11 @@ class AssessmentView(Frozen):
     route_assessment: tuple[RouteItem, ...]
 
 
-class CoverageView(Frozen):
-    document_id: str
-    title: str
-    version: int
-    state: str
-    anchors: tuple[SourceAnchor, ...]
-    note: str
-
-
 class ReviewView(Frozen):
     snapshot: SnapshotView
-    summary: ReviewSummary
+    summary: ReviewSummary | ReviewContent
     assessment: AssessmentView
     policy: PolicyResult
     stale: bool
     coverage: tuple[CoverageView, ...]
+    exclusions: tuple[HistoricalExclusion, ...]

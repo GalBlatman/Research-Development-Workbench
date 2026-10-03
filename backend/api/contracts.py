@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from api.app import create_app
 from domain.models import Project, ReviewSummary
-from domain.presentation import PolicyResult
+from domain.results import PolicyResult
 from domain.sources import SourceAnchor, SourceRecord
 
 ROOT = Path(__file__).resolve().parents[2]

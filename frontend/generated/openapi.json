@@ -240,6 +240,16 @@
         "title": "Claim",
         "type": "object"
       },
+      "Commitment": {
+        "enum": [
+          "ORDINARY_STAGE_COMMITMENT",
+          "PREMISE_VERIFICATION_OR_REFORMULATION",
+          "BOUNDED_PREMISE_CHECK_ONLY",
+          "WITHHELD"
+        ],
+        "title": "Commitment",
+        "type": "string"
+      },
       "Comparison": {
         "additionalProperties": false,
         "properties": {
@@ -328,48 +338,6 @@
         "title": "Construct",
         "type": "object"
       },
-      "CoverageView": {
-        "additionalProperties": false,
-        "properties": {
-          "anchors": {
-            "items": {
-              "$ref": "#/components/schemas/SourceAnchor"
-            },
-            "title": "Anchors",
-            "type": "array"
-          },
-          "document_id": {
-            "title": "Document Id",
-            "type": "string"
-          },
-          "note": {
-            "title": "Note",
-            "type": "string"
-          },
-          "state": {
-            "title": "State",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "document_id",
-          "title",
-          "version",
-          "state",
-          "anchors",
-          "note"
-        ],
-        "title": "CoverageView",
-        "type": "object"
-      },
       "CreateProject": {
         "additionalProperties": false,
         "properties": {
@@ -431,20 +399,12 @@
       },
       "EvaluateRequest": {
         "additionalProperties": false,
+        "description": "The server selects workflow/provider configuration, never the browser.",
         "properties": {
           "expected_revision": {
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
-          },
-          "fixture": {
-            "default": "limited",
-            "enum": [
-              "limited",
-              "scored"
-            ],
-            "title": "Fixture",
-            "type": "string"
           }
         },
         "required": [
@@ -588,9 +548,31 @@
         "title": "Freshness",
         "type": "string"
       },
+      "GateState": {
+        "enum": [
+          "TRUE",
+          "FALSE",
+          "UNKNOWN",
+          "PENDING",
+          "NOT_APPLICABLE"
+        ],
+        "title": "GateState",
+        "type": "string"
+      },
       "GateView": {
         "additionalProperties": false,
         "properties": {
+          "commitment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Commitment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "missed": {
             "items": {
               "type": "string"
@@ -607,7 +589,7 @@
             "type": "boolean"
           },
           "state": {
-            "$ref": "#/components/schemas/Truth"
+            "$ref": "#/components/schemas/GateState"
           }
         },
         "required": [
@@ -630,6 +612,86 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HistoricalCoverage": {
+        "additionalProperties": false,
+        "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/SourceAnchor"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "document_id": {
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "note": {
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "state": {
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "version",
+          "state",
+          "anchors",
+          "note"
+        ],
+        "title": "HistoricalCoverage",
+        "type": "object"
+      },
+      "HistoricalExclusion": {
+        "additionalProperties": false,
+        "properties": {
+          "document_id": {
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "version",
+          "reason"
+        ],
+        "title": "HistoricalExclusion",
         "type": "object"
       },
       "Origin": {
@@ -695,12 +757,26 @@
             "title": "Label",
             "type": "string"
           },
+          "policy_engine": {
+            "const": "rdw-python-policy-engine",
+            "default": "rdw-python-policy-engine",
+            "title": "Policy Engine",
+            "type": "string"
+          },
+          "policy_implementation_version": {
+            "title": "Policy Implementation Version",
+            "type": "string"
+          },
           "policy_manifest_sha256": {
             "title": "Policy Manifest Sha256",
             "type": "string"
           },
           "policy_sha256": {
             "title": "Policy Sha256",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
             "type": "string"
           },
           "project": {
@@ -750,6 +826,8 @@
           "trace",
           "label",
           "endorsement_stage",
+          "policy_version",
+          "policy_implementation_version",
           "editorial_status"
         ],
         "title": "PolicyResult",
@@ -1116,6 +1194,63 @@
         "title": "Rating",
         "type": "object"
       },
+      "ReviewContent": {
+        "additionalProperties": false,
+        "properties": {
+          "contribution": {
+            "minLength": 1,
+            "title": "Contribution",
+            "type": "string"
+          },
+          "deliverable": {
+            "minLength": 1,
+            "title": "Deliverable",
+            "type": "string"
+          },
+          "disclaimer": {
+            "minLength": 1,
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "next_action": {
+            "minLength": 1,
+            "title": "Next Action",
+            "type": "string"
+          },
+          "obstacle": {
+            "minLength": 1,
+            "title": "Obstacle",
+            "type": "string"
+          },
+          "outcome_branches": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Outcome Branches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contribution",
+          "obstacle",
+          "limitations",
+          "next_action",
+          "deliverable",
+          "outcome_branches",
+          "disclaimer"
+        ],
+        "title": "ReviewContent",
+        "type": "object"
+      },
       "ReviewIndex": {
         "additionalProperties": false,
         "properties": {
@@ -1137,6 +1272,7 @@
       },
       "ReviewSummary": {
         "additionalProperties": false,
+        "description": "Legacy RDW-004 summary; retain historical metadata, never use as provider output.",
         "properties": {
           "contribution": {
             "minLength": 1,
@@ -1149,7 +1285,7 @@
             "type": "string"
           },
           "disclaimer": {
-            "const": "Fake fixture output; no scientific assessment or semantic verification.",
+            "minLength": 1,
             "title": "Disclaimer",
             "type": "string"
           },
@@ -1195,8 +1331,8 @@
           "next_action",
           "deliverable",
           "outcome_branches",
-          "fixture",
-          "disclaimer"
+          "disclaimer",
+          "fixture"
         ],
         "title": "ReviewSummary",
         "type": "object"
@@ -1209,9 +1345,16 @@
           },
           "coverage": {
             "items": {
-              "$ref": "#/components/schemas/CoverageView"
+              "$ref": "#/components/schemas/HistoricalCoverage"
             },
             "title": "Coverage",
+            "type": "array"
+          },
+          "exclusions": {
+            "items": {
+              "$ref": "#/components/schemas/HistoricalExclusion"
+            },
+            "title": "Exclusions",
             "type": "array"
           },
           "policy": {
@@ -1225,7 +1368,15 @@
             "type": "boolean"
           },
           "summary": {
-            "$ref": "#/components/schemas/ReviewSummary"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummary"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewContent"
+              }
+            ],
+            "title": "Summary"
           }
         },
         "required": [
@@ -1234,7 +1385,8 @@
           "assessment",
           "policy",
           "stale",
-          "coverage"
+          "coverage",
+          "exclusions"
         ],
         "title": "ReviewView",
         "type": "object"
@@ -1740,9 +1892,45 @@
       "TraceView": {
         "additionalProperties": false,
         "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Before"
+          },
           "consequence": {
             "title": "Consequence",
             "type": "string"
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Dimension"
           },
           "reasoning": {
             "title": "Reasoning",
@@ -1757,7 +1945,15 @@
             "type": "string"
           },
           "value": {
-            "$ref": "#/components/schemas/Truth"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Truth"
+              },
+              {
+                "$ref": "#/components/schemas/GateState"
+              }
+            ],
+            "title": "Value"
           }
         },
         "required": [

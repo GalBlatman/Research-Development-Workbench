@@ -129,11 +129,20 @@ def create_app(service: Workbench | None = None) -> FastAPI:
     ) -> dict[str, Any]:
         return request.app.state.workbench.accept(project_id, object_id, body.expected_revision)  # type: ignore[no-any-return]
 
-    @app.post("/api/projects/{project_id}/evaluations", status_code=201, response_model=ReviewView)
+    @app.post(
+        "/api/projects/{project_id}/evaluations",
+        status_code=201,
+        response_model=ReviewView,
+        response_model_exclude_unset=True,
+    )
     async def evaluate(project_id: str, body: EvaluateRequest, request: Request) -> dict[str, Any]:
-        return request.app.state.workbench.run(project_id, body.expected_revision, body.fixture)  # type: ignore[no-any-return]
+        return request.app.state.workbench.run(project_id, body.expected_revision)  # type: ignore[no-any-return]
 
-    @app.get("/api/projects/{project_id}/reviews/{snapshot_id}", response_model=ReviewView)
+    @app.get(
+        "/api/projects/{project_id}/reviews/{snapshot_id}",
+        response_model=ReviewView,
+        response_model_exclude_unset=True,
+    )
     async def review(project_id: str, snapshot_id: str, request: Request) -> dict[str, Any]:
         return request.app.state.workbench.review(project_id, snapshot_id)  # type: ignore[no-any-return]
 

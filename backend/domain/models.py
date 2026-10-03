@@ -77,6 +77,21 @@ class Truth(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class GateState(StrEnum):
+    TRUE = "TRUE"
+    FALSE = "FALSE"
+    UNKNOWN = "UNKNOWN"
+    PENDING = "PENDING"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class Commitment(StrEnum):
+    ORDINARY = "ORDINARY_STAGE_COMMITMENT"
+    PREMISE_VERIFY_OR_REFORMULATE = "PREMISE_VERIFICATION_OR_REFORMULATION"
+    BOUNDED_PREMISE_CHECK = "BOUNDED_PREMISE_CHECK_ONLY"
+    WITHHELD = "WITHHELD"
+
+
 class Verification(StrEnum):
     SUPPORTED = "supported"
     NEEDS_REVISION = "needs_revision"
@@ -356,12 +371,17 @@ class Assessment(Frozen):
         return self
 
 
-class ReviewSummary(Frozen):
+class ReviewContent(Frozen):
     contribution: Text
     obstacle: Text
     limitations: tuple[Text, ...]
     next_action: Text
     deliverable: Text
     outcome_branches: tuple[Text, ...]
+    disclaimer: Text
+
+
+class ReviewSummary(ReviewContent):
+    """Legacy RDW-004 summary; retain historical metadata, never use as provider output."""
+
     fixture: Literal["limited", "scored"]
-    disclaimer: Literal["Fake fixture output; no scientific assessment or semantic verification."]

@@ -1,0 +1,51 @@
+{
+  "gate": "GATE-1",
+  "audited_commit": "8a031d240b514604122300bfebef0c130a819461",
+  "result": "PASS",
+  "provenance": "Independent audit result and five nonblockers supplied by owner; corrective implementation review is same-session only",
+  "findings": [
+    {
+      "id": "G1-N1",
+      "finding": "Persist historical policy output/identity and server coverage; never recompute historical review",
+      "status": "RESOLVED",
+      "resolution": "Publication stores PolicyResult/engine identity and server versioned coverage/exclusions; policy-change and legacy-history regressions pass."
+    },
+    {
+      "id": "G1-N2",
+      "finding": "Premise no-basis/conditional restrict ordinary proposal/full-study commitment",
+      "status": "RESOLVED",
+      "resolution": "Typed premise commitment restricts ordinary proposal/full-study readiness; focused no-basis/conditional regressions pass."
+    },
+    {
+      "id": "G1-N3",
+      "finding": "Distinct gate applicability/pending, applicable inspection, benchmark trigger, clamp trace, qualified endorsements",
+      "status": "RESOLVED",
+      "resolution": "GateState preserves applicability/pending through policy/API/UI; route inspection, benchmark, clamp trace and qualified endorsement regressions pass."
+    },
+    {
+      "id": "G1-N4",
+      "finding": "Discovery exemption only at early/discovery; later missing account remains substantive",
+      "status": "RESOLVED",
+      "resolution": "EARLY IDEA/DISCOVERY PROPOSAL mapping documented in ADR 0005; later-stage missing/uninspected judgments receive no discovery exemption."
+    },
+    {
+      "id": "G1-N5",
+      "finding": "Provider-neutral tasks/output; internal fake choice; server owns snapshot",
+      "status": "RESOLVED",
+      "resolution": "Typed ExtractProject/AssessProject contracts; internal fake fixture choice; server attaches frozen snapshot; invalid target/self-verification rejected."
+    }
+  ],
+  "phase": "RDW-005 6A",
+  "corrective_review": {
+    "kind": "same-session review under owner-authorized integration; not a new independent audit",
+    "pull_request": 4,
+    "implementation_commit": "577881586bdcd8cbd00adf949e79563490fcbcc4",
+    "successful_ci_run": 37084099481,
+    "python_with_postgresql": "135 passed; zero skipped",
+    "golden": "16/16 unchanged",
+    "browser": "2/2 passed",
+    "static_contract_publication_governing_checks": "PASS",
+    "phase_6B": "UNSTARTED",
+    "final_head_requirement": "All required CI jobs must pass on final PR head before merge"
+  }
+}

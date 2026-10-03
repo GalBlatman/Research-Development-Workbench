@@ -35,7 +35,6 @@ function App() {
   const [sourceText, setSourceText] = useState("");
   const [sourceAuthorized, setSourceAuthorized] = useState(false);
   const [admitted, setAdmitted] = useState(true);
-  const [fixture, setFixture] = useState<"limited" | "scored">("limited");
   const [review, setReview] = useState<Review | null>(null);
   const [passage, setPassage] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -76,7 +75,6 @@ function App() {
     setSourceText(data.source);
     setRoute("EXPLAIN");
     setStage("EARLY IDEA");
-    setFixture("scored");
   }
   async function changed(next: View) {
     update(next);
@@ -374,23 +372,10 @@ function App() {
             </section>
             <section>
               <h2>Evaluate this revision</h2>
-              <label>
-                Fake evaluation fixture
-                <select
-                  value={fixture}
-                  onChange={(e) =>
-                    setFixture(e.target.value as "limited" | "scored")
-                  }
-                >
-                  <option value="limited">
-                    Limited review — judgments pending
-                  </option>
-                  <option value="scored">Scored synthetic example only</option>
-                </select>
-              </label>
               <p>
-                The scored fixture requires the unchanged synthetic example and
-                source. It demonstrates arithmetic, not scientific verification.
+                The fake adapter selects its fixed response internally. The
+                unchanged synthetic example and source demonstrate arithmetic;
+                other inputs retain pending judgments.
               </p>
               <button
                 onClick={() =>
@@ -399,7 +384,7 @@ function App() {
                       await api<Review>(
                         "/projects/" + view.project.project_id + "/evaluations",
                         "POST",
-                        { expected_revision: view.project.revision, fixture },
+                        { expected_revision: view.project.revision },
                       ),
                     );
                     update(
@@ -531,6 +516,15 @@ function App() {
                     ))}
                   </ul>
                 </details>
+                <h3>Readiness and applicability</h3>
+                <ul aria-label="Readiness gates">
+                  {review.policy.gates.map((gate) => (
+                    <li key={gate.name}>
+                      {gate.name}: {gate.state}
+                      {gate.commitment ? ` · ${gate.commitment}` : ""}
+                    </li>
+                  ))}
+                </ul>
                 <h3>Recommended next action</h3>
                 <p>{review.summary.next_action}</p>
                 <p>{review.summary.deliverable}</p>

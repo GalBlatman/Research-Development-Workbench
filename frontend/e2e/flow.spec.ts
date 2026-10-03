@@ -79,15 +79,11 @@ test("synthetic browser -> real backend -> review, immutable edit, export and re
     "Historical review",
   );
   await page.getByRole("button", { name: "Run fake evaluation" }).click();
-  // Reload resets the default to limited: pending results display without zero substitution.
+  // Changed input selects the internal limited response; pending is not zero.
   await expect(
     page.getByLabel("Evaluation review").locator("tbody"),
   ).toContainText("pending");
-  await page.getByLabel("Fake evaluation fixture").selectOption("scored");
-  await page.getByRole("button", { name: "Run fake evaluation" }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "Invalid fake-model evaluation",
-  );
+  await expect(page.getByLabel("Fake evaluation fixture")).toHaveCount(0);
 });
 
 test("ESTABLISH displays not applicable and safely renders pasted markup", async ({
@@ -112,5 +108,8 @@ test("ESTABLISH displays not applicable and safely renders pasted markup", async
   await expect(
     page.getByLabel("Evaluation review").locator("tbody"),
   ).toContainText("pending");
+  await expect(page.getByLabel("Readiness gates")).toContainText(
+    "NOT_APPLICABLE",
+  );
   expect(await page.evaluate(() => "syntheticInjection" in window)).toBe(false);
 });
