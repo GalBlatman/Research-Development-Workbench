@@ -486,6 +486,11 @@
             "minLength": 1,
             "title": "Reason",
             "type": "string"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           }
         },
         "required": [
@@ -547,6 +552,11 @@
             ],
             "title": "Object Id"
           },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
+          },
           "workspace": {
             "enum": [
               "Brief",
@@ -598,6 +608,11 @@
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           },
           "scope": {
             "default": "INITIAL_SCREEN",
@@ -1215,6 +1230,18 @@
             "title": "Object Id",
             "type": "string"
           },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operation Id"
+          },
           "origin": {
             "$ref": "#/components/schemas/Origin"
           },
@@ -1784,6 +1811,11 @@
           "record": {
             "$ref": "#/components/schemas/ResearchRecord"
           },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
+          },
           "source_refs": {
             "default": [],
             "items": {
@@ -2163,6 +2195,11 @@
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2222,6 +2259,17 @@
       "RunHandle": {
         "additionalProperties": false,
         "properties": {
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
           "error_code": {
             "anyOf": [
               {
@@ -2238,6 +2286,37 @@
             "title": "Expected Revision",
             "type": "integer"
           },
+          "failure_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "timeout_uncertain",
+                  "transport_uncertain",
+                  "budget_exhausted",
+                  "interrupted_uncertain",
+                  "provider",
+                  "contract",
+                  "conflict"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Kind"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
           "project_id": {
             "minLength": 1,
             "title": "Project Id",
@@ -2253,6 +2332,18 @@
               }
             ]
           },
+          "request_key": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Key"
+          },
           "result_revision": {
             "anyOf": [
               {
@@ -2265,7 +2356,7 @@
             "title": "Result Revision"
           },
           "run_id": {
-            "minLength": 1,
+            "pattern": "^[a-f0-9]{32}$",
             "title": "Run Id",
             "type": "string"
           },
@@ -2279,6 +2370,17 @@
               }
             ],
             "title": "Snapshot Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
           },
           "state": {
             "enum": [
@@ -2366,6 +2468,11 @@
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           },
           "route": {
             "$ref": "#/components/schemas/Route"
@@ -2901,6 +3008,11 @@
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3150,6 +3262,11 @@
             "minimum": 1.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "retry_failed": {
+            "default": false,
+            "title": "Retry Failed",
+            "type": "boolean"
           },
           "workspace": {
             "enum": [

@@ -409,7 +409,9 @@ class ResearchService:
             self.w.repository.save_project(self.w.scope(project_id), updated, project.revision)
         return self.w.view(project_id)
 
-    def develop(self, project_id: str, request: DevelopRequest) -> dict[str, Any]:
+    def develop(
+        self, project_id: str, request: DevelopRequest, operation_id: str | None = None
+    ) -> dict[str, Any]:
         project = self.w._current(project_id, request.expected_revision)
         target = next((o for o in project.objects if o.object_id == request.object_id), None)
         if request.object_id and (
@@ -433,7 +435,11 @@ class ResearchService:
             if candidate.record.workspace != request.workspace:
                 raise ProviderFailure("WORKSPACE_SCOPE_MISMATCH")
             validate_record(candidate.record, project.route)
-            self.w._current(project_id, request.expected_revision)
+            try:
+                self.w._current(project_id, request.expected_revision)
+            except Conflict as exc:
+                exc.provider_metadata = ledger.receipt() if ledger else None
+                raise
             for passage in task.context.passages:
                 self.w.repository.get_anchor(
                     self.w.scope(project_id),
@@ -454,7 +460,11 @@ class ResearchService:
                 ledger.state = "SUCCEEDED"
             metadata = ledger.receipt() if ledger else None
         with self.w.repository.db.transaction():
-            self.w._current(project_id, request.expected_revision)
+            try:
+                self.w._current(project_id, request.expected_revision)
+            except Conflict as exc:
+                exc.provider_metadata = metadata
+                raise
             for ref in refs:
                 self.w.repository.get_anchor(self.w.scope(project_id), ref)
             obj = ProjectObject(
@@ -468,6 +478,7 @@ class ResearchService:
                 source_refs=refs,
                 provider_run=metadata,
                 generated_by_run_id=metadata.run_id if metadata else "fake-workspace-v1",
+                operation_id=operation_id,
                 dependencies=dependencies(
                     project,
                     (request.workspace,)

@@ -53,6 +53,7 @@ class AddSource(Frozen):
 
 class RevisionRequest(Frozen):
     expected_revision: Revision
+    retry_failed: StrictBool = False
 
 
 class EvaluateRequest(RevisionRequest):
@@ -171,7 +172,7 @@ class CheckingTask(Frozen):
 
 
 class RunHandle(Frozen):
-    run_id: Text
+    run_id: Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
     project_id: Text
     expected_revision: Revision
     state: Literal["queued", "running", "succeeded", "failed"]
@@ -179,6 +180,22 @@ class RunHandle(Frozen):
     error_code: str | None = None
     result_revision: int | None = None
     provider_run: ProviderRun | None = None
+    request_key: Hash | None = None
+    failure_kind: (
+        Literal[
+            "timeout_uncertain",
+            "transport_uncertain",
+            "budget_exhausted",
+            "interrupted_uncertain",
+            "provider",
+            "contract",
+            "conflict",
+        ]
+        | None
+    ) = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    duration_seconds: float | None = None
 
 
 class TargetedEvaluation(RevisionRequest):

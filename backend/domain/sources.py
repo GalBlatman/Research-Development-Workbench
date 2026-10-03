@@ -77,7 +77,8 @@ class SourceRecord(Frozen):
 
 
 class OriginalMetadata(Frozen):
-    storage_key: Hash | None
+    external: bool = False
+    storage_key: Hash | None = None
     sha256: Hash | None
     byte_length: Annotated[StrictInt, Field(ge=0)] | None
     original_name: str | None = None
@@ -97,8 +98,14 @@ class SourceVersion(Frozen):
     @model_validator(mode="after")
     def integrity(self) -> Self:
         SourceRole(self.document.role)
+        if self.original.external and self.original.storage_key is not None:
+            raise ValueError("External originals cannot confer local file access")
         metadata = (self.original.storage_key, self.original.sha256, self.original.byte_length)
-        if any(v is None for v in metadata) and any(v is not None for v in metadata):
+        if (
+            not self.original.external
+            and any(v is None for v in metadata)
+            and any(v is not None for v in metadata)
+        ):
             raise ValueError("Original metadata must be complete or explicitly missing")
         if (
             self.extraction_state == ExtractionState.AVAILABLE
@@ -198,6 +205,7 @@ class HistoricalExclusion(Frozen):
 
 
 class StoredSnapshot(Frozen):
+    operation_id: str | None = None
     snapshot: EvaluationSnapshot
     assessment: Assessment | None = None
     review: ReviewSummary | ReviewContent | None = None

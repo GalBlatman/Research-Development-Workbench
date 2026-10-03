@@ -338,6 +338,7 @@ class Workbench:
         dimensions: tuple[int, ...] = (),
         target_workspace: str | None = None,
         evaluation_scope: Scope = Scope.INITIAL_SCREEN,
+        operation_id: str | None = None,
     ) -> dict[str, Any]:
         scope = self.scope(project_id)
         project = self._current(project_id, expected)
@@ -396,6 +397,9 @@ class Workbench:
             )
             assessment = Assessment(snapshot=snapshot, findings=findings, **fields)
             evaluated = evaluate(assessment, self.manifest)
+        except Conflict as exc:
+            exc.provider_metadata = ledger.receipt() if ledger else None
+            raise
         except ProviderFailure:
             raise
         except (ValueError, TypeError) as exc:
@@ -404,7 +408,11 @@ class Workbench:
             ) from exc
         with self.repository.db.transaction():
             # Recheck scoped sources and revision at publication, not merely at intake.
-            self._current(project_id, expected)
+            try:
+                self._current(project_id, expected)
+            except Conflict as exc:
+                exc.provider_metadata = run_metadata
+                raise
             result = policy_view(asdict(evaluated))
             for name in (
                 "idea_uncapped",
@@ -450,6 +458,7 @@ class Workbench:
             self.repository.save_snapshot(
                 scope,
                 StoredSnapshot(
+                    operation_id=operation_id,
                     snapshot=snapshot,
                     assessment=assessment,
                     review=checked.summary,
@@ -599,8 +608,24 @@ class Workbench:
                     "snapshots": True,
                 },
             )
+            portable = bundle.model_dump(mode="json")
+            for version in portable["versions"]:
+                version["original"]["external"] = True
+                version["original"].pop("storage_key", None)
+                version["document"].pop("original_storage_reference", None)
+            for stored in portable["snapshots"]:
+                for document in stored["snapshot"]["documents"]:
+                    document.pop("original_storage_reference", None)
+                if stored["assessment"]:
+                    for document in stored["assessment"]["snapshot"]["documents"]:
+                        document.pop("original_storage_reference", None)
             return json.dumps(
-                {"schema_version": "rdw-app-1", "project_history": safe, "reviews": reviews},
+                {
+                    "schema_version": "rdw-app-1",
+                    "project_history": safe,
+                    "reviews": reviews,
+                    "import_bundle": portable,
+                },
                 ensure_ascii=False,
                 sort_keys=True,
                 indent=2,

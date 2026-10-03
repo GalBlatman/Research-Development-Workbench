@@ -2,7 +2,7 @@ from typing import TypeVar
 
 from domain.locations import anchors as expected_anchors
 from domain.locations import validate_anchor
-from domain.models import Frozen, Project, SourceReference, Workspace
+from domain.models import Frozen, Project, ProviderRun, SourceReference, Workspace
 from domain.sources import (
     AccessScope,
     Admission,
@@ -24,7 +24,7 @@ class AccessDenied(PermissionError):
 
 
 class Conflict(ValueError):
-    pass
+    provider_metadata: ProviderRun | None = None
 
 
 class IntegrityViolation(ValueError):
@@ -191,6 +191,8 @@ class Repository:
     ) -> None:
         with self.db.transaction():
             source = self.source(scope, version.document.document_id)
+            if version.document.role != source.role:
+                raise ValueError("Source version cannot change declared source role")
             if version.document.project_id != scope.project_id:
                 raise AccessDenied("Source version outside selected project")
             current = (
@@ -392,8 +394,34 @@ class Repository:
             )
             return canonical(bundle)
 
+    def validate_import_authority(self, bundle: ProjectBundle) -> None:
+        from domain.models import EvidenceState, Origin
+
+        previous: dict[str, object] = {}
+        for project in bundle.revisions:
+            for obj in project.objects:
+                if obj.generated_by_run_id and obj.origin not in (
+                    Origin.INFERENCE,
+                    Origin.SUGGESTION,
+                ):
+                    raise ValueError("Generated content cannot be imported as source authority")
+                old = previous.get(obj.object_id)
+                if old is not None:
+                    if getattr(old, "origin") != obj.origin:
+                        raise ValueError("Import cannot rewrite object provenance")
+                    if (
+                        getattr(old, "evidence_state") != EvidenceState.DOCUMENTED
+                        and obj.evidence_state == EvidenceState.DOCUMENTED
+                        and getattr(old, "checks") == obj.checks
+                    ):
+                        raise ValueError(
+                            "Adoption cannot promote evidence without a new inspected check"
+                        )
+                previous[obj.object_id] = obj
+
     def import_bundle(self, scope: AccessScope, serialized: str) -> None:
         bundle = ProjectBundle.model_validate_json(serialized)
+        self.validate_import_authority(bundle)
         if (bundle.workspace_id, bundle.project_id) != (scope.workspace_id, scope.project_id):
             raise AccessDenied("Bundle scope differs from target")
         with self.db.transaction():

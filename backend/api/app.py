@@ -1,10 +1,12 @@
-import os
+import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, cast
 
+import psycopg
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -29,16 +31,15 @@ from domain.research import (
     WorkspaceCheckRequest,
 )
 from model_adapters.checking import AssessmentChecker
-from model_adapters.config import ProviderConfig
 from model_adapters.fake import DEMO_IDEA, DEMO_SOURCE
 from model_adapters.openai import OpenAIAdapter
 from model_adapters.runtime import ProviderFailure
-from persistence.database import Database
 from persistence.originals import OriginalFileStore
 from persistence.repository import AccessDenied, Conflict, Repository
 from policy_engine.manifest import Manifest
+from services.configuration import LocalConfiguration
 from services.research import ResearchService
-from services.runs import RunManager
+from services.runs import RunManager, write_provider_receipt
 from services.sources import SourceService
 from services.workbench import InvalidModelOutput, Workbench
 
@@ -53,33 +54,19 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             app.state.workbench = service
             yield
             return
-        configured = os.environ.get("RDW_RUNTIME_ROOT")
-        if not configured:
-            raise RuntimeError(
-                "Set RDW_RUNTIME_ROOT to an explicit private directory outside the repository"
-            )
-        runtime = Path(configured).resolve()
-        if runtime == ROOT or ROOT in runtime.parents:
-            raise RuntimeError("Runtime data must be outside the repository")
-        runtime.mkdir(parents=True, exist_ok=True)
-        dsn = os.environ.get("RDW_POSTGRES_DSN")
+        local = LocalConfiguration.environment()
+        runtime = local.runtime
         manifest = Manifest.model_validate_json(
             (ROOT / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
         )
-        config = ProviderConfig.environment()
+        config = local.provider
         receipts = runtime / "provider-receipts"
 
         def record_receipt(receipt: ProviderRun) -> None:
-            receipts.mkdir(parents=True, exist_ok=True)
-            # Run ID originates in the server ledger, never provider content.
-            (receipts / (receipt.run_id + ".json")).write_text(
-                receipt.model_dump_json() + "\n", encoding="utf-8", newline="\n"
-            )
+            write_provider_receipt(receipts, receipt)
 
         def make_service() -> Workbench:
-            database = (
-                Database.postgres(dsn) if dsn else Database.sqlite(runtime / "projects.sqlite")
-            )
+            database = local.database()
             database.initialize()
             repo = Repository(database)
             adapter = (
@@ -133,6 +120,27 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             )
         return cast(Response, await call_next(request))
 
+    @app.exception_handler(sqlite3.OperationalError)
+    @app.exception_handler(psycopg.Error)
+    async def database_error(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            {
+                "detail": "Database busy or unavailable; reload before retrying",
+                "code": "DATABASE_OPERATION_FAILED",
+            },
+            status_code=503,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(
+            {
+                "detail": "Request fields are missing or invalid",
+                "fields": [list(error["loc"]) for error in exc.errors()],
+            },
+            status_code=422,
+        )
+
     @app.exception_handler(ProviderFailure)
     async def provider_error(request: Request, exc: ProviderFailure) -> JSONResponse:
         return JSONResponse(
@@ -146,7 +154,13 @@ def create_app(service: Workbench | None = None) -> FastAPI:
 
     @app.exception_handler(InvalidModelOutput)
     async def model_error(request: Request, exc: InvalidModelOutput) -> JSONResponse:
-        return JSONResponse({"detail": str(exc), "code": "INVALID_MODEL_OUTPUT"}, status_code=502)
+        return JSONResponse(
+            {
+                "detail": "Model output was incomplete or invalid; no review published",
+                "code": "INVALID_MODEL_OUTPUT",
+            },
+            status_code=502,
+        )
 
     @app.exception_handler(Conflict)
     async def conflict(request: Request, exc: Conflict) -> JSONResponse:
@@ -218,7 +232,10 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             workbench._current(project_id, body.expected_revision)
             return JSONResponse(
                 manager.submit(
-                    project_id, body.expected_revision, evaluation_scope=body.scope
+                    project_id,
+                    body.expected_revision,
+                    evaluation_scope=body.scope,
+                    retry_failed=body.retry_failed,
                 ).model_dump(mode="json"),
                 status_code=202,
             )
@@ -235,9 +252,12 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         workbench._current(project_id, body.expected_revision)
         if manager is not None:
             return JSONResponse(
-                manager.submit(project_id, body.expected_revision, body.dimensions).model_dump(
-                    mode="json"
-                ),
+                manager.submit(
+                    project_id,
+                    body.expected_revision,
+                    body.dimensions,
+                    retry_failed=body.retry_failed,
+                ).model_dump(mode="json"),
                 status_code=202,
             )
         return workbench.run(project_id, body.expected_revision, body.dimensions)
@@ -294,9 +314,12 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         manager = request.app.state.runs
         if manager is not None:
             return JSONResponse(
-                manager.submit(project_id, body.expected_revision, development=body).model_dump(
-                    mode="json"
-                ),
+                manager.submit(
+                    project_id,
+                    body.expected_revision,
+                    development=body,
+                    retry_failed=body.retry_failed,
+                ).model_dump(mode="json"),
                 status_code=202,
             )
         return ResearchService(workbench).develop(project_id, body)
@@ -316,7 +339,11 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         if manager is not None:
             return JSONResponse(
                 manager.submit(
-                    project_id, body.expected_revision, dimensions, body.workspace
+                    project_id,
+                    body.expected_revision,
+                    dimensions,
+                    body.workspace,
+                    retry_failed=body.retry_failed,
                 ).model_dump(mode="json"),
                 status_code=202,
             )

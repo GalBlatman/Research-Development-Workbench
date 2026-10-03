@@ -116,7 +116,7 @@ class DocumentVersion(Frozen):
     project_id: Text
     version: Revision
     content_sha256: Hash | None
-    original_storage_reference: Text
+    original_storage_reference: Text | None = None
     role: Text
 
 
@@ -292,6 +292,7 @@ class ProjectObject(Frozen):
     freshness: Freshness = Freshness.CURRENT
     source_refs: tuple[SourceReference, ...] = ()
     checks: tuple[EvidenceCheck, ...] = ()
+    operation_id: str | None = None
     generated_by_run_id: str | None = None
     provider_run: ProviderRun | None = None
     statements: tuple[AttributedStatement, ...] = ()
