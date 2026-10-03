@@ -70,7 +70,13 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
             if r["id"] not in DERIVED
         ]
     )
+    route_questions = json.loads((PROMPTS / "route-questions-v1.json").read_text(encoding="utf-8"))
     return {
+        **(
+            {"route_questions": route_questions[task.context.project.route]}
+            if task.context.project.route in route_questions
+            else {}
+        ),
         "dimensions": {str(d): criteria[str(d)] for d in dimensions},
         "semantic_rules": rules,
         "rating_reference": "0 absent/inadequate; 5 solid accepted-paper reference; 8 exceptional with supplied published comparison; 10 decade-class element, not paper perfection. Uninspected is null, not zero.",
