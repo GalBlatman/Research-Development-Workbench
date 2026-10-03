@@ -287,8 +287,22 @@ class Repository:
 
     def _references(self, scope: AccessScope, project: Project) -> None:
         for obj in project.objects:
-            for reference in obj.source_refs + tuple(
-                ref for check in obj.checks for ref in check.source_refs
+            from domain.models import ResearchRecord
+
+            for reference in (
+                obj.source_refs
+                + tuple(ref for check in obj.checks for ref in check.source_refs)
+                + tuple(
+                    ref
+                    for disposition in obj.support_dispositions
+                    for ref in disposition.source_refs
+                )
+                + tuple(ref for statement in obj.statements for ref in statement.source_refs)
+                + (
+                    tuple(ref for field in obj.payload.fields for ref in field.source_refs)
+                    if isinstance(obj.payload, ResearchRecord)
+                    else ()
+                )
             ):
                 self.get_anchor(scope, reference)
 

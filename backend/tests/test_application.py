@@ -121,8 +121,9 @@ def test_primary_flow_snapshot_reload_exports_and_acceptance(app_client, tmp_pat
         f"/api/projects/{identifier}/reviews/{review['snapshot']['snapshot_id']}"
     ).json()
     assert after["stale"] is True
-    assert {k: v for k, v in after.items() if k != "stale"} == {
-        k: v for k, v in review.items() if k != "stale"
+    assert "Brief" in after["affected_workspaces"]
+    assert {k: v for k, v in after.items() if k not in ("stale", "affected_workspaces")} == {
+        k: v for k, v in review.items() if k not in ("stale", "affected_workspaces")
     }
     assert (
         workbench.repository.snapshot(
@@ -442,7 +443,8 @@ def test_provider_contract_has_no_snapshot_or_fixture(app_client):
     identifier = view["project"]["project_id"]
     schema = client.get("/openapi.json").json()
     assert set(schema["components"]["schemas"]["EvaluateRequest"]["properties"]) == {
-        "expected_revision"
+        "expected_revision",
+        "scope",
     }
     response = client.post(
         f"/api/projects/{identifier}/evaluations",

@@ -10,6 +10,7 @@ from domain.models import (
     RouteItem,
     Scope,
     StructuralCheck,
+    UserAction,
 )
 from domain.results import PolicyResult as PolicyResult
 from domain.sources import HistoricalCoverage as CoverageView
@@ -28,6 +29,8 @@ class SourceView(Frozen):
 class ReviewIndex(Frozen):
     snapshot_id: str
     revision: int
+    workspace: str | None = None
+    stale: bool = False
 
 
 class ProjectView(Frozen):
@@ -55,6 +58,7 @@ class SnapshotView(Frozen):
     prompt_version: str | None
     model_configuration: str | None
     scope: Scope
+    created_at: str | None = None
 
 
 class AssessmentView(Frozen):
@@ -78,3 +82,20 @@ class ReviewView(Frozen):
     statements: tuple[AttributedStatement, ...] = ()
     checks: tuple[CheckDecision, ...] = ()
     structural_checks: tuple[StructuralCheck, ...] = ()
+    affected_workspaces: tuple[str, ...] = ()
+    target_workspace: str | None = None
+
+
+class SourceHistoryView(Frozen):
+    document_id: str
+    version: int
+    role: str
+    state: str
+    anchors: tuple[SourceAnchor, ...]
+
+
+class HistoryView(Frozen):
+    revisions: tuple[Project, ...]
+    actions: tuple[UserAction, ...]
+    source_versions: tuple[SourceHistoryView, ...]
+    reviews: tuple[ReviewIndex, ...]

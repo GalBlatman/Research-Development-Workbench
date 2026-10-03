@@ -18,7 +18,16 @@ from domain.application import (
     TargetedEvaluation,
 )
 from domain.models import ProviderRun
-from domain.presentation import ProjectView, ReviewView
+from domain.presentation import HistoryView, ProjectView, ReviewView
+from domain.research import (
+    DIMENSIONS,
+    DecisionRequest,
+    DevelopRequest,
+    RecordRequest,
+    SettingsRequest,
+    WorkspaceCatalog,
+    WorkspaceCheckRequest,
+)
 from model_adapters.checking import AssessmentChecker
 from model_adapters.config import ProviderConfig
 from model_adapters.fake import DEMO_IDEA, DEMO_SOURCE
@@ -28,6 +37,7 @@ from persistence.database import Database
 from persistence.originals import OriginalFileStore
 from persistence.repository import AccessDenied, Conflict, Repository
 from policy_engine.manifest import Manifest
+from services.research import ResearchService
 from services.runs import RunManager
 from services.sources import SourceService
 from services.workbench import InvalidModelOutput, Workbench
@@ -207,10 +217,12 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         if manager is not None:
             workbench._current(project_id, body.expected_revision)
             return JSONResponse(
-                manager.submit(project_id, body.expected_revision).model_dump(mode="json"),
+                manager.submit(
+                    project_id, body.expected_revision, evaluation_scope=body.scope
+                ).model_dump(mode="json"),
                 status_code=202,
             )
-        return workbench.run(project_id, body.expected_revision)
+        return workbench.run(project_id, body.expected_revision, evaluation_scope=body.scope)
 
     @app.post(
         "/api/projects/{project_id}/evaluations/targeted",
@@ -253,9 +265,89 @@ def create_app(service: Workbench | None = None) -> FastAPI:
     ) -> dict[str, Any]:
         return request.app.state.workbench.source(project_id, document_id, version, anchor_id)  # type: ignore[no-any-return]
 
+    @app.get("/api/projects/{project_id}/workspaces", response_model=WorkspaceCatalog)
+    async def workspaces(project_id: str, request: Request) -> dict[str, Any]:
+        return ResearchService(request.app.state.workbench).catalog(project_id)
+
+    @app.post("/api/projects/{project_id}/records", response_model=ProjectView)
+    async def save_record(project_id: str, body: RecordRequest, request: Request) -> dict[str, Any]:
+        return ResearchService(request.app.state.workbench).save(project_id, body)
+
+    @app.post(
+        "/api/projects/{project_id}/proposals/{object_id}/decision", response_model=ProjectView
+    )
+    async def decide(
+        project_id: str, object_id: str, body: DecisionRequest, request: Request
+    ) -> dict[str, Any]:
+        return ResearchService(request.app.state.workbench).decide(project_id, object_id, body)
+
+    @app.patch("/api/projects/{project_id}/settings", response_model=ProjectView)
+    async def settings(project_id: str, body: SettingsRequest, request: Request) -> dict[str, Any]:
+        return ResearchService(request.app.state.workbench).settings(project_id, body)
+
+    @app.post(
+        "/api/projects/{project_id}/workspace-proposals", response_model=ProjectView | RunHandle
+    )
+    async def propose(project_id: str, body: DevelopRequest, request: Request) -> Any:
+        workbench = request.app.state.workbench
+        workbench._current(project_id, body.expected_revision)
+        manager = request.app.state.runs
+        if manager is not None:
+            return JSONResponse(
+                manager.submit(project_id, body.expected_revision, development=body).model_dump(
+                    mode="json"
+                ),
+                status_code=202,
+            )
+        return ResearchService(workbench).develop(project_id, body)
+
+    @app.post(
+        "/api/projects/{project_id}/workspace-checks",
+        response_model=ReviewView | RunHandle,
+        response_model_exclude_unset=True,
+    )
+    async def workspace_check(
+        project_id: str, body: WorkspaceCheckRequest, request: Request
+    ) -> Any:
+        workbench = request.app.state.workbench
+        workbench._current(project_id, body.expected_revision)
+        manager = request.app.state.runs
+        dimensions = DIMENSIONS[body.workspace]
+        if manager is not None:
+            return JSONResponse(
+                manager.submit(
+                    project_id, body.expected_revision, dimensions, body.workspace
+                ).model_dump(mode="json"),
+                status_code=202,
+            )
+        return workbench.run(project_id, body.expected_revision, dimensions, body.workspace)
+
+    @app.post(
+        "/api/projects/{project_id}/sources/{document_id}/versions", response_model=ProjectView
+    )
+    async def append_source(
+        project_id: str, document_id: str, body: AddSource, request: Request
+    ) -> dict[str, Any]:
+        if not body.text.strip():
+            raise ValueError("Source text must contain text")
+        return ResearchService(request.app.state.workbench).source_version(
+            project_id, document_id, body
+        )
+
+    @app.get("/api/projects/{project_id}/history", response_model=HistoryView)
+    async def history(project_id: str, request: Request) -> dict[str, Any]:
+        return ResearchService(request.app.state.workbench).history(project_id)
+
+    @app.get("/api/projects/{project_id}/history/{revision}/export")
+    async def history_export(project_id: str, revision: int, request: Request) -> Response:
+        return Response(
+            ResearchService(request.app.state.workbench).historical_export(project_id, revision),
+            media_type="application/json",
+        )
+
     @app.get("/api/projects/{project_id}/exports/{format}")
     async def export(
-        project_id: str, format: Literal["json", "markdown"], request: Request
+        project_id: str, format: Literal["json", "markdown", "plan"], request: Request
     ) -> Response:
         output = request.app.state.workbench.export(project_id, format)
         return Response(

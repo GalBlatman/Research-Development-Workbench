@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance/domain/policy, scoped text/Markdown persistence and a minimal loopback browser/API/fake-adapter/review slice are implemented through RDW-004; a bounded replaceable OpenAI provider is implemented in RDW-005 (ADR 0006); broader workspaces remain planned. PostgreSQL is canonical; SQLite shares the same contracts for local tests (ADR 0003).
+Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance/domain/policy, scoped text/Markdown persistence and a minimal loopback browser/API/fake-adapter/review slice are implemented through RDW-004; a bounded replaceable OpenAI provider is implemented in RDW-005 (ADR 0006); all ten research workspaces and the revision loop are implemented in RDW-006 (ADR 0007). PostgreSQL is canonical; SQLite shares the same contracts for local tests (ADR 0003).
 
 ## Ownership boundaries
 

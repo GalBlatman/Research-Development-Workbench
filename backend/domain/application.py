@@ -34,6 +34,7 @@ class CreateProject(Frozen):
     route: Route = Route.EXPLAIN
     stage: Stage = Stage.DISCOVERY
     authorized: Literal[True]
+    session_goal: str = "Assess the idea and identify the next useful step"
 
 
 class EditProject(Frozen):
@@ -56,6 +57,10 @@ class RevisionRequest(Frozen):
 
 class EvaluateRequest(RevisionRequest):
     """The server selects workflow/provider configuration, never the browser."""
+
+    scope: Literal[Scope.INITIAL_SCREEN, Scope.FULL_EVALUATION, Scope.REVISION_REVIEW] = (
+        Scope.INITIAL_SCREEN
+    )
 
 
 class Interpretation(Frozen):
@@ -170,6 +175,7 @@ class RunHandle(Frozen):
     state: Literal["queued", "running", "succeeded", "failed"]
     snapshot_id: str | None = None
     error_code: str | None = None
+    result_revision: int | None = None
     provider_run: ProviderRun | None = None
 
 

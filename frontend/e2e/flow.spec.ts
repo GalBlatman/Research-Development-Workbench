@@ -16,7 +16,9 @@ test("synthetic browser -> real backend -> review, immutable edit, export and re
     "Evidence: not_inspected",
   );
   await expect(
-    page.getByText("Why do fictional teams share knowledge?", { exact: true }),
+    page
+      .getByLabel("Overview workspace")
+      .getByText("Why do fictional teams share knowledge?", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Accept representation" }).click();
   await expect(page.getByText("Origin: model_inference")).toContainText(
