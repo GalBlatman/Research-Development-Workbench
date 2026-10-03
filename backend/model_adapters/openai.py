@@ -39,8 +39,12 @@ DERIVED = {
 
 
 def policy_contract(task: AssessmentTask) -> dict[str, Any]:
+    if task.policy_version not in ("4", "5"):
+        raise ProviderFailure("UNKNOWN_POLICY_VERSION")
     manifest = json.loads(
-        (PROMPTS.parents[1] / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
+        (PROMPTS.parents[1] / f"policies/rubric-v{task.policy_version}.manifest.json").read_text(
+            encoding="utf-8"
+        )
     )
     criteria = json.loads((PROMPTS / "criteria-v1.json").read_text(encoding="utf-8"))
     dimensions = task.dimensions or tuple(range(1, 11))
@@ -68,13 +72,34 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
             }
             for r in manifest["rules"]
             if r["id"] not in DERIVED
+            and (task.context.project.route == "EXPLAIN" or r["id"] != "NO-ADVANCE")
         ]
     )
     route_questions = json.loads((PROMPTS / "route-questions-v1.json").read_text(encoding="utf-8"))
+    if task.policy_version == "5" and task.context.project.route != "EXPLAIN":
+        criteria = {
+            key: "Not applicable numerical dimension for this route; use supplied qualitative route questions without theory-profile scoring."
+            if int(key) <= 7
+            else value
+            for key, value in criteria.items()
+        }
+    if (
+        task.policy_version == "5"
+        and task.context.project.route == "EXPLAIN"
+        and task.context.project.stage in ("EARLY IDEA", "DISCOVERY PROPOSAL")
+    ):
+        route_questions = {
+            **route_questions,
+            "EXPLAIN": {
+                "knowledge_need": "Is there a consequential knowledge need?",
+                "increment": "Is there an identifiable prospective knowledge increment?",
+                "capacity_to_learn": "Is there a credible resource-bounded action to address the main uncertainty?",
+            },
+        }
     return {
         **(
             {"route_questions": route_questions[task.context.project.route]}
-            if task.context.project.route in route_questions
+            if task.context.project.route in route_questions and not task.dimensions
             else {}
         ),
         "dimensions": {str(d): criteria[str(d)] for d in dimensions},
@@ -101,7 +126,7 @@ def packet_check(context: Any) -> None:
 
 
 class OpenAIAdapter:
-    prompt_configuration = "evaluation-v2/checking-v3"
+    prompt_configuration = "evaluation-v3/checking-v4/workspace-v2/workspace-check-v2"
 
     def __init__(
         self,
@@ -154,7 +179,13 @@ class OpenAIAdapter:
         if len(json.dumps(packet, ensure_ascii=False).encode()) > config.max_context_bytes:
             raise ProviderFailure("CONTEXT_LIMIT")
         prompt_version = kind + (
-            "-v3" if kind == "checking" else "-v2" if kind == "evaluation" else "-v1"
+            "-v4"
+            if kind == "checking"
+            else "-v3"
+            if kind == "evaluation"
+            else "-v2"
+            if kind in ("baseline", "workspace", "workspace-check")
+            else "-v1"
         )
         prompt = (PROMPTS / (prompt_version + ".md")).read_text(encoding="utf-8")
         prompt_hash = hashlib.sha256(
@@ -204,7 +235,25 @@ class OpenAIAdapter:
                 )
                 if response.status_code >= 400:
                     transient = response.status_code == 429 or response.status_code >= 500
-                    status = "RATE_LIMIT" if response.status_code == 429 else "PROVIDER_ERROR"
+                    try:
+                        error = response.json().get("error", {})
+                    except ValueError:
+                        error = {}
+                    error_code = error.get("code") if isinstance(error, dict) else None
+                    status = {
+                        401: "AUTHENTICATION_FAILED",
+                        403: "PERMISSION_DENIED",
+                        404: "MODEL_UNAVAILABLE",
+                        413: "CONTEXT_LIMIT",
+                        429: "RATE_LIMIT",
+                    }.get(
+                        response.status_code,
+                        "TRANSIENT_PROVIDER_ERROR"
+                        if response.status_code >= 500
+                        else "INVALID_REQUEST",
+                    )
+                    if error_code in ("context_length_exceeded", "max_tokens_exceeded"):
+                        status = "CONTEXT_LIMIT"
                 else:
                     data = response.json()
                     if not isinstance(data, dict):
@@ -229,7 +278,18 @@ class OpenAIAdapter:
                         if len(texts) != 1:
                             raise ValueError("Missing structured result")
                         result = model.model_validate_json(texts[0])
-                        status = "SUCCEEDED"
+                        returned = data.get("model")
+                        import re
+
+                        if not isinstance(returned, str) or not (
+                            returned == config.model
+                            or re.fullmatch(
+                                re.escape(config.model) + r"-\d{4}-\d{2}-\d{2}", returned
+                            )
+                        ):
+                            result, status = None, "MODEL_MISMATCH"
+                        else:
+                            status = "SUCCEEDED"
             except httpx.TimeoutException:
                 status = "TIMEOUT_UNCERTAIN"
             except httpx.HTTPError:
@@ -289,6 +349,8 @@ class OpenAIAdapter:
                     price_date=config.price_date,
                 )
             )
+            if self.receipt_sink is not None:
+                self.receipt_sink(ledger.receipt())
             if result is not None and status == "SUCCEEDED":
                 return result
             if not transient or attempt >= config.retries:

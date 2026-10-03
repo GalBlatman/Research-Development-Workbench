@@ -13,7 +13,7 @@ from domain.benchmark import (
     Split,
     Transformation,
 )
-from domain.models import Route, Stage
+from domain.models import EvidenceState, Route, Stage
 
 
 def synthetic() -> tuple[tuple[BenchmarkProject, ...], tuple[Case, ...]]:
@@ -32,7 +32,9 @@ def synthetic() -> tuple[tuple[BenchmarkProject, ...], tuple[Case, ...]]:
                 blocks=(
                     Block(
                         block_id="question",
-                        text="Synthetic project: does a fictional scheduling change alter handoffs?",
+                        text="Synthetic project: does scheduling change "
+                        + str(index + 1)
+                        + " alter handoffs?",
                         features=(Feature.QUESTION,),
                     ),
                     Block(
@@ -58,7 +60,7 @@ def synthetic() -> tuple[tuple[BenchmarkProject, ...], tuple[Case, ...]]:
                     content="direct count of handoffs",
                     source_anchors=("measure",),
                     confidence="high",
-                    status="specified_but_untested",
+                    status=EvidenceState.UNTESTED,
                 ),
             ),
         )
@@ -85,8 +87,8 @@ def synthetic() -> tuple[tuple[BenchmarkProject, ...], tuple[Case, ...]]:
                         feature=Feature.MEASURES,
                         behavior="refuse_infer",
                         judgment="rating:9",
-                        acceptable_states=("PENDING", "UNRESOLVED"),
-                        forbidden_states=("ASSESSED",),
+                        acceptable_states=("pending", "unresolved"),
+                        forbidden_states=("assessed",),
                     ),
                 )
                 if name in ("hidden", "pair")

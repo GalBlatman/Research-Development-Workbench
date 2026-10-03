@@ -6,3 +6,5 @@ docs/reference/interface-wireframe.html -text
 policies/rubric-v4.md whitespace=-blank-at-eol
 docs/product-spec.md whitespace=-blank-at-eol
 docs/execution-plan.md whitespace=-blank-at-eol
+policies/rubric-v5.md -text
+policies/rubric-v5.md whitespace=-blank-at-eol

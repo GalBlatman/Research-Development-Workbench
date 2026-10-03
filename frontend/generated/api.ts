@@ -393,6 +393,8 @@ export interface components {
         AssessmentView: {
             /** Account Articulated */
             account_articulated: boolean;
+            /** @default supported */
+            account_articulated_verification: components["schemas"]["Verification"];
             /** Findings */
             findings: components["schemas"]["Finding"][];
             /** Ratings */
@@ -401,6 +403,8 @@ export interface components {
             route_assessment: components["schemas"]["RouteItem"][];
             /** Study Assessable */
             study_assessable: boolean;
+            /** @default supported */
+            study_assessable_verification: components["schemas"]["Verification"];
         };
         /** AttributedStatement */
         AttributedStatement: {
@@ -602,6 +606,19 @@ export interface components {
              * @enum {string}
              */
             workspace: "Brief" | "Literature" | "Argument" | "Alternatives" | "Study" | "Usefulness" | "Next Actions";
+        };
+        /** DiagnosticAction */
+        DiagnosticAction: {
+            /** Deliverable */
+            deliverable: string;
+            /** Issue */
+            issue: string;
+            /** Outcome Branches */
+            outcome_branches: string[];
+            /** Required Input */
+            required_input: string;
+            /** Task */
+            task: string;
         };
         /** EditProject */
         EditProject: {
@@ -857,6 +874,11 @@ export interface components {
              * @default null
              */
             generated_by_run_id: string | null;
+            /**
+             * Imported
+             * @default false
+             */
+            imported: boolean;
             /** Object Id */
             object_id: string;
             /**
@@ -1065,6 +1087,12 @@ export interface components {
         };
         /** ResearchField */
         ResearchField: {
+            /**
+             * Claim Kind
+             * @default interpretive_judgment
+             * @enum {string}
+             */
+            claim_kind: "interpretive_judgment" | "proposed_action" | "hypothetical_result" | "reported_result";
             /** Key */
             key: string;
             /** @default user_text */
@@ -1105,6 +1133,7 @@ export interface components {
             contribution: string;
             /** Deliverable */
             deliverable: string;
+            diagnostic_action?: components["schemas"]["DiagnosticAction"] | null;
             /** Disclaimer */
             disclaimer: string;
             /** Limitations */
@@ -1118,8 +1147,25 @@ export interface components {
         };
         /** ReviewIndex */
         ReviewIndex: {
+            /** Model Configuration */
+            model_configuration?: string | null;
+            /** Policy Implementation Version */
+            policy_implementation_version?: string | null;
+            /** Policy Manifest Sha256 */
+            policy_manifest_sha256?: string | null;
+            /** Policy Sha256 */
+            policy_sha256?: string | null;
+            /**
+             * Policy Version
+             * @default 4
+             */
+            policy_version: string;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /** Revision */
             revision: number;
+            /** @default INITIAL_SCREEN */
+            scope: components["schemas"]["Scope"];
             /** Snapshot Id */
             snapshot_id: string;
             /**
@@ -1139,6 +1185,8 @@ export interface components {
             contribution: string;
             /** Deliverable */
             deliverable: string;
+            /** @default null */
+            diagnostic_action: components["schemas"]["DiagnosticAction"] | null;
             /** Disclaimer */
             disclaimer: string;
             /**
@@ -1217,10 +1265,17 @@ export interface components {
             /** Reason */
             reason: string;
             /**
+             * Source Refs
+             * @default []
+             */
+            source_refs: components["schemas"]["SourceReference"][];
+            /**
              * Status
              * @enum {string}
              */
             status: "ADEQUATE FOR STAGE" | "DEVELOPMENT NEEDED" | "BLOCKING" | "NOT INSPECTED";
+            /** @default supported */
+            verification: components["schemas"]["Verification"];
         };
         /** RunHandle */
         RunHandle: {
@@ -1292,6 +1347,11 @@ export interface components {
             created_at?: string | null;
             /** Documents */
             documents: components["schemas"]["PublicDocument"][];
+            /**
+             * Imported
+             * @default false
+             */
+            imported: boolean;
             /** Model Configuration */
             model_configuration: string | null;
             /** Policy Implementation Version */
@@ -1361,6 +1421,11 @@ export interface components {
              * @enum {string}
              */
             media_type: "text/plain" | "text/markdown";
+            /**
+             * Presentation Order
+             * @default null
+             */
+            presentation_order: number | null;
             /** Project Id */
             project_id: string;
             /** Rights Declaration */

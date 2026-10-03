@@ -38,7 +38,7 @@ def main() -> int:
     adapter = OpenAIAdapter(config)
     root = Path(__file__).resolve().parents[2]
     manifest = Manifest.model_validate_json(
-        (root / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
+        (root / "policies/rubric-v5.manifest.json").read_text(encoding="utf-8")
     )
     try:
         with TemporaryDirectory(prefix="rdw-synthetic-smoke-") as temporary:

@@ -23,9 +23,23 @@ def content_hash(value: object) -> str:
     ).hexdigest()
 
 
+def package_identity(project: BenchmarkProject) -> str:
+    # Exclude administrator labels, gold and split; relabeling cannot change source identity.
+    return content_hash(tuple((b.role, b.text) for b in project.source_package.blocks))
+
+
 def freeze(projects: tuple[BenchmarkProject, ...], version: str) -> FrozenSplit:
+    identities = [package_identity(p) for p in projects]
+    if len(set(identities)) != len(identities):
+        raise ValueError("Duplicate underlying source package")
+    if len({p.source_package.package_id for p in projects}) != len(projects):
+        raise ValueError("Source package ID collision")
     return FrozenSplit(
         version=version,
+        package_assignments=tuple(
+            (p.benchmark_id, p.source_package.package_id, package_identity(p), p.split)
+            for p in sorted(projects, key=lambda p: p.benchmark_id)
+        ),
         assignments=tuple(
             (p.benchmark_id, p.split, content_hash(p))
             for p in sorted(projects, key=lambda p: p.benchmark_id)
@@ -35,6 +49,14 @@ def freeze(projects: tuple[BenchmarkProject, ...], version: str) -> FrozenSplit:
 
 def validate_import(project: BenchmarkProject, manifest: FrozenSplit) -> None:
     entry = next((a for a in manifest.assignments if a[0] == project.benchmark_id), None)
+    package = next((a for a in manifest.package_assignments if a[0] == project.benchmark_id), None)
+    if package != (
+        project.benchmark_id,
+        project.source_package.package_id,
+        package_identity(project),
+        project.split,
+    ):
+        raise ValueError("Frozen permanent package identity mismatch")
     if entry is None or entry[1] != project.split or entry[2] != content_hash(project):
         raise ValueError("Frozen split/package mismatch")
 
@@ -104,7 +126,20 @@ def construct(
             for b in mutation.replacements
         ):
             raise ValueError("Degradation requires explicit feature-owned replacement")
-        blocks.extend(mutation.replacements)
+        # Tuple order is canonical source order; replace affected positions, never append.
+        original = project.source_package.blocks
+        affected = [b for b in original if set(b.features) & removed]
+        if len(mutation.replacements) != len(affected):
+            raise ValueError("Degradation requires one in-place replacement per affected block")
+        replacements = dict(zip((b.block_id for b in affected), mutation.replacements, strict=True))
+        if any(
+            not set(replacements[b.block_id].features) <= (set(b.features) & removed)
+            for b in affected
+        ):
+            raise ValueError("In-place replacement must retain its target feature ownership")
+        if any(replacements[b.block_id].role != b.role for b in affected):
+            raise ValueError("Degradation cannot change source role")
+        blocks = [replacements.get(b.block_id, b) for b in original]
     elif mutation.replacements:
         if kind not in (Transformation.INTACT, Transformation.METADATA):
             raise ValueError("Replacements not allowed for this transformation")
@@ -112,6 +147,14 @@ def construct(
         replacements = {b.block_id: b for b in mutation.replacements}
         if not replacements.keys() <= {b.block_id for b in blocks}:
             raise ValueError("Unknown anonymized block")
+        for block in blocks:
+            replacement = replacements.get(block.block_id)
+            if replacement and (
+                replacement.role != block.role
+                or replacement.features != block.features
+                or replacement.metadata_only != block.metadata_only
+            ):
+                raise ValueError("Anonymization cannot change block role or scientific ownership")
         blocks = [replacements.get(b.block_id, b) for b in blocks]
     visible = []
     for b in blocks:
@@ -156,4 +199,6 @@ def construct(
         mutation=mutation,
         visibility=visibility,
         packet=packet,
+        package_hash=content_hash(project),
+        split_hash=content_hash(manifest),
     )

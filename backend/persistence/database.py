@@ -131,6 +131,23 @@ class Database:
             self.validate_schema()
         if current == SCHEMA_VERSION:
             return
+        if current == 0:
+            if self.dialect == "sqlite":
+                existing = {
+                    row[0]
+                    for row in self.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
+            else:
+                existing = {
+                    row[0]
+                    for row in self.execute(
+                        "SELECT tablename FROM pg_tables WHERE schemaname=current_schema()"
+                    ).fetchall()
+                }
+            if existing & {statement.split()[5] for statement in TABLES}:
+                raise ValueError("UNVERSIONED_EXISTING_DATABASE_SCHEMA")
         with self.transaction():
             if self.dialect == "postgres":
                 self.execute("SELECT pg_advisory_xact_lock(824008)")
@@ -165,6 +182,8 @@ class Database:
             self.execute(
                 "INSERT INTO schema_versions(version) VALUES(2) ON CONFLICT(version) DO NOTHING"
             )
+
+            self.validate_schema()
 
     def close(self) -> None:
         self.connection.close()

@@ -75,6 +75,22 @@ def conjunction(values: list[Truth]) -> Truth:
     return Truth.UNKNOWN if Truth.UNKNOWN in values else Truth.TRUE
 
 
+def route_readiness(items: object, required: tuple[str, ...]) -> Truth:
+    from domain.models import RouteItem
+
+    if not isinstance(items, tuple) or not all(isinstance(i, RouteItem) for i in items):
+        raise ValueError("Typed route assessment required")
+    states = {
+        i.item: i.status if i.verification == Verification.SUPPORTED else "NOT INSPECTED"
+        for i in items
+    }
+    if any(states.get(key, "NOT INSPECTED") == "NOT INSPECTED" for key in required):
+        return Truth.UNKNOWN
+    if any(states[key] == "BLOCKING" for key in required):
+        return Truth.FALSE
+    return Truth.TRUE
+
+
 def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
     """Interpretive findings are inputs; only deterministic consequences occur here."""
     if assessment.snapshot.policy_sha256 != manifest.canonical_sha256:
@@ -270,7 +286,15 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
         status = Status.CONDITIONAL if any(i in conditional for i in ids) else Status.ASSESSED
         return Score(10 * total / sum(d.weight for d in dims), status, "Assessed eligible block")
 
-    idea_uncapped = block(range(1, 8), theory, route != Route.EXPLAIN)
+    idea_uncapped = block(
+        range(1, 8),
+        theory
+        and (
+            manifest.version == "4"
+            or assessment.account_articulated_verification == Verification.SUPPORTED
+        ),
+        route != Route.EXPLAIN,
+    )
     if theory and fact("AUDIENCE-QUESTION") == Truth.TRUE:
         idea_uncapped = Score(None, Status.PENDING, "Audience/question must be specified")
     idea = Score(
@@ -282,7 +306,14 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
     )
     if theory and fact("PREMISE-CONDITIONAL") == Truth.TRUE and idea.value is not None:
         idea = Score(idea.value, Status.CONDITIONAL, "PREMISE-CONDITIONAL")
-    study = block(range(8, 11), assessment.study_assessable)
+    study = block(
+        range(8, 11),
+        assessment.study_assessable
+        and (
+            manifest.version == "4"
+            or assessment.study_assessable_verification == Verification.SUPPORTED
+        ),
+    )
 
     def combine(i: Score, d: Score) -> Score:
         if route != Route.EXPLAIN:
@@ -452,7 +483,11 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             item.status == "ADEQUATE FOR STAGE" for item in assessment.route_assessment
         )
         submission_requirements += [
-            Truth.TRUE if route_complete else Truth.FALSE,
+            route_readiness(assessment.route_assessment, manifest.route_items)
+            if manifest.version == "5"
+            else Truth.TRUE
+            if route_complete
+            else Truth.FALSE,
             fact("DELIVERED-SUPPORT"),
             fact("ROUTE-NO-HARD-STOP"),
         ]
@@ -524,7 +559,7 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
                 if gate.provisional
                 else "Gate evaluated",
                 "; ".join(gate.missed) or "Requirements satisfied",
-                "v4 §§2.2, 8.4–8.5",
+                f"v{manifest.version} §§2.2, 8.4–8.5",
             )
         )
     label = "NO EXCELLENCE ENDORSEMENT"

@@ -1,0 +1,193 @@
+{
+  "gate": "GATE-3",
+  "roadmap_step": "11/16 — GATE-3 repair",
+  "audited_baseline": "fbba2d7c2825bae9d2e118d0c6db2b7bc48f5ea7",
+  "authority": "Owner-supplied audit findings and explicit G3-R1 v5 clarification; docs/tasks/GATE-3-repair.md",
+  "independent_rerun": "NOT_PERFORMED — repair implementation does not claim independent acceptance",
+  "findings": [
+    {
+      "id": "G3-R1",
+      "status": "RESOLVED",
+      "evidence": [
+        "policies/rubric-v5.md",
+        "docs/decisions/0010-rubric-v5-route-readiness.md",
+        "backend/tests/test_gate3_policy.py"
+      ]
+    },
+    {
+      "id": "G3-B1",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/benchmarks/variants.py",
+        "backend/benchmarks/evaluator.py",
+        "backend/tests/test_gate3_benchmark.py"
+      ]
+    },
+    {
+      "id": "G3-B2",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/benchmarks/store.py",
+        "backend/domain/benchmark.py",
+        "backend/tests/test_gate3_benchmark.py"
+      ]
+    },
+    {
+      "id": "G3-B3",
+      "status": "RESOLVED",
+      "evidence": [
+        "evals/benchmark-package-v1.schema.json",
+        "docs/benchmark-package-v1.md",
+        "backend/benchmarks/__main__.py",
+        "backend/tests/test_gate3_benchmark.py"
+      ]
+    },
+    {
+      "id": "G3-B4",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/model_adapters/checking.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N1",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/research.py",
+        "backend/services/workbench.py",
+        "backend/tests/test_gate3_repair.py",
+        "frontend/e2e/workspaces.spec.ts"
+      ]
+    },
+    {
+      "id": "G3-N2",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/research.py",
+        "backend/tests/test_gate3_repair.py",
+        "backend/tests/test_gate2_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N3",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/research.py",
+        "frontend/src/workspaces.tsx",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N4",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/portability.py",
+        "backend/domain/models.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N5",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/domain/models.py",
+        "backend/domain/research.py",
+        "backend/services/research.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N6",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/model_adapters/openai.py",
+        "backend/model_adapters/checking.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N7",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/workbench.py",
+        "backend/model_adapters/openai.py",
+        "backend/services/runs.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N8",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/benchmarks/metrics.py",
+        "backend/prompts/baseline-v2.md",
+        "backend/tests/test_gate3_repair.py",
+        "backend/tests/test_gate3_benchmark.py"
+      ]
+    },
+    {
+      "id": "G3-N9",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/benchmarks/store.py",
+        "backend/benchmarks/runner.py",
+        "backend/benchmarks/evaluator.py",
+        "backend/tests/test_gate3_benchmark.py"
+      ]
+    },
+    {
+      "id": "G3-N10",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/services/backup.py",
+        "backend/services/pilot.py",
+        "backend/persistence/database.py",
+        "backend/tests/test_gate3_repair.py"
+      ]
+    },
+    {
+      "id": "G3-N11",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/domain/presentation.py",
+        "backend/services/workbench.py",
+        "frontend/src/main.tsx",
+        "frontend/e2e/workspaces.spec.ts"
+      ]
+    },
+    {
+      "id": "G3-N12",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/policy_engine/engine.py",
+        "backend/tests/test_gate3_policy.py"
+      ]
+    },
+    {
+      "id": "G3-N13",
+      "status": "RESOLVED",
+      "evidence": [
+        "backend/tests/test_gate3_policy.py",
+        "backend/tests/test_gate3_benchmark.py",
+        "backend/tests/test_gate3_repair.py",
+        "frontend/e2e/workspaces.spec.ts",
+        ".github/workflows/ci.yml"
+      ]
+    }
+  ],
+  "required_merge_checks": [
+    "foundation",
+    "domain-policy (mandatory PostgreSQL 17 including backup/restore and RunManager lifecycle)",
+    "browser"
+  ],
+  "check_record": "The pull request and commit workflow checks are the authoritative remote acceptance record; integration is prohibited until all required jobs pass.",
+  "scope_exclusions": [
+    "No Step 12 corpus or builder implementation",
+    "No private papers or source research artifacts",
+    "No calibration or new research criteria",
+    "No live provider execution/spending",
+    "No roadmap changes"
+  ],
+  "review": "Reviewed against the owner contract, module boundaries and immutable governing-file baselines; per-finding regression evidence is listed above."
+}

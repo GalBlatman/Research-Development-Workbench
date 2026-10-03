@@ -69,7 +69,7 @@ def identity(project: Project, object_id: str) -> str:
         obj = objects[object_id]
         if obj.dependency_identity:
             return obj.dependency_identity
-        if obj.target_object_id is None or obj.adoption == Adoption.PROPOSED:
+        if obj.target_object_id is None:
             break
         object_id = obj.target_object_id
     return object_id
@@ -124,11 +124,28 @@ def changed(
 
 def review_keys(project: Project, workspace: str | None) -> tuple[str, ...]:
     """Track the logical records actually available within this assessment scope."""
-    keys: set[str] = set()
+    keys: set[str] = set((workspace,) if workspace else tuple(FIELDS))
+    if workspace in ("Brief", "Usefulness"):
+        keys.update(("Literature", "Argument"))
+    if workspace:
+        keys.update(
+            other
+            for other, dims in DIMENSIONS.items()
+            if set(dims) & set(DIMENSIONS.get(workspace, ()))
+        )
     for obj in project.objects:
         if obj.adoption in (Adoption.REJECTED, Adoption.SUPERSEDED):
             continue
-        if workspace is None or workspace_of(obj) == workspace:
+        related = workspace is None or workspace_of(obj) == workspace
+        if workspace is not None:
+            related = related or bool(
+                set(DIMENSIONS.get(workspace, ())) & set(DIMENSIONS.get(workspace_of(obj), ()))
+            )
+            related = related or (
+                workspace in ("Brief", "Usefulness")
+                and workspace_of(obj) in ("Literature", "Argument")
+            )
+        if related:
             keys.add("object:" + identity(project, obj.object_id))
             keys.update(d.key for d in obj.dependencies)
     return tuple(sorted(keys))
@@ -145,6 +162,26 @@ def invalidate(
         else o
         for o in objects
     )
+
+
+def record_origin(record: ResearchRecord) -> Origin:
+    if any(f.origin in (Origin.INFERENCE, Origin.SUGGESTION) for f in record.fields):
+        return Origin.INFERENCE
+    return Origin.USER
+
+
+def preserve_field_origins(old: ProjectObject | None, record: ResearchRecord) -> ResearchRecord:
+    if old is None or not isinstance(old.payload, ResearchRecord):
+        return record
+    previous = {f.key: f for f in old.payload.fields}
+    fields = tuple(
+        previous[f.key]
+        if f.key in previous
+        and f.model_dump(exclude={"origin"}) == previous[f.key].model_dump(exclude={"origin"})
+        else f
+        for f in record.fields
+    )
+    return record.model_copy(update={"fields": fields})
 
 
 class ResearchService:
@@ -217,6 +254,51 @@ class ResearchService:
             old = next((o for o in project.objects if o.object_id == request.object_id), None)
             if request.object_id and (old is None or workspace_of(old) != request.record.workspace):
                 raise ValueError("Edited record unavailable in this workspace")
+            if old and old.adoption in (Adoption.SUPERSEDED, Adoption.REJECTED):
+                raise Conflict("Edit must target the current accepted head or pending proposal")
+            if old:
+                heads = [
+                    o
+                    for o in project.objects
+                    if o.adoption == Adoption.ACCEPTED
+                    and identity(project, o.object_id) == identity(project, old.object_id)
+                ]
+                if old.adoption == Adoption.ACCEPTED and any(
+                    o.object_id != old.object_id for o in heads
+                ):
+                    raise Conflict("Accepted lineage has another current head")
+                if (
+                    old.adoption == Adoption.PROPOSED
+                    and old.target_object_id
+                    and heads
+                    and all(o.object_id != old.target_object_id for o in heads)
+                ):
+                    raise Conflict("Proposal targets an obsolete accepted head")
+            if request.change == "wording":
+                if old is None or not isinstance(old.payload, ResearchRecord):
+                    raise ValueError("Wording edit requires an existing typed record")
+                if request.record.title.split() != old.payload.title.split():
+                    raise ValueError("Wording-only cannot change the record title meaning")
+                original_fields = {f.key: f for f in old.payload.fields}
+                if set(original_fields) != {f.key for f in request.record.fields}:
+                    raise ValueError("Wording edit cannot change field identities")
+                for field in request.record.fields:
+                    before = original_fields[field.key]
+                    if (
+                        field.state != before.state
+                        or field.source_refs != before.source_refs
+                        or field.claim_kind != before.claim_kind
+                    ):
+                        raise ValueError("Wording edit cannot change evidence or source references")
+                    if (field.text or "").split() != (before.text or "").split():
+                        raise ValueError(
+                            "Wording-only permits presentation whitespace; changed claim wording requires a substantive edit"
+                        )
+                    if field.key in CHOICES and field.text != before.text:
+                        raise ValueError("Wording edit cannot change a scientific choice")
+                if refs != old.source_refs or request.depends_on is not None:
+                    raise ValueError("Wording edit cannot change references or dependencies")
+            payload = preserve_field_origins(old, request.record)
             identifier = uuid4().hex
             explicit = (
                 tuple(d.key for d in old.dependencies if d.key.startswith("object:"))
@@ -236,10 +318,13 @@ class ResearchService:
                 object_id=identifier,
                 project_id=project_id,
                 revision=updated.revision,
-                payload=request.record,
-                origin=Origin.USER,
+                payload=payload,
+                origin=record_origin(payload),
+                generated_by_run_id=old.generated_by_run_id
+                if old and record_origin(payload) != Origin.USER
+                else None,
                 adoption=Adoption.ACCEPTED,
-                evidence_state=EvidenceState.UNTESTED,
+                evidence_state=old.evidence_state if old else EvidenceState.UNTESTED,
                 source_refs=refs,
                 dependencies=old.dependencies
                 if old and request.change == "wording" and request.depends_on is None
@@ -255,7 +340,14 @@ class ResearchService:
                 o.model_copy(
                     update={"adoption": Adoption.SUPERSEDED, "freshness": Freshness.SUPERSEDED}
                 )
-                if old and o.object_id == old.object_id
+                if old
+                and (
+                    o.object_id == old.object_id
+                    or (
+                        o.adoption == Adoption.ACCEPTED
+                        and identity(project, o.object_id) == identity(project, old.object_id)
+                    )
+                )
                 else o
                 for o in project.objects
             )
@@ -303,6 +395,19 @@ class ResearchService:
                 else identity(project, obj.object_id)
             )
             target = next((o for o in project.objects if o.object_id == obj.target_object_id), None)
+            if (
+                request.action == "accepted"
+                and target is not None
+                and target.adoption != Adoption.ACCEPTED
+            ):
+                raise Conflict("Suggestion targets an obsolete accepted head")
+            if request.action == "accepted" and any(
+                o.adoption == Adoption.ACCEPTED
+                and identity(project, o.object_id) == logical
+                and (target is None or o.object_id != target.object_id)
+                for o in project.objects
+            ):
+                raise Conflict("Lineage already has another accepted head")
             retained_keys = tuple(d.key for d in obj.dependencies)
             if request.action == "accepted" and target:
                 retained_keys += tuple(d.key for d in target.dependencies)
@@ -340,10 +445,14 @@ class ResearchService:
                     object_id=uuid4().hex,
                     project_id=project_id,
                     revision=updated.revision,
-                    payload=request.edited_record,
-                    origin=Origin.USER,
+                    payload=preserve_field_origins(obj, request.edited_record),
+                    origin=record_origin(preserve_field_origins(obj, request.edited_record)),
+                    generated_by_run_id=obj.generated_by_run_id
+                    if record_origin(preserve_field_origins(obj, request.edited_record))
+                    != Origin.USER
+                    else None,
                     adoption=Adoption.ACCEPTED,
-                    evidence_state=EvidenceState.UNTESTED,
+                    evidence_state=obj.evidence_state,
                     target_object_id=obj.object_id,
                     source_refs=tuple(
                         r for f in request.edited_record.fields for r in f.source_refs
@@ -452,7 +561,44 @@ class ResearchService:
             refs = tuple(dict.fromkeys(r for f in candidate.record.fields for r in f.source_refs))
             for ref in refs:
                 self.w.repository.get_anchor(self.w.scope(project_id), ref)
+            for grounding in candidate.result_grounding:
+                field = next((f for f in candidate.record.fields if f.key == grounding.field), None)
+                if field is None:
+                    raise ProviderFailure("RESULT_GROUNDING_FIELD_MISMATCH")
+                if grounding.existing_object_id:
+                    original = next(
+                        (
+                            o
+                            for o in project.objects
+                            if o.object_id == grounding.existing_object_id
+                            and o.adoption == Adoption.ACCEPTED
+                        ),
+                        None,
+                    )
+                    original_field = (
+                        next(
+                            (
+                                f
+                                for f in getattr(original.payload, "fields", ())
+                                if f.key == grounding.field and f.origin == Origin.USER
+                            ),
+                            None,
+                        )
+                        if original
+                        else None
+                    )
+                    if original_field is None or original_field.text != field.text:
+                        raise ProviderFailure("FABRICATED_REPORTED_RESULT")
+                for ref in grounding.source_refs:
+                    self.w.repository.get_anchor(self.w.scope(project_id), ref)
             checked = self.w.verifier.workspace(task, candidate)
+            for grounding in candidate.result_grounding:
+                if grounding.source_refs and not grounding.existing_object_id:
+                    disposition = next(
+                        (d for d in checked.decisions if d.target == grounding.field), None
+                    )
+                    if disposition is None or disposition.disposition != "supported":
+                        raise ProviderFailure("UNSUPPORTED_REPORTED_RESULT")
             refs = tuple(
                 dict.fromkeys(refs + tuple(r for d in checked.decisions for r in d.source_refs))
             )

@@ -67,7 +67,7 @@ def test_exact_audit_dependency_sequences_and_immutable_history(workspace_client
             client,
             view,
             "Usefulness",
-            {"boundaries": "Same synthetic boundary, clearer wording"},
+            {"boundaries": "Only use the claim within the  synthetic boundary"},
             object_id=upstream["object_id"],
             change="wording",
         )
@@ -87,7 +87,7 @@ def test_exact_audit_dependency_sequences_and_immutable_history(workspace_client
             client,
             view,
             "Study",
-            {"claim": "Same conditional claim with clearer wording"},
+            {"claim": "This narrower claim depends on that  boundary"},
             object_id=dependent["object_id"],
             change="wording",
         )
@@ -142,7 +142,7 @@ def test_explicit_dependency_removal_is_deliberate_and_transitive_change_is_sele
         "Study",
         {"claim": "Revised conditional claim"},
         object_id=dependent["object_id"],
-        change="wording",
+        change="substantive",
         depends_on=[],
     )
     replacement = view["project"]["objects"][-1]
@@ -250,7 +250,7 @@ def test_checker_cannot_promote_unchecked_summary_and_checked_disposition_surviv
         assert result["summary"]["obstacle"].startswith("Within the inspected source scope only:")
     assert len(requests) == 2
     assert requests[-1]["text"]["format"]["strict"] is True
-    assert "checking-v3" in model.prompt_configuration
+    assert "checking-v4" in model.prompt_configuration
     assert (
         w.review(view["project"]["project_id"], result["snapshot"]["snapshot_id"])["summary"]
         == result["summary"]
@@ -483,7 +483,7 @@ def test_wording_edit_does_not_silently_refresh_already_affected_support(workspa
         client,
         view,
         "Study",
-        {"claim": "Same dependent claim, wording clarified"},
+        {"claim": "This narrower claim depends on that  boundary"},
         object_id=dependent["object_id"],
         change="wording",
     )

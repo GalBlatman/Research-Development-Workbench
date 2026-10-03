@@ -273,14 +273,14 @@ class BadInterpretation(FakeModel):
         return {"brief": {"question": ""}}
 
 
-def test_invalid_interpretation_rolls_back_project(tmp_path, manifest):
+def test_invalid_interpretation_preserves_intake_without_proposal(tmp_path, manifest):
     workbench = service(tmp_path, manifest, BadInterpretation())
     with TestClient(create_app(workbench)) as client:
         response = client.post(
             "/api/projects", json={"title": "Synthetic", "idea": DEMO_IDEA, "authorized": True}
         )
         assert response.status_code == 502
-        assert workbench.repository.db.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0
+        assert workbench.repository.db.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 1
     workbench.repository.db.close()
 
 

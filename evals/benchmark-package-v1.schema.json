@@ -1,0 +1,745 @@
+{
+  "$defs": {
+    "BenchmarkExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptable_states": {
+          "default": [],
+          "items": {
+            "enum": [
+              "assessed",
+              "pending",
+              "not_applicable",
+              "conditional",
+              "contested",
+              "unresolved",
+              "documented_or_verified",
+              "specified_but_untested",
+              "missing",
+              "not_inspected",
+              "contradicted",
+              "TRUE",
+              "FALSE",
+              "UNKNOWN",
+              "ADEQUATE FOR STAGE",
+              "DEVELOPMENT NEEDED",
+              "BLOCKING",
+              "NOT INSPECTED",
+              "proposed"
+            ],
+            "type": "string"
+          },
+          "title": "Acceptable States",
+          "type": "array"
+        },
+        "action_target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action Target"
+        },
+        "behavior": {
+          "enum": [
+            "detect",
+            "downgrade",
+            "withhold",
+            "unresolved",
+            "not_inspected",
+            "unchanged",
+            "restore",
+            "refuse_infer"
+          ],
+          "title": "Behavior",
+          "type": "string"
+        },
+        "degraded_reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Degraded Reference"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "lower",
+                "higher"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Direction"
+        },
+        "feature": {
+          "$ref": "#/$defs/Feature"
+        },
+        "forbidden_states": {
+          "default": [],
+          "items": {
+            "enum": [
+              "assessed",
+              "pending",
+              "not_applicable",
+              "conditional",
+              "contested",
+              "unresolved",
+              "documented_or_verified",
+              "specified_but_untested",
+              "missing",
+              "not_inspected",
+              "contradicted",
+              "TRUE",
+              "FALSE",
+              "UNKNOWN",
+              "ADEQUATE FOR STAGE",
+              "DEVELOPMENT NEEDED",
+              "BLOCKING",
+              "NOT INSPECTED",
+              "proposed"
+            ],
+            "type": "string"
+          },
+          "title": "Forbidden States",
+          "type": "array"
+        },
+        "invariant_judgments": {
+          "default": [],
+          "items": {
+            "pattern": "^(rating:([1-9]|10)|finding:(ROUTE-TOTAL|DISCOVERY-PENDING|UNINSPECTED-BLOCK|AUDIENCE-QUESTION|PREMISE-NO-BASIS|PREMISE-CONDITIONAL|PREMISE-CONTRADICTED|NO-ADVANCE|NO-CONSEQUENTIAL-STAKE|DESIGN-MISMATCH|INFERENCE-UNSUPPORTED|PROMISE-OVERREACH|HIGH-SCORE-BENCHMARK|EDITORIAL-UNCALIBRATED|PREDECESSORS-INSPECTED|STAGE-PREREQUISITES|CONSEQUENTIAL-STAKE|SUPPORT-VERIFIED|PROMISE-ALIGNED|DELIVERED-SUPPORT|ROUTE-NO-HARD-STOP|CONTRIBUTION-STUDY-SPECIFIED|PILOT-PREREQUISITES|STAGE-MISMATCH|KNOWLEDGE-NEED|IDENTIFIABLE-INCREMENT|CREDIBLE-BOUNDED-ACTION)|route:(knowledge_need|increment|scope_precision|capacity_to_learn|evidence_strategy|next_use)|statement:[A-Za-z0-9:_-]+)$",
+            "type": "string"
+          },
+          "title": "Invariant Judgments",
+          "type": "array"
+        },
+        "judgment": {
+          "pattern": "^(rating:([1-9]|10)|finding:(ROUTE-TOTAL|DISCOVERY-PENDING|UNINSPECTED-BLOCK|AUDIENCE-QUESTION|PREMISE-NO-BASIS|PREMISE-CONDITIONAL|PREMISE-CONTRADICTED|NO-ADVANCE|NO-CONSEQUENTIAL-STAKE|DESIGN-MISMATCH|INFERENCE-UNSUPPORTED|PROMISE-OVERREACH|HIGH-SCORE-BENCHMARK|EDITORIAL-UNCALIBRATED|PREDECESSORS-INSPECTED|STAGE-PREREQUISITES|CONSEQUENTIAL-STAKE|SUPPORT-VERIFIED|PROMISE-ALIGNED|DELIVERED-SUPPORT|ROUTE-NO-HARD-STOP|CONTRIBUTION-STUDY-SPECIFIED|PILOT-PREREQUISITES|STAGE-MISMATCH|KNOWLEDGE-NEED|IDENTIFIABLE-INCREMENT|CREDIBLE-BOUNDED-ACTION)|route:(knowledge_need|increment|scope_precision|capacity_to_learn|evidence_strategy|next_use)|statement:[A-Za-z0-9:_-]+)$",
+          "title": "Judgment",
+          "type": "string"
+        },
+        "reference_variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Variant"
+        }
+      },
+      "required": [
+        "feature",
+        "behavior",
+        "judgment"
+      ],
+      "title": "BenchmarkExpectation",
+      "type": "object"
+    },
+    "BenchmarkProject": {
+      "additionalProperties": false,
+      "properties": {
+        "benchmark_id": {
+          "minLength": 1,
+          "title": "Benchmark Id",
+          "type": "string"
+        },
+        "gold": {
+          "items": {
+            "$ref": "#/$defs/GoldFeature"
+          },
+          "title": "Gold",
+          "type": "array"
+        },
+        "neutral_identifier": {
+          "minLength": 1,
+          "title": "Neutral Identifier",
+          "type": "string"
+        },
+        "route": {
+          "$ref": "#/$defs/Route"
+        },
+        "source_package": {
+          "$ref": "#/$defs/SourcePackage"
+        },
+        "split": {
+          "$ref": "#/$defs/Split"
+        },
+        "stage": {
+          "$ref": "#/$defs/Stage"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "benchmark_id",
+        "split",
+        "route",
+        "stage",
+        "neutral_identifier",
+        "source_package",
+        "gold",
+        "version"
+      ],
+      "title": "BenchmarkProject",
+      "type": "object"
+    },
+    "BenchmarkVariant": {
+      "additionalProperties": false,
+      "properties": {
+        "benchmark_id": {
+          "minLength": 1,
+          "title": "Benchmark Id",
+          "type": "string"
+        },
+        "mutation": {
+          "$ref": "#/$defs/Mutation"
+        },
+        "package_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Package Hash",
+          "type": "string"
+        },
+        "packet": {
+          "$ref": "#/$defs/BlindPacket"
+        },
+        "split": {
+          "$ref": "#/$defs/Split"
+        },
+        "split_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Split Hash",
+          "type": "string"
+        },
+        "variant_id": {
+          "minLength": 1,
+          "title": "Variant Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/Feature"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Visibility",
+          "type": "array"
+        }
+      },
+      "required": [
+        "variant_id",
+        "benchmark_id",
+        "split",
+        "version",
+        "mutation",
+        "visibility",
+        "packet",
+        "package_hash",
+        "split_hash"
+      ],
+      "title": "BenchmarkVariant",
+      "type": "object"
+    },
+    "BlindPacket": {
+      "additionalProperties": false,
+      "description": "Only this contract crosses into evaluator code; no administrator identifiers.",
+      "properties": {
+        "blocks": {
+          "items": {
+            "$ref": "#/$defs/VisibleBlock"
+          },
+          "title": "Blocks",
+          "type": "array"
+        },
+        "packet_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Packet Id",
+          "type": "string"
+        },
+        "route": {
+          "$ref": "#/$defs/Route"
+        },
+        "stage": {
+          "$ref": "#/$defs/Stage"
+        }
+      },
+      "required": [
+        "packet_id",
+        "route",
+        "stage",
+        "blocks"
+      ],
+      "title": "BlindPacket",
+      "type": "object"
+    },
+    "Block": {
+      "additionalProperties": false,
+      "properties": {
+        "block_id": {
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "features": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Feature"
+          },
+          "title": "Features",
+          "type": "array"
+        },
+        "metadata_only": {
+          "default": false,
+          "title": "Metadata Only",
+          "type": "boolean"
+        },
+        "role": {
+          "$ref": "#/$defs/SourceRole",
+          "default": "project_draft"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "block_id",
+        "text"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "EvidenceState": {
+      "enum": [
+        "documented_or_verified",
+        "specified_but_untested",
+        "contested",
+        "missing",
+        "not_inspected",
+        "contradicted",
+        "not_applicable"
+      ],
+      "title": "EvidenceState",
+      "type": "string"
+    },
+    "Feature": {
+      "enum": [
+        "puzzle",
+        "question",
+        "audience_prior_work",
+        "closest_predecessor",
+        "contribution",
+        "constructs",
+        "mechanism_account",
+        "predictions_implications",
+        "rivals",
+        "boundaries",
+        "unit_setting_sample",
+        "measures",
+        "temporal_structure",
+        "identification",
+        "findings_evidence",
+        "usefulness",
+        "premise_basis",
+        "source_attribution",
+        "route_stage"
+      ],
+      "title": "Feature",
+      "type": "string"
+    },
+    "FrozenExpectations": {
+      "additionalProperties": false,
+      "properties": {
+        "expectations": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkExpectation"
+          },
+          "title": "Expectations",
+          "type": "array"
+        },
+        "variant_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Variant Hash",
+          "type": "string"
+        },
+        "variant_id": {
+          "minLength": 1,
+          "title": "Variant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "variant_id",
+        "variant_hash",
+        "expectations"
+      ],
+      "title": "FrozenExpectations",
+      "type": "object"
+    },
+    "FrozenSplit": {
+      "additionalProperties": false,
+      "properties": {
+        "assignments": {
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Split"
+              },
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Assignments",
+          "type": "array"
+        },
+        "package_assignments": {
+          "items": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Split"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Package Assignments",
+          "type": "array"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "assignments",
+        "package_assignments"
+      ],
+      "title": "FrozenSplit",
+      "type": "object"
+    },
+    "GoldFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "content": {
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "feature": {
+          "$ref": "#/$defs/Feature"
+        },
+        "observable": {
+          "default": true,
+          "title": "Observable",
+          "type": "boolean"
+        },
+        "source_anchors": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Source Anchors",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EvidenceState"
+        }
+      },
+      "required": [
+        "feature",
+        "content",
+        "source_anchors",
+        "confidence",
+        "status"
+      ],
+      "title": "GoldFeature",
+      "type": "object"
+    },
+    "Mutation": {
+      "additionalProperties": false,
+      "properties": {
+        "parent_variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Variant"
+        },
+        "permit_metadata": {
+          "default": false,
+          "title": "Permit Metadata",
+          "type": "boolean"
+        },
+        "provenance": {
+          "default": "Administrator-specified transformation",
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "replacements": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "title": "Replacements",
+          "type": "array"
+        },
+        "reveal_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Reveal Count",
+          "type": "integer"
+        },
+        "reveal_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Feature"
+          },
+          "title": "Reveal Order",
+          "type": "array"
+        },
+        "targets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Feature"
+          },
+          "title": "Targets",
+          "type": "array"
+        },
+        "transformation": {
+          "$ref": "#/$defs/Transformation"
+        }
+      },
+      "required": [
+        "transformation"
+      ],
+      "title": "Mutation",
+      "type": "object"
+    },
+    "Route": {
+      "enum": [
+        "EXPLAIN",
+        "ESTABLISH",
+        "TEST"
+      ],
+      "title": "Route",
+      "type": "string"
+    },
+    "SourcePackage": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "title": "Blocks",
+          "type": "array"
+        },
+        "identifying_metadata": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Identifying Metadata",
+          "type": "array"
+        },
+        "package_id": {
+          "minLength": 1,
+          "title": "Package Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "package_id",
+        "version",
+        "blocks"
+      ],
+      "title": "SourcePackage",
+      "type": "object"
+    },
+    "SourceRole": {
+      "enum": [
+        "project_draft",
+        "author_note",
+        "closest_predecessor",
+        "literature",
+        "alternative_account",
+        "method_or_measure",
+        "context"
+      ],
+      "title": "SourceRole",
+      "type": "string"
+    },
+    "Split": {
+      "enum": [
+        "DEVELOPMENT",
+        "VALIDATION",
+        "HELD_OUT"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "Stage": {
+      "enum": [
+        "EARLY IDEA",
+        "DISCOVERY PROPOSAL",
+        "SPECIFIED STUDY PROPOSAL",
+        "COMPLETED STUDY"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "Transformation": {
+      "enum": [
+        "INTACT_BLIND",
+        "HIDE_FEATURE",
+        "HIDE_MULTIPLE",
+        "CUMULATIVE_REVEAL",
+        "CONTROLLED_DEGRADATION",
+        "CONTROLLED_RESTORATION",
+        "METADATA_BLINDING"
+      ],
+      "title": "Transformation",
+      "type": "string"
+    },
+    "VisibleBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/SourceRole"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "role"
+      ],
+      "title": "VisibleBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Administrator exchange artifact; never passed to a model.",
+  "properties": {
+    "expectations": {
+      "items": {
+        "$ref": "#/$defs/FrozenExpectations"
+      },
+      "title": "Expectations",
+      "type": "array"
+    },
+    "manifest": {
+      "$ref": "#/$defs/FrozenSplit"
+    },
+    "projects": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkProject"
+      },
+      "title": "Projects",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "benchmark-package-v1",
+      "default": "benchmark-package-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "variants": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkVariant"
+      },
+      "title": "Variants",
+      "type": "array"
+    }
+  },
+  "required": [
+    "manifest",
+    "projects",
+    "variants",
+    "expectations"
+  ],
+  "title": "BenchmarkPackage",
+  "type": "object"
+}

@@ -11,6 +11,7 @@ from domain.models import (
     Scope,
     StructuralCheck,
     UserAction,
+    Verification,
 )
 from domain.results import PolicyResult as PolicyResult
 from domain.sources import HistoricalCoverage as CoverageView
@@ -31,6 +32,13 @@ class ReviewIndex(Frozen):
     revision: int
     workspace: str | None = None
     stale: bool = False
+    scope: Scope = Scope.INITIAL_SCREEN
+    policy_version: str = "4"
+    policy_sha256: str | None = None
+    policy_implementation_version: str | None = None
+    policy_manifest_sha256: str | None = None
+    prompt_version: str | None = None
+    model_configuration: str | None = None
 
 
 class ProjectView(Frozen):
@@ -48,6 +56,7 @@ class PublicDocument(Frozen):
 
 
 class SnapshotView(Frozen):
+    imported: bool = False
     snapshot_id: str
     project: Project
     documents: tuple[PublicDocument, ...]
@@ -64,6 +73,8 @@ class SnapshotView(Frozen):
 class AssessmentView(Frozen):
     account_articulated: bool
     study_assessable: bool
+    account_articulated_verification: Verification = Verification.SUPPORTED
+    study_assessable_verification: Verification = Verification.SUPPORTED
     ratings: tuple[Rating, ...]
     findings: tuple[Finding, ...]
     route_assessment: tuple[RouteItem, ...]

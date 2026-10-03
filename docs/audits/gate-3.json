@@ -1,0 +1,98 @@
+{
+  "gate": "GATE-3",
+  "audited_commit": "fbba2d7c2825bae9d2e118d0c6db2b7bc48f5ea7",
+  "result": "FAIL",
+  "provenance": "Independent audit findings and explicit v5 clarification supplied by product owner in the GATE-3 repair request; this record is not a rerun verdict.",
+  "findings": [
+    {
+      "id": "G3-R1",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-B1",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-B2",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-B3",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-B4",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N1",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N2",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N3",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N4",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N5",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N6",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N7",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N8",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N9",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N10",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N11",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N12",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    },
+    {
+      "id": "G3-N13",
+      "status": "OPEN",
+      "contract": "docs/tasks/GATE-3-repair.md"
+    }
+  ]
+}

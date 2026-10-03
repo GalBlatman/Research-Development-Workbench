@@ -62,7 +62,7 @@ class AssessmentChecker:
     def verify(self, task: AssessmentTask, candidate: CandidateReview) -> AssessmentFields:
         return self.review(task, candidate).assessment
 
-    def review(self, task: AssessmentTask, candidate: CandidateReview) -> CheckedReview:
+    def validate_candidate(self, task: AssessmentTask, candidate: CandidateReview) -> None:
         packet_check(task.context)
         self.statements(task.context, candidate.statements)
         dimensions = set(task.dimensions or range(1, 11))
@@ -86,21 +86,52 @@ class AssessmentChecker:
         known = {
             r["id"]
             for r in json.loads(
-                (PROMPTS.parents[1] / "policies/rubric-v4.manifest.json").read_text(
-                    encoding="utf-8"
-                )
+                (
+                    PROMPTS.parents[1] / f"policies/rubric-v{task.policy_version}.manifest.json"
+                ).read_text(encoding="utf-8")
             )["rules"]
         }
         for finding in candidate.assessment.findings:
             if finding.rule_id not in known - DERIVED:
                 raise ProviderFailure("UNKNOWN_OR_DERIVED_FINDING")
             self.references(task.context, finding.source_refs)
+        for rating in candidate.assessment.ratings:
+            if rating.rating is not None and rating.rating >= 8:
+                benchmark = rating.benchmark
+                statement = next(
+                    (
+                        s
+                        for s in candidate.statements
+                        if s.statement_id == "benchmark:" + str(rating.dimension)
+                        and s.kind == "source_backed"
+                    ),
+                    None,
+                )
+                if benchmark is None or statement is None or not statement.source_refs:
+                    raise ProviderFailure("MISSING_PUBLISHED_BENCHMARK")
+                referenced = {ref.anchor_id for ref in statement.source_refs}
+                identities = {
+                    label
+                    for p in task.context.passages
+                    if p.anchor.anchor_id in referenced and p.source.role == "literature"
+                    for label in (p.source.title, p.source.attribution)
+                    if label
+                }
+                if benchmark.published_reference not in identities:
+                    raise ProviderFailure("BENCHMARK_ATTRIBUTION_MISMATCH")
+
+    def review(self, task: AssessmentTask, candidate: CandidateReview) -> CheckedReview:
+        self.validate_candidate(task, candidate)
         targets = {
             "rating:" + str(r.dimension)
             for r in candidate.assessment.ratings
             if r.rating is not None
         }
         targets |= {"finding:" + f.rule_id for f in candidate.assessment.findings}
+        targets |= {"route:" + item.item for item in candidate.assessment.route_assessment}
+        targets |= {"flag:account_articulated", "flag:study_assessable"}
+        for item in candidate.assessment.route_assessment:
+            self.references(task.context, item.source_refs)
         targets |= {"statement:" + s.statement_id for s in candidate.statements}
         checked = self.adapter.check(
             CheckingTask(assessment_task=task, candidate=candidate, targets=tuple(sorted(targets)))
@@ -143,7 +174,28 @@ class AssessmentChecker:
                 rating["main_limitation"] += "; Focused check: " + decision.reason
         for finding in fields["findings"]:
             finding["verification"] = decisions["finding:" + finding["rule_id"]].disposition
-        limitations = list(checked.summary.limitations)
+        for item in fields["route_assessment"]:
+            decision = decisions["route:" + item["item"]]
+            item["verification"] = decision.disposition
+            item["source_refs"] = tuple(decision.source_refs)
+        for flag in ("account_articulated", "study_assessable"):
+            fields[flag + "_verification"] = decisions["flag:" + flag].disposition
+        limitations = list(
+            dict.fromkeys(candidate.summary.limitations + checked.summary.limitations)
+        )
+        for field in (
+            "contribution",
+            "next_action",
+            "deliverable",
+            "outcome_branches",
+            "diagnostic_action",
+        ):
+            original_value = getattr(candidate.summary, field)
+            proposed_value = getattr(checked.summary, field)
+            if proposed_value != original_value:
+                limitations.append(
+                    "Unresolved checker proposal for " + field + ": " + str(proposed_value)
+                )
         limitations.append(
             "Focused model checking assesses support in supplied passages; it does not independently verify data or establish exhaustive literature coverage."
         )
@@ -187,8 +239,12 @@ class AssessmentChecker:
         limitations.append(
             "Principal-obstacle check: " + principal.disposition.value + " — " + principal.reason
         )
-        summary = checked.summary.model_copy(
-            update={"obstacle": obstacle, "limitations": tuple(limitations)}
+        summary = candidate.summary.model_copy(
+            update={
+                "obstacle": obstacle,
+                "limitations": tuple(limitations),
+                "disclaimer": "Structured review of supplied material only; generated suggestions are proposed, not verified evidence. Focused checking does not independently verify data or establish exhaustive literature coverage.",
+            }
         )
         return CheckedReview(
             assessment=AssessmentFields.model_validate(fields),

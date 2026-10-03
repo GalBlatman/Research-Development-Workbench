@@ -21,6 +21,7 @@ from domain.benchmark import (
     BenchmarkRun,
     BenchmarkVariant,
     FrozenSplit,
+    InvalidCaseReport,
     Observation,
     RunConfiguration,
 )
@@ -73,6 +74,7 @@ class Runner:
             splits,
             adapter_factory,
         )
+        store.require_manifest(splits)
         self.stop = Event()
         # No administrator capability is passed to BlindEvaluator or adapter.
 
@@ -83,6 +85,7 @@ class Runner:
         references: dict[str, BenchmarkRun] | None = None,
         rerun: bool = False,
     ) -> BenchmarkRun | None:
+        self.store.require_case(case.project, case.variant, self.splits, case.expectations)
         validate_import(case.project, self.splits)
         if (
             case.variant.benchmark_id != case.project.benchmark_id
@@ -101,10 +104,13 @@ class Runner:
                 or reference.observation is None
             ):
                 raise ValueError("Cross-split/configuration reference rejected")
+            if self.store.read("runs", reference.run_id, BenchmarkRun) != reference:
+                raise ValueError("Stored reference run differs")
             reference_observations[variant_id] = reference.observation
         identifier = uuid4().hex
         key = self.store.cache_key(case.variant, self.splits, config)
         if not self.store.claim(key, identifier, rerun):
+            self.store.reservation_report(key)
             return None
         started, clock = timestamp(), time.monotonic()
         components: tuple[str, ...] = ()
@@ -183,10 +189,12 @@ class Runner:
         prompts = tuple(
             (name, hashlib.sha256((PROMPTS / name).read_bytes()).hexdigest())
             for name in (
-                "baseline-v1.md",
+                "baseline-v2.md",
                 "interpretation-v1.md",
-                "evaluation-v2.md",
-                "checking-v3.md",
+                "evaluation-v3.md",
+                "checking-v4.md",
+                "workspace-v2.md",
+                "workspace-check-v2.md",
                 "criteria-v1.json",
                 "route-questions-v1.json",
             )
@@ -296,6 +304,9 @@ class Runner:
         for case in sorted(cases, key=lambda c: (c.project.benchmark_id, c.variant.variant_id)):
             key = self.store.cache_key(case.variant, self.splits, config)
             if not rerun and self.store._path("claims", key).exists():
+                report = self.store.reservation_report(key)
+                if progress:
+                    progress(case.variant.variant_id, report.status)
                 continue
             if len(selected) >= limit or self.stop.is_set():
                 break
@@ -311,7 +322,20 @@ class Runner:
                 for k, r in (references or {}).items()
                 if r.benchmark_id == case.project.benchmark_id
             }
-            run = self.execute(case, config, references=applicable_references, rerun=rerun)
+            try:
+                run = self.execute(case, config, references=applicable_references, rerun=rerun)
+            except (ValueError, FileNotFoundError) as exc:
+                # A malformed administrator case is isolated, not a scientific result.
+                self.store.write(
+                    "annotations",
+                    uuid4().hex,
+                    InvalidCaseReport(
+                        variant_id=case.variant.variant_id, error_code=type(exc).__name__
+                    ),
+                )
+                if progress:
+                    progress(case.variant.variant_id, "INVALID_CASE")
+                return None
             if progress:
                 progress(case.variant.variant_id, run.status if run else "SKIPPED")
             return run

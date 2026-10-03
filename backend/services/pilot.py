@@ -14,7 +14,7 @@ from persistence.database import SCHEMA_VERSION
 from persistence.originals import OriginalFileStore
 from persistence.repository import Repository
 from policy_engine.manifest import Manifest
-from services.backup import create_backup, restore_backup
+from services.backup import create_backup, inspect_state, restore_backup
 from services.configuration import ROOT, LocalConfiguration
 from services.portability import import_project
 from services.sources import SourceService
@@ -95,7 +95,7 @@ def workbench(config: LocalConfiguration) -> Workbench:
         database.close()
         raise ValueError("RUN_MIGRATE_BEFORE_OPERATOR_COMMAND")
     manifest = Manifest.model_validate_json(
-        (ROOT / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
+        (ROOT / "policies/rubric-v5.manifest.json").read_text(encoding="utf-8")
     )
     repo = Repository(database)
     return Workbench(
@@ -149,11 +149,21 @@ def seed(service: Workbench) -> tuple[str, ...]:
         store.import_project(project, frozen)
     for case in cases:
         store.save_variant(case.variant, case.project, frozen)
+        store.freeze_expectations(case.variant, case.expectations)
     return tuple(identifiers)
 
 
 def health(config: LocalConfiguration) -> dict[str, str]:
     report = {"configuration": "PASS"}
+    if (
+        config.database_mode == "local-sqlite"
+        and not (config.runtime / "projects.sqlite").is_file()
+    ):
+        return {
+            "configuration": "PASS",
+            "database_connectivity": "FAIL",
+            "error_code": "DATABASE_FILE_MISSING",
+        }
     database = config.database()
     try:
         database.execute("SELECT 1")
@@ -165,6 +175,11 @@ def health(config: LocalConfiguration) -> dict[str, str]:
             )
         except ValueError:
             report["schema_version"] = "FAIL"
+        try:
+            inspect_state(database, config.runtime)
+            report["persisted_state_integrity"] = "PASS"
+        except (ValueError, KeyError, OSError):
+            report["persisted_state_integrity"] = "FAIL"
     finally:
         database.close()
     # Isolated tests use synthetic temporary data only; do not write to the pilot projects.
@@ -189,7 +204,14 @@ def health(config: LocalConfiguration) -> dict[str, str]:
         ("contracts", [sys.executable, "-m", "api.contracts", "--check"], ROOT / "backend"),
         ("publication", ["node", "scripts/check.mjs"], ROOT),
     ):
-        result = subprocess.run(command, cwd=cwd, capture_output=True)
+        try:
+            result = subprocess.run(command, cwd=cwd, capture_output=True)
+        except FileNotFoundError:
+            report[name] = "FAIL"
+            report["missing_operator_tool"] = (
+                "NODE_MISSING" if command[0] == "node" else "PYTHON_MISSING"
+            )
+            continue
         report[name] = "PASS" if result.returncode == 0 else "FAIL"
     return report
 
@@ -204,7 +226,7 @@ def main() -> None:
     parser.add_argument("--file", type=Path)
     args = parser.parse_args()
     try:
-        config = LocalConfiguration.environment()
+        config = LocalConfiguration.environment(probe_storage=args.command != "health")
         if args.command == "status":
             print(json.dumps(config.status(), sort_keys=True))
         elif args.command == "health":
@@ -259,12 +281,27 @@ def main() -> None:
                 "PRIVATE_STORAGE_UNAVAILABLE",
                 "DATABASE_CONNECTION_FAILED",
                 "INCOMPATIBLE_DATABASE_SCHEMA",
+                "UNVERSIONED_EXISTING_DATABASE_SCHEMA",
+                "NODE_MISSING",
+                "ORIGINAL_STORAGE_INTEGRITY_FAILED",
+                "ORIGINAL_CONTENT_INTEGRITY_FAILED",
+                "PROJECT_HEAD_INTEGRITY_FAILED",
+                "SNAPSHOT_REVISION_INTEGRITY_FAILED",
+                "SNAPSHOT_SOURCE_INTEGRITY_FAILED",
+                "PROHIBITED_BACKUP_FILE",
+                "BACKUP_REFERENCED_ORIGINAL_MISSING",
+                "BACKUP_REFERENCED_ORIGINAL_CORRUPT",
+                "RESTORE_VALIDATION_FAILED_NO_MERGE",
                 "RESTORE_REQUIRES_EMPTY_TARGET",
                 "CORRUPT_OR_INCOMPATIBLE_BACKUP",
                 "SCENARIO_SEED_REQUIRES_EMPTY_PROJECT_STORE",
                 "RUN_MIGRATE_BEFORE_OPERATOR_COMMAND",
             }
-            else "INVALID_OPERATOR_INPUT_OR_STORAGE"
+            else "STORAGE_PERMISSION_DENIED"
+            if isinstance(exc, PermissionError)
+            else "STORAGE_FILE_MISSING"
+            if isinstance(exc, FileNotFoundError)
+            else "INVALID_OPERATOR_INPUT"
         )
         print("FAIL " + args.command + ": " + code, file=sys.stderr)
         raise SystemExit(1) from None

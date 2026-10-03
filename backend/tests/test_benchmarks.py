@@ -42,17 +42,15 @@ def configuration(mode="WORKBENCH", component="FULL", provider="fake", parameter
 
 def runner(tmp_path, manifest, factory=FakeModel):
     projects, cases = synthetic()
-    return (
-        Runner(
-            AdminStore(tmp_path / "admin"),
-            tmp_path / "runtime",
-            manifest,
-            freeze(projects, "v1"),
-            factory,
-        ),
-        projects,
-        cases,
-    )
+    splits = freeze(projects, "synthetic-splits-v1")
+    store = AdminStore(tmp_path / "admin")
+    store.freeze(splits)
+    for project in projects:
+        store.import_project(project, splits)
+    for case in cases:
+        store.save_variant(case.variant, case.project, splits)
+        store.freeze_expectations(case.variant, case.expectations)
+    return (Runner(store, tmp_path / "runtime", manifest, splits, factory), projects, cases)
 
 
 @pytest.mark.parametrize("route", tuple(Route))
@@ -149,7 +147,7 @@ def test_actual_repository_boundary(tmp_path, manifest):
     with pytest.raises(AccessDenied):
         repository.project(evaluator.workbench.scope(case.project.benchmark_id))
     with pytest.raises(AccessDenied):
-        repository.source(evaluator.workbench.scope(evaluator.project_id), "measure")
+        repository.source(evaluator.workbench.scope(evaluator.project_id), "rating:8")
     exported = evaluator.export()
     assert "direct count" not in exported and "gold" not in exported
     assert not hasattr(repository, "gold") and not hasattr(evaluator, "store")
@@ -193,22 +191,22 @@ def test_metrics_explicit_uncertainty_invariance_direction_restoration():
     projects, _ = synthetic()
     old = Observation(
         judgments=(
-            Judgment(key="measure", state="ASSESSED", value=7),
-            Judgment(key="novelty", state="ASSESSED", value=5),
+            Judgment(key="rating:8", state="ASSESSED", value=7),
+            Judgment(key="rating:3", state="ASSESSED", value=5),
         )
     )
     new = Observation(
         judgments=(
-            Judgment(key="measure", state="PENDING"),
-            Judgment(key="novelty", state="ASSESSED", value=5),
+            Judgment(key="rating:8", state="PENDING"),
+            Judgment(key="rating:3", state="ASSESSED", value=5),
         ),
         action_targets=("inspect_measure",),
     )
     common = dict(
         feature=Feature.MEASURES,
-        judgment="measure",
+        judgment="rating:8",
         reference_variant="intact",
-        invariant_judgments=("novelty",),
+        invariant_judgments=("rating:3",),
         acceptable_states=("PENDING",),
         forbidden_states=("ASSESSED",),
         action_target="inspect_measure",
@@ -228,7 +226,7 @@ def test_metrics_explicit_uncertainty_invariance_direction_restoration():
     assert result.metrics[0].state.numerator == 1 and result.metrics[0].action.numerator == 1
     hallucinated = new.model_copy(
         update={
-            "judgments": (Judgment(key="measure", state="ASSESSED", value=7),),
+            "judgments": (Judgment(key="rating:8", state="ASSESSED", value=7),),
             "output_text": projects[0].gold[0].content,
         }
     )
@@ -248,20 +246,22 @@ def test_metrics_explicit_uncertainty_invariance_direction_restoration():
             BenchmarkExpectation(
                 feature=Feature.MEASURES,
                 behavior="restore",
-                judgment="measure",
+                judgment="rating:8",
                 reference_variant="intact",
             ),
         ),
         {"intact": old},
         projects[0],
     )
-    assert result.metrics[0].restoration.numerator == 1
+    assert (
+        result.metrics[0].restoration.numerator == 0
+    )  # No degraded observation: no restoration credit
     lower = Observation(
         judgments=(
             Judgment(
-                key="measure", state="ASSESSED", value=3, source_refs=("allowed", "forbidden")
+                key="rating:8", state="ASSESSED", value=3, source_refs=("allowed", "forbidden")
             ),
-            Judgment(key="novelty", state="PENDING"),
+            Judgment(key="rating:3", state="PENDING"),
         ),
         authorized_anchors=("allowed",),
     )
@@ -271,10 +271,10 @@ def test_metrics_explicit_uncertainty_invariance_direction_restoration():
             BenchmarkExpectation(
                 feature=Feature.MEASURES,
                 behavior="downgrade",
-                judgment="measure",
+                judgment="rating:8",
                 direction="lower",
                 reference_variant="intact",
-                invariant_judgments=("novelty",),
+                invariant_judgments=("rating:3",),
             ),
         ),
         {"intact": old},
@@ -285,7 +285,7 @@ def test_metrics_explicit_uncertainty_invariance_direction_restoration():
         result.metrics[0].attribution.numerator == 1
         and result.metrics[0].attribution.denominator == 2
     )
-    assert result.invariant_violations == ("novelty",)
+    assert result.invariant_violations == ("rating:3",)
 
 
 def test_batch_resume_budgets_and_nested_papers(tmp_path, manifest):
@@ -403,7 +403,9 @@ def test_mock_real_provider_privacy_schema_usage_and_route(
         )
         assert not {"gold", "expectations", "mutation", "split", "visibility"} & payload.keys()
         if "criteria" in payload:
-            assert ("route_questions" in payload["criteria"]) == (route != "EXPLAIN")
+            assert ("route_questions" in payload["criteria"]) == (
+                route != "EXPLAIN" and component == "FULL"
+            )
             if component == "Argument":
                 assert set(payload["criteria"]["dimensions"]) == {"4", "5"}
 
@@ -477,9 +479,9 @@ def test_neutral_paraphrase_diagnostic_and_reveal_order():
         frozen,
     )
     assert "equivalent" in anonymized.packet.blocks[0].text
-    old = Observation(judgments=(Judgment(key="measure", state="PENDING"),))
-    new = Observation(judgments=(Judgment(key="measure", state="ASSESSED", value=5),))
-    assert equivalent_diagnostic(old, new) == ("Equivalent-packet judgment changed: measure",)
+    old = Observation(judgments=(Judgment(key="rating:8", state="PENDING"),))
+    new = Observation(judgments=(Judgment(key="rating:8", state="ASSESSED", value=5),))
+    assert equivalent_diagnostic(old, new) == ("Equivalent-packet judgment changed: rating:8",)
     prior = next(c.variant for c in cases if c.variant.variant_id.endswith("EXPLAIN-reveal-1"))
     with pytest.raises(ValueError):
         construct(
@@ -537,10 +539,15 @@ def test_reference_runs_scoped_and_comparison_recorded(tmp_path, manifest):
         reference_variant=cases[0].variant.variant_id,
         invariant_judgments=("rating:2",),
     )
-    target = Case(cases[1].project, cases[1].variant, (expectation,))
+    variant = cases[1].variant.model_copy(
+        update={"variant_id": cases[1].variant.variant_id + "-comparison"}
+    )
+    r.store.save_variant(variant, cases[1].project, r.splits)
+    r.store.freeze_expectations(variant, (expectation,))
+    target = Case(cases[1].project, variant, (expectation,))
     run = r.execute(target, config, references={original.variant_id: original})
     assert run.reference_run_ids == (original.run_id,)
-    assert run.result.metrics[0].invariance.numerator == 1
+    assert run.result.metrics[0].invariance.numerator == 2
     wrong = original.model_copy(update={"split": Split.HELD_OUT})
     with pytest.raises(ValueError, match="reference"):
         r.execute(cases[2], config, references={original.variant_id: wrong})

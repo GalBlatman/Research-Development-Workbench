@@ -9,7 +9,12 @@ import { inspectFile, inspectGit } from '../scripts/publication-guard.mjs';
 
 test('governing copies retain recorded source bytes', () => {
   const baseline = JSON.parse(fs.readFileSync('docs/baselines.json', 'utf8'));
-  assert.equal(baseline.documents.length, 4);
+  assert.deepEqual(baseline.documents.map((doc) => doc.repository_path), [
+    'policies/rubric-v4.md', 'docs/product-spec.md', 'docs/execution-plan.md',
+    'docs/reference/interface-wireframe.html', 'policies/rubric-v5.md',
+  ]);
+  assert.equal(baseline.active_rubric.version, '5');
+  assert.equal(baseline.active_rubric.sha256, baseline.documents[4].repository_sha256);
   for (const doc of baseline.documents) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(doc.repository_path)).digest('hex');
     assert.equal(actual, doc.source_sha256);

@@ -59,6 +59,7 @@ class ExtractionState(StrEnum):
 
 
 class SourceRecord(Frozen):
+    presentation_order: Annotated[StrictInt, Field(ge=0)] | None = None
     document_id: Text
     workspace_id: Text
     project_id: Text
