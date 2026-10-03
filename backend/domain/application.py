@@ -160,6 +160,7 @@ class CheckingTask(Frozen):
     task: Literal["VerifyAssessment"] = "VerifyAssessment"
     assessment_task: AssessmentTask
     candidate: CandidateReview
+    targets: tuple[Text, ...]
 
 
 class RunHandle(Frozen):

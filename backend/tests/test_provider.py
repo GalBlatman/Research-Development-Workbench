@@ -658,3 +658,29 @@ def test_revoked_packet_stops_before_focused_check(packet, monkeypatch):
         workbench.run(project_id, view["project"]["revision"])
     assert len(requests) == 1
     assert not workbench.bundle(project_id).snapshots
+
+
+def test_checking_contract_explicit_targets_and_rejects_omissions(packet, monkeypatch):
+    _, _, task = packet
+    model, checker, requests = adapter(monkeypatch)
+    candidate = CandidateReview.model_validate(proposed(task))
+    checker.review(task, candidate)
+    payload = json.loads(requests[-1]["input"])
+    expected = {
+        "rating:" + str(r.dimension) for r in candidate.assessment.ratings if r.rating is not None
+    }
+    expected |= {"finding:" + f.rule_id for f in candidate.assessment.findings}
+    expected |= {"statement:" + s.statement_id for s in candidate.statements}
+    assert set(payload["targets"]) == expected
+    assert "targets array" in requests[-1]["instructions"]
+    assert "rating:8" not in payload["targets"]
+
+    def omit(kind, output):
+        if kind == "rdw_checking":
+            output["decisions"].pop()
+        return output
+
+    model, checker, requests = adapter(monkeypatch, omit)
+    with pytest.raises(ProviderFailure, match="INCOMPLETE_CHECK"):
+        checker.review(task, candidate)
+    assert len(requests) == 1
