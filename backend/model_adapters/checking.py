@@ -95,7 +95,9 @@ class AssessmentChecker:
         }
         targets |= {"finding:" + f.rule_id for f in candidate.assessment.findings}
         targets |= {"statement:" + s.statement_id for s in candidate.statements}
-        checked = self.adapter.check(CheckingTask(assessment_task=task, candidate=candidate))
+        checked = self.adapter.check(
+            CheckingTask(assessment_task=task, candidate=candidate, targets=tuple(sorted(targets)))
+        )
         if {d.target for d in checked.decisions} != targets or len(checked.decisions) != len(
             targets
         ):

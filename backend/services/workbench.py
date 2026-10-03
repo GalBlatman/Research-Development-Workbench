@@ -335,9 +335,7 @@ class Workbench:
             policy_manifest_sha256=self.manifest.sha256,
             policy_implementation_version=self.manifest.implementation_version,
             scope=Scope.TARGETED_CHECK if dimensions else Scope.INITIAL_SCREEN,
-            prompt_version="evaluation-v1/checking-v1"
-            if getattr(self.adapter, "provider_config", None)
-            else None,
+            prompt_version=getattr(self.adapter, "prompt_configuration", None),
             model_configuration=self.adapter.configuration,
         )
         task = AssessmentTask(
