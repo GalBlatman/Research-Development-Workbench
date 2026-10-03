@@ -11,7 +11,7 @@ export function inspectFile(name, bytes) {
       || /(^|\/)\.env($|\.)/.test(normalized)
       || /\.(pdf|docx?|pptx?|epub|png|jpe?g|gif|webp|zip|sqlite\d*|db|log|pem|key|p12|pfx)$/.test(normalized)) errors.push('forbidden publication category');
   const permitted = /\.(md|json|toml|mjs|ya?ml|html)$/.test(normalized)
-    || (/^backend\/(domain|policy_engine|persistence|services|model_adapters|api|tests)\/.+\.py$/.test(normalized))
+    || (/^backend\/(domain|policy_engine|persistence|services|model_adapters|api|benchmarks|tests)\/.+\.py$/.test(normalized))
     || (/^frontend\/(src|generated|e2e)\/.+\.(ts|tsx|css)$/.test(normalized))
     || ['frontend/vite.config.ts', 'frontend/playwright.config.ts', 'frontend/pnpm-lock.yaml', 'frontend/index.html'].includes(normalized)
     || ['.gitignore', '.gitattributes', '.node-version', 'backend/.python-version', 'backend/uv.lock', '.githooks/pre-commit'].includes(normalized);

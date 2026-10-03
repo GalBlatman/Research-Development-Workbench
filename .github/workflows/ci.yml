@@ -44,7 +44,7 @@ jobs:
       - run: uv run --locked pytest -q
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
-      - run: uv run --locked mypy domain policy_engine persistence services model_adapters api
+      - run: uv run --locked mypy domain policy_engine persistence services model_adapters api benchmarks
   browser:
     runs-on: ubuntu-latest
     steps:

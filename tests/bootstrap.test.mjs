@@ -57,3 +57,12 @@ test('staged guard inspects index bytes even after working copy is cleaned', () 
     fs.rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test('reviewed benchmark Python module retains publication restrictions', () => {
+  assert.deepEqual(inspectFile('backend/benchmarks/evaluator.py', Buffer.from('"""Synthetic module."""\n')), []);
+  for (const name of ['backend/benchmarks/runtime/gold.json', 'backend/benchmarks/uploads/paper.md', 'backend/benchmarks/paper.pdf', 'backend/benchmarks/output.sqlite']) {
+    assert.ok(inspectFile(name, Buffer.from('synthetic')).includes('forbidden publication category'));
+  }
+  const syntheticCredential = 'sk-' + 'a'.repeat(30);
+  assert.ok(inspectFile('backend/benchmarks/evaluator.py', Buffer.from(syntheticCredential)).includes('possible credential'));
+});

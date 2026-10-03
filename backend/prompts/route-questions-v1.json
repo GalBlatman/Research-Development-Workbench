@@ -1,0 +1,18 @@
+{
+  "ESTABLISH": {
+    "Knowledge need": "What consequential observation, experience, pattern, or uncertainty needs investigation?",
+    "Increment over existing knowledge": "What do prior accounts already establish, and what remains undocumented or poorly understood?",
+    "Scope and precision": "What population, cases, experiences, period, or process is being characterized?",
+    "Capacity to learn": "How could the work reveal that the apparent phenomenon is absent, misdescribed, or differently structured?",
+    "Evidence strategy": "How will documentation, alternative interpretations, and possible selection or measurement artifacts be addressed?",
+    "Next use": "What subsequent question or decision becomes better founded?"
+  },
+  "TEST": {
+    "Knowledge need": "Which claim matters enough that changing confidence in it would be valuable?",
+    "Increment over existing knowledge": "Why does this evidence add information rather than repeat an already settled demonstration?",
+    "Scope and precision": "What exact claim, conditions, outcome, and comparison are being tested?",
+    "Capacity to learn": "What would supporting, conflicting, null, or imprecise evidence permit the researcher to conclude?",
+    "Evidence strategy": "Does the design fairly test the claim and separate a theory problem from a failed measurement or manipulation?",
+    "Next use": "What inquiry or decision no longer needs to rely on the same unresolved assumption?"
+  }
+}

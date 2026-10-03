@@ -1,0 +1,8 @@
+{
+  "finding": "G2-N2",
+  "status": "RESOLVED",
+  "baseline": "419b96fc188951305be34a09c904082246b74052",
+  "audit_provenance": "Owner supplied GATE-2 PASS with 47/47 synthetic probes on the baseline; this record documents implementation of its nonblocker, not a new independent audit.",
+  "resolution": "Exact rubric v4 section 2.2 ESTABLISH/TEST questions reach evaluation and checking payloads. EXPLAIN criteria and numerical policy remain unchanged.",
+  "validation": "Exact-source route tests and actual-adapter mocked request tests across all three routes, full/targeted/baseline execution."
+}
