@@ -188,6 +188,52 @@ Payload = Annotated[
 ]
 
 
+class ProviderCall(Frozen):
+    task: Text
+    provider: Text
+    configured_model: Text
+    returned_model: str | None = None
+    timestamp: Text
+    prompt_version: Text
+    prompt_sha256: Hash
+    status: Text
+    request_id: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    usage_details: dict[str, int] = {}
+    reserved_tokens: int
+    input_usd_per_million: float
+    cached_input_usd_per_million: float
+    cache_write_usd_per_million: float
+    output_usd_per_million: float
+    price_date: Text
+
+
+class ProviderRun(Frozen):
+    run_id: Text
+    status: Text
+    calls: tuple[ProviderCall, ...]
+    max_calls: int
+    max_tokens: int
+    output_limit: int
+    reasoning_effort: str | None
+
+
+class StructuralCheck(Frozen):
+    target: Text
+    status: Literal["SOURCE_REFS_RESOLVED"]
+    source_refs: tuple[SourceReference, ...]
+
+
+class AttributedStatement(Frozen):
+    statement_id: Text
+    kind: Literal[
+        "source_backed", "user_project", "model_inference", "proposed_improvement", "unresolved"
+    ]
+    text: Text
+    source_refs: tuple[SourceReference, ...] = ()
+
+
 class ProjectObject(Frozen):
     object_id: Text
     project_id: Text
@@ -200,6 +246,8 @@ class ProjectObject(Frozen):
     source_refs: tuple[SourceReference, ...] = ()
     checks: tuple[EvidenceCheck, ...] = ()
     generated_by_run_id: str | None = None
+    provider_run: ProviderRun | None = None
+    statements: tuple[AttributedStatement, ...] = ()
 
     @model_validator(mode="after")
     def evidence_is_explicit(self) -> Self:
@@ -270,7 +318,11 @@ class EvaluationSnapshot(Frozen):
         if len(versions) != len(self.documents):
             raise ValueError("Duplicate document versions")
         for obj in self.project.objects:
-            refs = obj.source_refs + tuple(ref for check in obj.checks for ref in check.source_refs)
+            refs = (
+                obj.source_refs
+                + tuple(ref for check in obj.checks for ref in check.source_refs)
+                + tuple(ref for statement in obj.statements for ref in statement.source_refs)
+            )
             if any((ref.document_id, ref.version) not in versions for ref in refs):
                 raise ValueError("Object refers to a document version outside snapshot")
         return self

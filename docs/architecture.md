@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance/domain/policy, scoped text/Markdown persistence and a minimal loopback browser/API/fake-adapter/review slice are implemented through RDW-004; broader workspaces and real providers remain planned (ADR 0004). PostgreSQL is canonical; SQLite shares the same contracts for local tests (ADR 0003).
+Derived from product specification sections 8–18 and 23; see decisions/0001-bootstrap.md. The specification chooses React/TypeScript, Python/FastAPI/Pydantic, PostgreSQL, private file storage and a worker sharing domain code. Governance/domain/policy, scoped text/Markdown persistence and a minimal loopback browser/API/fake-adapter/review slice are implemented through RDW-004; a bounded replaceable OpenAI provider is implemented in RDW-005 (ADR 0006); broader workspaces remain planned. PostgreSQL is canonical; SQLite shares the same contracts for local tests (ADR 0003).
 
 ## Ownership boundaries
 
@@ -16,4 +16,4 @@ Derived from product specification sections 8–18 and 23; see decisions/0001-bo
 
 Source text and generated text remain distinct. Accepting a proposal confirms representation/adoption, never verified evidence. Revisions create new snapshots; no historical score overwrite or silent route comparison.
 
-No vector/graph database, agent framework, model SDK or deployment service is selected. Parsing, provider, queue details, retention, identity and hosting require later decisions. No empty module hierarchy is required before its task. RDW-002 covers pure domain/policy only; persistence begins RDW-003.
+No vector/graph database, agent framework, provider SDK or deployment service is selected. OpenAI uses direct Responses REST via the locked existing HTTPX client; model/budgets are runtime configuration. Parsing, distributed queue, deployment retention, identity and hosting require later decisions. The current local single-worker run handles have durable safe receipts, bounded calls and no paid replay on interruption. No empty module hierarchy is required before its task. RDW-002 covers pure domain/policy only; persistence begins RDW-003.

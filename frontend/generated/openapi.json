@@ -101,6 +101,47 @@
         "title": "AssessmentView",
         "type": "object"
       },
+      "AttributedStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "source_backed",
+              "user_project",
+              "model_inference",
+              "proposed_improvement",
+              "unresolved"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_refs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "statement_id": {
+            "minLength": 1,
+            "title": "Statement Id",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement_id",
+          "kind",
+          "text"
+        ],
+        "title": "AttributedStatement",
+        "type": "object"
+      },
       "Benchmark": {
         "additionalProperties": false,
         "properties": {
@@ -197,6 +238,39 @@
           "question"
         ],
         "title": "Brief",
+        "type": "object"
+      },
+      "CheckDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "$ref": "#/components/schemas/Verification"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "target": {
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "disposition",
+          "reason",
+          "source_refs"
+        ],
+        "title": "CheckDecision",
         "type": "object"
       },
       "Claim": {
@@ -962,6 +1036,17 @@
             "title": "Project Id",
             "type": "string"
           },
+          "provider_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "revision": {
             "minimum": 1,
             "title": "Revision",
@@ -973,6 +1058,14 @@
               "$ref": "#/components/schemas/SourceReference"
             },
             "title": "Source Refs",
+            "type": "array"
+          },
+          "statements": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AttributedStatement"
+            },
+            "title": "Statements",
             "type": "array"
           }
         },
@@ -1026,6 +1119,200 @@
         ],
         "title": "Provenance",
         "type": "string"
+      },
+      "ProviderCall": {
+        "additionalProperties": false,
+        "properties": {
+          "cache_write_usd_per_million": {
+            "title": "Cache Write Usd Per Million",
+            "type": "number"
+          },
+          "cached_input_usd_per_million": {
+            "title": "Cached Input Usd Per Million",
+            "type": "number"
+          },
+          "configured_model": {
+            "minLength": 1,
+            "title": "Configured Model",
+            "type": "string"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Tokens"
+          },
+          "input_usd_per_million": {
+            "title": "Input Usd Per Million",
+            "type": "number"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Output Tokens"
+          },
+          "output_usd_per_million": {
+            "title": "Output Usd Per Million",
+            "type": "number"
+          },
+          "price_date": {
+            "minLength": 1,
+            "title": "Price Date",
+            "type": "string"
+          },
+          "prompt_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Prompt Sha256",
+            "type": "string"
+          },
+          "prompt_version": {
+            "minLength": 1,
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Id"
+          },
+          "reserved_tokens": {
+            "title": "Reserved Tokens",
+            "type": "integer"
+          },
+          "returned_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Returned Model"
+          },
+          "status": {
+            "minLength": 1,
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "minLength": 1,
+            "title": "Task",
+            "type": "string"
+          },
+          "timestamp": {
+            "minLength": 1,
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "usage_details": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Usage Details",
+            "type": "object"
+          }
+        },
+        "required": [
+          "task",
+          "provider",
+          "configured_model",
+          "timestamp",
+          "prompt_version",
+          "prompt_sha256",
+          "status",
+          "reserved_tokens",
+          "input_usd_per_million",
+          "cached_input_usd_per_million",
+          "cache_write_usd_per_million",
+          "output_usd_per_million",
+          "price_date"
+        ],
+        "title": "ProviderCall",
+        "type": "object"
+      },
+      "ProviderRun": {
+        "additionalProperties": false,
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderCall"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "max_calls": {
+            "title": "Max Calls",
+            "type": "integer"
+          },
+          "max_tokens": {
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "output_limit": {
+            "title": "Output Limit",
+            "type": "integer"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "run_id": {
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "minLength": 1,
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "calls",
+          "max_calls",
+          "max_tokens",
+          "output_limit",
+          "reasoning_effort"
+        ],
+        "title": "ProviderRun",
+        "type": "object"
       },
       "PublicDocument": {
         "additionalProperties": false,
@@ -1343,6 +1630,14 @@
           "assessment": {
             "$ref": "#/components/schemas/AssessmentView"
           },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CheckDecision"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
           "coverage": {
             "items": {
               "$ref": "#/components/schemas/HistoricalCoverage"
@@ -1360,12 +1655,38 @@
           "policy": {
             "$ref": "#/components/schemas/PolicyResult"
           },
+          "provider_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "snapshot": {
             "$ref": "#/components/schemas/SnapshotView"
           },
           "stale": {
             "title": "Stale",
             "type": "boolean"
+          },
+          "statements": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AttributedStatement"
+            },
+            "title": "Statements",
+            "type": "array"
+          },
+          "structural_checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StructuralCheck"
+            },
+            "title": "Structural Checks",
+            "type": "array"
           },
           "summary": {
             "anyOf": [
@@ -1452,6 +1773,76 @@
           "reason"
         ],
         "title": "RouteItem",
+        "type": "object"
+      },
+      "RunHandle": {
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "project_id": {
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "provider_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "expected_revision",
+          "state"
+        ],
+        "title": "RunHandle",
         "type": "object"
       },
       "Scope": {
@@ -1826,6 +2217,35 @@
         "title": "Status",
         "type": "string"
       },
+      "StructuralCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "status": {
+            "const": "SOURCE_REFS_RESOLVED",
+            "title": "Status",
+            "type": "string"
+          },
+          "target": {
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "status",
+          "source_refs"
+        ],
+        "title": "StructuralCheck",
+        "type": "object"
+      },
       "Study": {
         "additionalProperties": false,
         "properties": {
@@ -1887,6 +2307,33 @@
           "design"
         ],
         "title": "Study",
+        "type": "object"
+      },
+      "TargetedEvaluation": {
+        "additionalProperties": false,
+        "properties": {
+          "dimensions": {
+            "items": {
+              "maximum": 10.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "dimensions"
+        ],
+        "title": "TargetedEvaluation",
         "type": "object"
       },
       "TraceView": {
@@ -2027,7 +2474,7 @@
     }
   },
   "info": {
-    "title": "Research Development Workbench — fake local slice",
+    "title": "Research Development Workbench — bounded local workflow",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -2062,9 +2509,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
+                  "additionalProperties": true,
                   "title": "Response Health Api Health Get",
                   "type": "object"
                 }
@@ -2229,7 +2674,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReviewView"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ReviewView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RunHandle"
+                    }
+                  ],
+                  "title": "Response Evaluate Api Projects  Project Id  Evaluations Post"
                 }
               }
             },
@@ -2247,6 +2700,63 @@
           }
         },
         "summary": "Evaluate"
+      }
+    },
+    "/api/projects/{project_id}/evaluations/targeted": {
+      "post": {
+        "operationId": "targeted_api_projects__project_id__evaluations_targeted_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TargetedEvaluation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ReviewView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RunHandle"
+                    }
+                  ],
+                  "title": "Response Targeted Api Projects  Project Id  Evaluations Targeted Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Targeted"
       }
     },
     "/api/projects/{project_id}/exports/{format}": {
@@ -2403,6 +2913,54 @@
           }
         },
         "summary": "Review"
+      }
+    },
+    "/api/projects/{project_id}/runs/{run_id}": {
+      "get": {
+        "operationId": "run_state_api_projects__project_id__runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunHandle"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run State"
       }
     },
     "/api/projects/{project_id}/sources": {

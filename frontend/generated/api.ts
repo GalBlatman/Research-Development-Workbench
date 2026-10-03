@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/evaluations/targeted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Targeted */
+        post: operations["targeted_api_projects__project_id__evaluations_targeted_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/exports/{format}": {
         parameters: {
             query?: never;
@@ -133,6 +150,23 @@ export interface paths {
         };
         /** Review */
         get: operations["review_api_projects__project_id__reviews__snapshot_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run State */
+        get: operations["run_state_api_projects__project_id__runs__run_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -215,6 +249,23 @@ export interface components {
             /** Study Assessable */
             study_assessable: boolean;
         };
+        /** AttributedStatement */
+        AttributedStatement: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "source_backed" | "user_project" | "model_inference" | "proposed_improvement" | "unresolved";
+            /**
+             * Source Refs
+             * @default []
+             */
+            source_refs: components["schemas"]["SourceReference"][];
+            /** Statement Id */
+            statement_id: string;
+            /** Text */
+            text: string;
+        };
         /** Benchmark */
         Benchmark: {
             /** Comparison */
@@ -253,6 +304,16 @@ export interface components {
              * @default null
              */
             stakes: string | null;
+        };
+        /** CheckDecision */
+        CheckDecision: {
+            disposition: components["schemas"]["Verification"];
+            /** Reason */
+            reason: string;
+            /** Source Refs */
+            source_refs: components["schemas"]["SourceReference"][];
+            /** Target */
+            target: string;
         };
         /** Claim */
         Claim: {
@@ -538,6 +599,8 @@ export interface components {
             payload: components["schemas"]["Question"] | components["schemas"]["Construct"] | components["schemas"]["Claim"] | components["schemas"]["Study"] | components["schemas"]["Comparison"] | components["schemas"]["Brief"];
             /** Project Id */
             project_id: string;
+            /** @default null */
+            provider_run: components["schemas"]["ProviderRun"] | null;
             /** Revision */
             revision: number;
             /**
@@ -545,6 +608,11 @@ export interface components {
              * @default []
              */
             source_refs: components["schemas"]["SourceReference"][];
+            /**
+             * Statements
+             * @default []
+             */
+            statements: components["schemas"]["AttributedStatement"][];
         };
         /** ProjectView */
         ProjectView: {
@@ -559,6 +627,79 @@ export interface components {
          * @enum {string}
          */
         Provenance: "user_reported" | "source_text_inspected" | "analysis_artifact_inspected" | "app_reproduced";
+        /** ProviderCall */
+        ProviderCall: {
+            /** Cache Write Usd Per Million */
+            cache_write_usd_per_million: number;
+            /** Cached Input Usd Per Million */
+            cached_input_usd_per_million: number;
+            /** Configured Model */
+            configured_model: string;
+            /**
+             * Input Tokens
+             * @default null
+             */
+            input_tokens: number | null;
+            /** Input Usd Per Million */
+            input_usd_per_million: number;
+            /**
+             * Output Tokens
+             * @default null
+             */
+            output_tokens: number | null;
+            /** Output Usd Per Million */
+            output_usd_per_million: number;
+            /** Price Date */
+            price_date: string;
+            /** Prompt Sha256 */
+            prompt_sha256: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Provider */
+            provider: string;
+            /**
+             * Request Id
+             * @default null
+             */
+            request_id: string | null;
+            /** Reserved Tokens */
+            reserved_tokens: number;
+            /**
+             * Returned Model
+             * @default null
+             */
+            returned_model: string | null;
+            /** Status */
+            status: string;
+            /** Task */
+            task: string;
+            /** Timestamp */
+            timestamp: string;
+            /**
+             * Usage Details
+             * @default {}
+             */
+            usage_details: {
+                [key: string]: number;
+            };
+        };
+        /** ProviderRun */
+        ProviderRun: {
+            /** Calls */
+            calls: components["schemas"]["ProviderCall"][];
+            /** Max Calls */
+            max_calls: number;
+            /** Max Tokens */
+            max_tokens: number;
+            /** Output Limit */
+            output_limit: number;
+            /** Reasoning Effort */
+            reasoning_effort: string | null;
+            /** Run Id */
+            run_id: string;
+            /** Status */
+            status: string;
+        };
         /** PublicDocument */
         PublicDocument: {
             /** Content Sha256 */
@@ -663,14 +804,30 @@ export interface components {
         /** ReviewView */
         ReviewView: {
             assessment: components["schemas"]["AssessmentView"];
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["CheckDecision"][];
             /** Coverage */
             coverage: components["schemas"]["HistoricalCoverage"][];
             /** Exclusions */
             exclusions: components["schemas"]["HistoricalExclusion"][];
             policy: components["schemas"]["PolicyResult"];
+            provider_run?: components["schemas"]["ProviderRun"] | null;
             snapshot: components["schemas"]["SnapshotView"];
             /** Stale */
             stale: boolean;
+            /**
+             * Statements
+             * @default []
+             */
+            statements: components["schemas"]["AttributedStatement"][];
+            /**
+             * Structural Checks
+             * @default []
+             */
+            structural_checks: components["schemas"]["StructuralCheck"][];
             /** Summary */
             summary: components["schemas"]["ReviewSummary"] | components["schemas"]["ReviewContent"];
         };
@@ -698,6 +855,25 @@ export interface components {
              * @enum {string}
              */
             status: "ADEQUATE FOR STAGE" | "DEVELOPMENT NEEDED" | "BLOCKING" | "NOT INSPECTED";
+        };
+        /** RunHandle */
+        RunHandle: {
+            /** Error Code */
+            error_code?: string | null;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Project Id */
+            project_id: string;
+            provider_run?: components["schemas"]["ProviderRun"] | null;
+            /** Run Id */
+            run_id: string;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "succeeded" | "failed";
         };
         /**
          * Scope
@@ -826,6 +1002,18 @@ export interface components {
          * @enum {string}
          */
         Status: "assessed" | "pending" | "not_applicable" | "conditional" | "contested" | "unresolved";
+        /** StructuralCheck */
+        StructuralCheck: {
+            /** Source Refs */
+            source_refs: components["schemas"]["SourceReference"][];
+            /**
+             * Status
+             * @constant
+             */
+            status: "SOURCE_REFS_RESOLVED";
+            /** Target */
+            target: string;
+        };
         /** Study */
         Study: {
             /**
@@ -857,6 +1045,13 @@ export interface components {
              * @default null
              */
             sample: string | null;
+        };
+        /** TargetedEvaluation */
+        TargetedEvaluation: {
+            /** Dimensions */
+            dimensions: number[];
+            /** Expected Revision */
+            expected_revision: number;
         };
         /** TraceView */
         TraceView: {
@@ -956,7 +1151,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -1082,7 +1277,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReviewView"];
+                    "application/json": components["schemas"]["ReviewView"] | components["schemas"]["RunHandle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    targeted_api_projects__project_id__evaluations_targeted_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TargetedEvaluation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewView"] | components["schemas"]["RunHandle"];
                 };
             };
             /** @description Validation Error */
@@ -1183,6 +1413,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_state_api_projects__project_id__runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunHandle"];
                 };
             };
             /** @description Validation Error */

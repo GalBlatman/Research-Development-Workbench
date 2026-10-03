@@ -51,12 +51,35 @@ def test_policy_import_without_network_or_model_clients():
     )
 
 
-def test_model_adapter_cannot_access_network_or_persistence():
-    allowed = {"typing", "domain"}
-    for filename in (ROOT / "backend/model_adapters").glob("*.py"):
+def test_fake_adapter_cannot_access_network_or_persistence():
+    allowed = {"typing", "domain", "model_adapters"}
+    for filename in [
+        ROOT / "backend/model_adapters/fake.py",
+        ROOT / "backend/model_adapters/contracts.py",
+    ]:
         tree = ast.parse(filename.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 assert all(alias.name.split(".")[0] in allowed for alias in node.names)
             if isinstance(node, ast.ImportFrom) and node.level == 0:
                 assert (node.module or "").split(".")[0] in allowed
+
+
+def test_provider_adapter_has_no_persistence_or_application_access():
+    for filename in (ROOT / "backend/model_adapters").glob("*.py"):
+        tree = ast.parse(filename.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                assert all(
+                    alias.name.split(".")[0]
+                    not in {"persistence", "services", "api", "psycopg", "sqlite3"}
+                    for alias in node.names
+                )
+            if isinstance(node, ast.ImportFrom):
+                assert (node.module or "").split(".")[0] not in {
+                    "persistence",
+                    "services",
+                    "api",
+                    "psycopg",
+                    "sqlite3",
+                }

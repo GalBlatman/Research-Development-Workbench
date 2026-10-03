@@ -1,12 +1,15 @@
+from domain.application import AttributedStatement, CheckDecision
 from domain.models import (
     Finding,
     Frozen,
     Project,
+    ProviderRun,
     Rating,
     ReviewContent,
     ReviewSummary,
     RouteItem,
     Scope,
+    StructuralCheck,
 )
 from domain.results import PolicyResult as PolicyResult
 from domain.sources import HistoricalCoverage as CoverageView
@@ -70,3 +73,8 @@ class ReviewView(Frozen):
     stale: bool
     coverage: tuple[CoverageView, ...]
     exclusions: tuple[HistoricalExclusion, ...]
+
+    provider_run: ProviderRun | None = None
+    statements: tuple[AttributedStatement, ...] = ()
+    checks: tuple[CheckDecision, ...] = ()
+    structural_checks: tuple[StructuralCheck, ...] = ()
