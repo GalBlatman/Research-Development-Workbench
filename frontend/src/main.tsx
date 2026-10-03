@@ -118,7 +118,7 @@ function App() {
         </p>
       </header>
       {error && <div role="alert">{error}</div>}
-      {busy && <p role="status">Saving or evaluatingâ€¦</p>}
+      {busy && <p role="status">Saving or evaluating…</p>}
       <fieldset disabled={busy}>
         {!view ? (
           <section>
@@ -199,8 +199,8 @@ function App() {
             <section>
               <h2>{view.project.title}</h2>
               <p>
-                Working revision {view.project.revision} Â· {view.project.route}{" "}
-                Â· {view.project.stage}
+                Working revision {view.project.revision} · {view.project.route}{" "}
+                · {view.project.stage}
               </p>
               <label>
                 Edit original idea
@@ -233,8 +233,8 @@ function App() {
                     <p>{obj.payload.core_insight}</p>
                   )}
                   <p>
-                    Origin: {obj.origin} Â· Adoption: {obj.adoption} Â·
-                    Evidence: {obj.evidence_state} Â· Freshness: {obj.freshness}
+                    Origin: {obj.origin} · Adoption: {obj.adoption} · Evidence:{" "}
+                    {obj.evidence_state} · Freshness: {obj.freshness}
                   </p>
                   {obj.adoption === "proposed" && (
                     <button
@@ -334,8 +334,8 @@ function App() {
               <ul>
                 {view.sources.map((s) => (
                   <li key={s.source.document_id}>
-                    {s.source.title} Â· version {s.version} Â· {s.source.role}{" "}
-                    Â· {s.state} Â· {s.admitted ? "included" : "excluded"}{" "}
+                    {s.source.title} · version {s.version} · {s.source.role} ·{" "}
+                    {s.state} · {s.admitted ? "included" : "excluded"}{" "}
                     {s.admitted &&
                       s.anchors.map((a) => (
                         <button
@@ -356,7 +356,7 @@ function App() {
                             })
                           }
                         >
-                          Inspect {s.source.title}, lines {a.line_start}â€“
+                          Inspect {s.source.title}, lines {a.line_start}–
                           {a.line_end}
                         </button>
                       ))}
@@ -372,7 +372,6 @@ function App() {
             </section>
             <section>
               <h2>Evaluate this revision</h2>
-
               <p>
                 The fake adapter selects its fixed response internally. The
                 unchanged synthetic example and source demonstrate arithmetic;
@@ -423,13 +422,13 @@ function App() {
               <section aria-label="Evaluation review">
                 <h2>Review of revision {review.snapshot.project.revision}</h2>
                 <p>
-                  {review.snapshot.scope} Â· {review.snapshot.project.route} Â·{" "}
+                  {review.snapshot.scope} · {review.snapshot.project.route} ·{" "}
                   {review.snapshot.project.stage}
                 </p>
                 <p>{review.summary.disclaimer}</p>
                 {review.stale && (
                   <p role="status">
-                    Historical review â€” working project has changed. This
+                    Historical review — working project has changed. This
                     snapshot remains unchanged.
                   </p>
                 )}
@@ -451,7 +450,7 @@ function App() {
                 <ul>
                   {review.coverage.map((c) => (
                     <li key={c.document_id}>
-                      {c.title} Â· version {c.version} Â· {c.state}
+                      {c.title} · version {c.version} · {c.state}
                       {c.anchors.map((a) => (
                         <button
                           key={a.anchor_id}
@@ -471,8 +470,7 @@ function App() {
                             })
                           }
                         >
-                          Read snapshot source {c.title}, lines {a.line_start}
-                          â€“
+                          Read snapshot source {c.title}, lines {a.line_start}–
                           {a.line_end}
                         </button>
                       ))}
@@ -493,7 +491,7 @@ function App() {
                     {(["idea", "study", "project"] as const).map((name) => (
                       <tr key={name}>
                         <th>{name}</th>
-                        <td>{review.policy[name].displayed ?? "â€”"}</td>
+                        <td>{review.policy[name].displayed ?? "—"}</td>
                         <td>{review.policy[name].status}</td>
                         <td>{review.policy[name].reason}</td>
                       </tr>
@@ -501,7 +499,7 @@ function App() {
                   </tbody>
                 </table>
                 <p>
-                  {review.policy.label} Â· Editorial:{" "}
+                  {review.policy.label} · Editorial:{" "}
                   {review.policy.editorial_status}
                 </p>
                 <details>
@@ -509,8 +507,7 @@ function App() {
                   <ul>
                     {review.assessment.ratings.map((r) => (
                       <li key={r.dimension}>
-                        Dimension {r.dimension}: {r.rating ?? "â€”"} Â·{" "}
-                        {r.status}
+                        Dimension {r.dimension}: {r.rating ?? "—"} · {r.status}
                         <p>{r.rationale}</p>
                         <p>
                           {r.main_limitation} Verifier: {r.verification}.
@@ -560,7 +557,7 @@ function App() {
               >
                 Export Markdown
               </a>
-              {" Â· "}
+              {" · "}
               <a
                 href={
                   "/api/projects/" + view.project.project_id + "/exports/json"

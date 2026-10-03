@@ -1,6 +1,6 @@
 # Development environment
 
-Project Python 3.12.15, uv 0.12.22, Node 24.19.0, pnpm 11.19.0, exact dependencies and both committed locks. System Python is not the project interpreter. ADRs 0002â€“0004 record compatibility and boundaries.
+Project Python 3.12.15, uv 0.12.22, Node 24.19.0, pnpm 11.19.0, exact dependencies and both committed locks. System Python is not the project interpreter. ADRs 0002–0004 record compatibility and boundaries.
 
 From backend run uv sync --locked, uv run --locked pytest -q, uv run --locked ruff check ., uv run --locked ruff format --check ., uv run --locked mypy domain policy_engine persistence services model_adapters api. PostgreSQL parity uses a disposable RDW_TEST_POSTGRES_DSN; CI forbids skipping it. Never use production credentials. From root run node scripts/check.mjs and node scripts/publication-guard.mjs --staged; enable git config core.hooksPath .githooks.
 

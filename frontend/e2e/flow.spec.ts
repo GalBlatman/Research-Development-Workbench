@@ -28,7 +28,7 @@ test("synthetic browser -> real backend -> review, immutable edit, export and re
   await page.getByLabel("I am authorized to process").check();
   await page.getByRole("button", { name: "Add source", exact: true }).click();
   await expect(
-    page.getByText("Synthetic predecessor Â· version 1"),
+    page.getByText("Synthetic predecessor · version 1"),
   ).toBeVisible();
   await page
     .getByRole("button", { name: /Inspect Synthetic predecessor/ })
