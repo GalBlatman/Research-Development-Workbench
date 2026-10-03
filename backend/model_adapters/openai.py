@@ -95,7 +95,7 @@ def packet_check(context: Any) -> None:
 
 
 class OpenAIAdapter:
-    prompt_configuration = "evaluation-v2/checking-v2"
+    prompt_configuration = "evaluation-v2/checking-v3"
 
     def __init__(
         self,
@@ -147,7 +147,9 @@ class OpenAIAdapter:
         packet = payload.get("context") or payload.get("assessment_task", {}).get("context")
         if len(json.dumps(packet, ensure_ascii=False).encode()) > config.max_context_bytes:
             raise ProviderFailure("CONTEXT_LIMIT")
-        prompt_version = kind + ("-v2" if kind in ("checking", "evaluation") else "-v1")
+        prompt_version = kind + (
+            "-v3" if kind == "checking" else "-v2" if kind == "evaluation" else "-v1"
+        )
         prompt = (PROMPTS / (prompt_version + ".md")).read_text(encoding="utf-8")
         prompt_hash = hashlib.sha256(
             (

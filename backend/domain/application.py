@@ -113,6 +113,8 @@ class CheckDecision(Frozen):
 class CheckResult(Frozen):
     decisions: tuple[CheckDecision, ...]
     summary: ReviewContent
+    obstacle_action: Literal["confirm", "qualify", "narrow", "withdraw"] = "confirm"
+    proposed_objections: tuple[AttributedStatement, ...] = ()
 
 
 class CheckedReview(Frozen):

@@ -181,6 +181,7 @@ export function ResearchWorkspaces({
     });
     setSource(obj.source_refs[0]?.document_id ?? "");
     setPreservedRefs(obj.source_refs);
+    setDependsOn("");
     setSupportingAnchor(
       obj.source_refs[0]
         ? obj.source_refs[0].document_id + "|" + obj.source_refs[0].anchor_id
@@ -196,7 +197,14 @@ export function ResearchWorkspaces({
         record,
         object_id: editing[active] ?? null,
         source_refs: refs,
-        depends_on: dependsOn ? [dependsOn] : [],
+        depends_on:
+          dependsOn === "__clear"
+            ? []
+            : dependsOn
+              ? [dependsOn]
+              : editing[active]
+                ? null
+                : [],
         change: classification,
       }),
     );
@@ -840,7 +848,16 @@ export function ResearchWorkspaces({
                   value={dependsOn}
                   onChange={(e) => setDependsOn(e.target.value)}
                 >
-                  <option value="">Workspace dependencies only</option>
+                  <option value="">
+                    {editing[active]
+                      ? "Keep recorded dependencies"
+                      : "Workspace dependencies only"}
+                  </option>
+                  {editing[active] && (
+                    <option value="__clear">
+                      Remove explicit dependencies
+                    </option>
+                  )}
                   {view.project.objects
                     .filter((o) => o.adoption === "accepted")
                     .map((o) => (

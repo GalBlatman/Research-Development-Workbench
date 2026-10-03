@@ -296,6 +296,7 @@ class ProjectObject(Frozen):
     provider_run: ProviderRun | None = None
     statements: tuple[AttributedStatement, ...] = ()
     dependencies: tuple[Dependency, ...] = ()
+    dependency_identity: Text | None = None
     target_object_id: str | None = None
     reason: str | None = None
     support_dispositions: tuple[SupportDisposition, ...] = ()

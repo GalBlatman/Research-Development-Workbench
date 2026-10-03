@@ -829,6 +829,11 @@ export interface components {
              * @default []
              */
             dependencies: components["schemas"]["Dependency"][];
+            /**
+             * Dependency Identity
+             * @default null
+             */
+            dependency_identity: string | null;
             evidence_state: components["schemas"]["EvidenceState"];
             /** @default current */
             freshness: components["schemas"]["Freshness"];
@@ -1020,11 +1025,8 @@ export interface components {
              * @enum {string}
              */
             change: "substantive" | "wording" | "resources";
-            /**
-             * Depends On
-             * @default []
-             */
-            depends_on: string[];
+            /** Depends On */
+            depends_on?: string[] | null;
             /** Expected Revision */
             expected_revision: number;
             /** Object Id */

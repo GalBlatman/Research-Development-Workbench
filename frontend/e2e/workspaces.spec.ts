@@ -325,3 +325,113 @@ for (const route of ["ESTABLISH", "TEST"])
       ).toContainText("Synthetic route-appropriate knowledge need");
     },
   );
+
+test("dependency edit preserves lineage and focused review invalidates after later consequential change", async ({
+  page,
+}) => {
+  const { root } = await setup(page);
+  await workspace(page, "Usefulness");
+  await page
+    .getByLabel("Record title", { exact: true })
+    .fill("Synthetic boundary");
+  await page
+    .getByLabel("Boundaries on use", { exact: true })
+    .fill("Original synthetic boundary");
+  await page
+    .getByRole("button", { name: "Save usefulness record", exact: true })
+    .click();
+  const upstreamArticle = page.getByRole("article", {
+    name: "Synthetic boundary",
+    exact: true,
+  });
+  await expect(upstreamArticle).toBeVisible();
+  let view = await (await page.request.get(root)).json();
+  const upstream = view.project.objects.at(-1);
+  await workspace(page, "Study");
+  await page
+    .getByLabel("Record title", { exact: true })
+    .fill("Dependent synthetic study");
+  await page
+    .getByLabel("What claim can this design support?", { exact: true })
+    .fill("Conditional synthetic claim");
+  await page
+    .getByLabel("Depends on record", { exact: true })
+    .selectOption(upstream.object_id);
+  await page
+    .getByRole("button", { name: "Save study record", exact: true })
+    .click();
+  const studyArticle = page.getByRole("article", {
+    name: "Dependent synthetic study",
+    exact: true,
+  });
+  await expect(studyArticle).toBeVisible();
+  view = await (await page.request.get(root)).json();
+  const dependent = view.project.objects.at(-1);
+  await page
+    .getByRole("button", { name: "Check study only", exact: true })
+    .click();
+  await expect(page.getByLabel("Targeted workspace review")).toContainText(
+    "current for this scope",
+  );
+  await studyArticle
+    .getByRole("button", { name: "Edit record", exact: true })
+    .click();
+  await expect(
+    page
+      .getByLabel("Depends on record", { exact: true })
+      .getByRole("option", { name: "Keep recorded dependencies" }),
+  ).toBeAttached();
+  await page
+    .getByLabel("Change classification", { exact: true })
+    .selectOption("wording");
+  await page
+    .getByRole("button", { name: "Save study record", exact: true })
+    .click();
+  await expect(studyArticle).toHaveCount(2);
+  view = await (await page.request.get(root)).json();
+  expect(view.project.objects.at(-1).dependencies).toEqual(
+    dependent.dependencies,
+  );
+  await workspace(page, "Usefulness");
+  await upstreamArticle
+    .getByRole("button", { name: "Edit record", exact: true })
+    .click();
+  await page
+    .getByLabel("Change classification", { exact: true })
+    .selectOption("wording");
+  await page
+    .getByLabel("Boundaries on use", { exact: true })
+    .fill("Same synthetic boundary, clarified wording");
+  await page
+    .getByRole("button", { name: "Save usefulness record", exact: true })
+    .click();
+  await expect(upstreamArticle).toHaveCount(2);
+  view = await (await page.request.get(root)).json();
+  expect(view.project.objects.at(-1).dependency_identity).toBe(
+    upstream.object_id,
+  );
+  await page.reload();
+  await workspace(page, "Study");
+  await expect(page.getByLabel("Targeted workspace review")).toContainText(
+    "current for this scope",
+  );
+  await workspace(page, "Usefulness");
+  await upstreamArticle
+    .last()
+    .getByRole("button", { name: "Edit record", exact: true })
+    .click();
+  await page
+    .getByLabel("Change classification", { exact: true })
+    .selectOption("substantive");
+  await page
+    .getByLabel("Boundaries on use", { exact: true })
+    .fill("Consequentially different synthetic boundary");
+  await page
+    .getByRole("button", { name: "Save usefulness record", exact: true })
+    .click();
+  await expect(upstreamArticle).toHaveCount(3);
+  await workspace(page, "Study");
+  await expect(page.getByLabel("Targeted workspace review")).toContainText(
+    "affected by change",
+  );
+});

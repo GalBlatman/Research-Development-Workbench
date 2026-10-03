@@ -60,6 +60,55 @@ def dependencies(project: Project, keys: tuple[str, ...]) -> tuple[Dependency, .
     )
 
 
+def identity(project: Project, object_id: str) -> str:
+    """Stable logical identity; resolve pre-repair records through replacement lineage."""
+    objects = {o.object_id: o for o in project.objects}
+    seen: set[str] = set()
+    while object_id in objects and object_id not in seen:
+        seen.add(object_id)
+        obj = objects[object_id]
+        if obj.dependency_identity:
+            return obj.dependency_identity
+        if obj.target_object_id is None or obj.adoption == Adoption.PROPOSED:
+            break
+        object_id = obj.target_object_id
+    return object_id
+
+
+def object_keys(project: Project, object_id: str) -> tuple[str, ...]:
+    logical = identity(project, object_id)
+    # Keep legacy UUID-keyed snapshots resolvable without rewriting their metadata.
+    aliases = {logical, object_id}
+    aliases.update(
+        o.object_id for o in project.objects if identity(project, o.object_id) == logical
+    )
+    return tuple("object:" + i for i in sorted(aliases))
+
+
+def propagate(project: Project, versions: dict[str, int]) -> dict[str, int]:
+    """Propagate this change through explicit dependencies, once per logical object."""
+    versions = dict(versions)
+    visited: set[str] = set()
+    while True:
+        affected = [
+            o
+            for o in project.objects
+            if o.adoption not in (Adoption.REJECTED, Adoption.SUPERSEDED)
+            and identity(project, o.object_id) not in visited
+            and any(
+                versions.get(d.key, 0) != project.dependency_versions.get(d.key, 0)
+                for d in o.dependencies
+            )
+        ]
+        if not affected:
+            return versions
+        for obj in affected:
+            visited.add(identity(project, obj.object_id))
+            for key in object_keys(project, obj.object_id):
+                if versions.get(key, 0) == project.dependency_versions.get(key, 0):
+                    versions[key] = versions.get(key, 0) + 1
+
+
 def changed(
     project: Project, group: str, object_id: str | None = None, wording: bool = False
 ) -> dict[str, int]:
@@ -67,10 +116,22 @@ def changed(
     if not wording:
         keys = list(AFFECTED.get(group, (group,)))
         if object_id:
-            keys.append("object:" + object_id)
-        for key in keys:
+            keys.extend(object_keys(project, object_id))
+        for key in set(keys):
             versions[key] = versions.get(key, 0) + 1
-    return versions
+    return propagate(project, versions)
+
+
+def review_keys(project: Project, workspace: str | None) -> tuple[str, ...]:
+    """Track the logical records actually available within this assessment scope."""
+    keys: set[str] = set()
+    for obj in project.objects:
+        if obj.adoption in (Adoption.REJECTED, Adoption.SUPERSEDED):
+            continue
+        if workspace is None or workspace_of(obj) == workspace:
+            keys.add("object:" + identity(project, obj.object_id))
+            keys.update(d.key for d in obj.dependencies)
+    return tuple(sorted(keys))
 
 
 def invalidate(
@@ -151,12 +212,17 @@ class ResearchService:
                 )
             refs = self._refs(project_id, request)
             ids = {o.object_id for o in project.objects}
-            if any(i not in ids for i in request.depends_on):
+            if any(i not in ids for i in request.depends_on or ()):
                 raise ValueError("Dependency outside this project")
             old = next((o for o in project.objects if o.object_id == request.object_id), None)
             if request.object_id and (old is None or workspace_of(old) != request.record.workspace):
                 raise ValueError("Edited record unavailable in this workspace")
             identifier = uuid4().hex
+            explicit = (
+                tuple(d.key for d in old.dependencies if d.key.startswith("object:"))
+                if request.depends_on is None and old
+                else tuple("object:" + identity(project, i) for i in request.depends_on or ())
+            )
             versions = changed(
                 project,
                 "resources" if request.change == "resources" else request.record.workspace,
@@ -175,10 +241,13 @@ class ResearchService:
                 adoption=Adoption.ACCEPTED,
                 evidence_state=EvidenceState.UNTESTED,
                 source_refs=refs,
-                dependencies=dependencies(
-                    updated,
-                    (request.record.workspace,) + tuple("object:" + i for i in request.depends_on),
-                ),
+                dependencies=old.dependencies
+                if old and request.change == "wording" and request.depends_on is None
+                else dependencies(updated, (request.record.workspace,) + explicit),
+                freshness=old.freshness
+                if old and request.change == "wording" and request.depends_on is None
+                else Freshness.CURRENT,
+                dependency_identity=identity(project, old.object_id) if old else identifier,
                 target_object_id=request.object_id,
                 reason="User-authored workspace edit",
             )
@@ -228,14 +297,29 @@ class ResearchService:
             updated = project.model_copy(
                 update={"revision": project.revision + 1, "dependency_versions": versions}
             )
+            logical = (
+                identity(project, obj.target_object_id)
+                if obj.target_object_id
+                else identity(project, obj.object_id)
+            )
+            target = next((o for o in project.objects if o.object_id == obj.target_object_id), None)
+            retained_keys = tuple(d.key for d in obj.dependencies)
+            if request.action == "accepted" and target:
+                retained_keys += tuple(d.key for d in target.dependencies)
+                retained_keys = tuple(
+                    k for k in retained_keys if k not in object_keys(project, target.object_id)
+                )
             replacement = obj.model_copy(
                 update={
+                    "dependency_identity": logical
+                    if request.action == "accepted"
+                    else identity(project, obj.object_id),
                     "adoption": Adoption(request.action),
                     "freshness": Freshness.SUPERSEDED
                     if request.action == "superseded"
                     else obj.freshness,
                     "revision": updated.revision,
-                    "dependencies": dependencies(updated, tuple(d.key for d in obj.dependencies)),
+                    "dependencies": dependencies(updated, retained_keys),
                 }
             )
             # An edited adoption gets its own user record; untouched original suggestion remains retained.
@@ -264,7 +348,8 @@ class ResearchService:
                     source_refs=tuple(
                         r for f in request.edited_record.fields for r in f.source_refs
                     ),
-                    dependencies=dependencies(updated, (workspace_of(obj),)),
+                    dependency_identity=logical,
+                    dependencies=dependencies(updated, retained_keys),
                 )
             else:
                 edited = None
@@ -486,6 +571,7 @@ class ResearchService:
                 for key in AFFECTED[group]:
                     versions[key] = versions.get(key, 0) + 1
             versions["source:" + document_id] = versions.get("source:" + document_id, 0) + 1
+            versions = propagate(project, versions)
             objects = tuple(
                 o.model_copy(update={"freshness": Freshness.AFFECTED})
                 if any(r.document_id == document_id for r in o.source_refs)

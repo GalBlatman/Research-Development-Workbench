@@ -6,6 +6,7 @@ from domain.application import (
     AssessmentTask,
     AttributedStatement,
     CandidateReview,
+    CheckDecision,
     CheckedReview,
     CheckingTask,
     ContextPacket,
@@ -151,19 +152,56 @@ class AssessmentChecker:
                 limitations.append(
                     decision.target + ": " + decision.disposition.value + " — " + decision.reason
                 )
-        summary = checked.summary.model_copy(update={"limitations": tuple(limitations)})
+        # Only an existing checked statement can drive the final principal obstacle.
+        # Free-text checker rewrites/new allegations remain explicitly unresolved proposals.
+        original = next(s for s in candidate.statements if s.statement_id == "principal-obstacle")
+        principal = decisions["statement:principal-obstacle"]
+        if checked.obstacle_action == "withdraw":
+            if principal.disposition == Verification.SUPPORTED:
+                raise ProviderFailure("OBSTACLE_DISPOSITION_MISMATCH")
+            obstacle = "Original principal objection withdrawn after checking; no replacement blocking objection has been checked."
+        elif principal.disposition != Verification.SUPPORTED:
+            obstacle = "Unresolved principal objection (not a settled blocker): " + original.text
+        elif checked.obstacle_action in ("qualify", "narrow"):
+            obstacle = "Within the inspected source scope only: " + original.text
+        else:
+            obstacle = original.text
+        if checked.summary.obstacle != original.text:
+            limitations.append(
+                "Unresolved checker proposal (not a settled blocker): " + checked.summary.obstacle
+            )
+        self.statements(task.context, candidate.statements + checked.proposed_objections)
+        for objection in checked.proposed_objections:
+            limitations.append(
+                "Unresolved proposed objection (not a settled blocker): " + objection.text
+            )
+        proposal_checks = tuple(
+            CheckDecision(
+                target="statement:" + objection.statement_id,
+                disposition=Verification.UNRESOLVED,
+                reason="New checker proposal; no semantic support check has been performed.",
+                source_refs=objection.source_refs,
+            )
+            for objection in checked.proposed_objections
+        )
+        limitations.append(
+            "Principal-obstacle check: " + principal.disposition.value + " — " + principal.reason
+        )
+        summary = checked.summary.model_copy(
+            update={"obstacle": obstacle, "limitations": tuple(limitations)}
+        )
         return CheckedReview(
             assessment=AssessmentFields.model_validate(fields),
             summary=summary,
-            statements=candidate.statements,
-            checks=checked.decisions,
+            statements=candidate.statements + checked.proposed_objections,
+            checks=checked.decisions + proposal_checks,
             structural_checks=tuple(
                 StructuralCheck(
                     target=decision.target,
                     status="SOURCE_REFS_RESOLVED",
                     source_refs=decision.source_refs,
                 )
-                for decision in checked.decisions
+                for decision in checked.decisions + proposal_checks
                 if decision.source_refs
             ),
         )
