@@ -113,3 +113,77 @@ test("ESTABLISH displays not applicable and safely renders pasted markup", async
   );
   expect(await page.evaluate(() => "syntheticInjection" in window)).toBe(false);
 });
+
+test("run-handle UI polls a stored backend review and surfaces bounded failure", async ({
+  page,
+}) => {
+  const demo = await (await page.request.get("/api/demo")).json();
+  let view = await (
+    await page.request.post("/api/projects", {
+      data: {
+        title: "Synthetic run UI",
+        idea: demo.idea,
+        route: "EXPLAIN",
+        stage: "EARLY IDEA",
+        authorized: true,
+      },
+    })
+  ).json();
+  const root = "/api/projects/" + view.project.project_id;
+  view = await (
+    await page.request.post(root + "/sources", {
+      data: {
+        expected_revision: view.project.revision,
+        title: "Synthetic excerpt",
+        attribution: "Synthetic fixture only",
+        text: demo.source,
+        authorized: true,
+        admitted: true,
+      },
+    })
+  ).json();
+  const review = await (
+    await page.request.post(root + "/evaluations", {
+      data: { expected_revision: view.project.revision },
+    })
+  ).json();
+  let failed = false;
+  const handle = {
+    run_id: "a".repeat(32),
+    project_id: view.project.project_id,
+    expected_revision: view.project.revision,
+    state: "queued",
+  };
+  // Mock the asynchronous wire protocol only. The displayed historical score comes from the real backend.
+  await page.route("**/api/health", (route) =>
+    route.fulfill({ json: { status: "ok", model: "openai:gpt-6-sol" } }),
+  );
+  await page.route("**" + root + "/evaluations", (route) =>
+    route.fulfill({ status: 202, json: handle }),
+  );
+  await page.route("**" + root + "/runs/" + handle.run_id, (route) =>
+    route.fulfill({
+      json: {
+        ...handle,
+        state: failed ? "failed" : "succeeded",
+        snapshot_id: failed ? null : review.snapshot.snapshot_id,
+        error_code: failed ? "BUDGET_EXHAUSTED" : null,
+      },
+    }),
+  );
+  await page.goto("/?project=" + view.project.project_id);
+  await expect(
+    page.getByRole("heading", { name: "Structured interpretation" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Zero Data Retention requires/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Run evaluation", exact: true })
+    .click();
+  await expect(page.getByLabel("Evaluation review")).toContainText("50");
+  failed = true;
+  await page
+    .getByRole("button", { name: "Run evaluation", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("BUDGET_EXHAUSTED");
+  await expect(page.getByLabel("Evaluation review")).toContainText("50");
+});

@@ -43,7 +43,9 @@ class Repository:
             raise IntegrityViolation("Stored record hash mismatch")
         return model.model_validate_json(payload)
 
-    def register_workspace(self, actor: str, workspace: Workspace) -> None:
+    def register_workspace(
+        self, actor: str, workspace: Workspace, allow_model_policy_change: bool = False
+    ) -> None:
         if actor != workspace.owner_id:
             raise AccessDenied("Only the owner can register this workspace")
         with self.db.transaction():
@@ -52,8 +54,23 @@ class Repository:
                 (workspace.workspace_id,),
             ).fetchone()
             if row is not None:
-                if self._decode(row, Workspace) != workspace:
-                    raise Conflict("Workspace already exists with different owner/configuration")
+                existing = self._decode(row, Workspace)
+                if existing != workspace:
+                    if (
+                        not allow_model_policy_change
+                        or existing.model_copy(
+                            update={"model_processing_policy": workspace.model_processing_policy}
+                        )
+                        != workspace
+                    ):
+                        raise Conflict(
+                            "Workspace already exists with different owner/configuration"
+                        )
+                    payload = canonical(workspace)
+                    self.db.execute(
+                        "UPDATE workspaces SET payload=?,digest=? WHERE workspace_id=? AND owner_id=?",
+                        (payload, digest(payload.encode()), workspace.workspace_id, actor),
+                    )
                 return
             payload = canonical(workspace)
             self.db.execute(

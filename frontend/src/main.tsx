@@ -6,6 +6,13 @@ import "./style.css";
 type Create = components["schemas"]["CreateProject"];
 type View = components["schemas"]["ProjectView"];
 type Review = components["schemas"]["ReviewView"];
+type Run = components["schemas"]["RunHandle"];
+type Budget = {
+  max_calls: number;
+  max_run_tokens: number;
+  output_limit: number;
+  timeout_seconds: number;
+};
 
 async function api<T>(url: string, method = "GET", data?: unknown): Promise<T> {
   const response = await fetch("/api" + url, {
@@ -39,6 +46,9 @@ function App() {
   const [passage, setPassage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState("loading");
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [runMessage, setRunMessage] = useState("");
   const projectId = new URLSearchParams(location.search).get("project");
 
   function update(next: View) {
@@ -61,11 +71,39 @@ function App() {
     }
   }
   useEffect(() => {
+    void api<{ model: string; budget: Budget | null }>("/health")
+      .then((health) => {
+        setProvider(health.model);
+        setBudget(health.budget);
+      })
+      .catch(() => setError("Provider configuration could not be loaded."));
     if (projectId)
       void work(async () => {
         update(await api<View>("/projects/" + projectId));
       });
   }, []);
+  async function evaluateRevision(current: View): Promise<Review> {
+    const root = "/projects/" + current.project.project_id;
+    const result = await api<Review | Run>(root + "/evaluations", "POST", {
+      expected_revision: current.project.revision,
+    });
+    if ("snapshot" in result) return result;
+    setRunMessage("Evaluation queued; checking runs before publication.");
+    for (let attempts = 0; attempts < 450; attempts++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const run = await api<Run>(root + "/runs/" + result.run_id);
+      setRunMessage("Evaluation " + run.state + ".");
+      if (run.state === "failed")
+        throw new Error(
+          run.error_code ?? "Evaluation failed without publication.",
+        );
+      if (run.state === "succeeded" && run.snapshot_id)
+        return api<Review>(root + "/reviews/" + run.snapshot_id);
+    }
+    throw new Error(
+      "Still running. Reload the saved project later to open the completed review.",
+    );
+  }
   async function demo() {
     const data = await api<{ idea: string; source: string }>("/demo");
     setTitle("Synthetic knowledge-sharing example");
@@ -113,13 +151,23 @@ function App() {
         <p className="eyebrow">RESEARCH DEVELOPMENT WORKBENCH</p>
         <h1>From a question to a next step</h1>
         <p>
-          Local fake-model demonstration. Fixed outputs exercise the workflow;
-          they do not assess your science. No external model processing.
+          {provider.startsWith("openai:")
+            ? `Local bounded research workflow using ${provider}. Reviews are interpretive judgments, not independent scientific verification.`
+            : "Local fake-model demonstration. Fixed outputs exercise the workflow; no external model processing."}
         </p>
       </header>
+      {provider.startsWith("openai:") && (
+        <p>
+          Only admitted text is sent to OpenAI with store=false, foreground
+          requests and no tools. Zero Data Retention requires eligible account
+          controls.{" "}
+          {budget &&
+            `Per run: at most ${budget.max_calls} attempts, ${budget.max_run_tokens} reserved tokens, ${budget.output_limit} output tokens per call, and ${budget.timeout_seconds} seconds per request.`}
+        </p>
+      )}
       {error && <div role="alert">{error}</div>}
       {busy && <p role="status">Saving or evaluating…</p>}
-      <fieldset disabled={busy}>
+      <fieldset disabled={busy || provider === "loading"}>
         {!view ? (
           <section>
             <h2>Start a project</h2>
@@ -173,7 +221,10 @@ function App() {
                 checked={authorized}
                 onChange={(e) => setAuthorized(e.target.checked)}
               />
-              I authorize local processing of my pasted project text.
+              {provider.startsWith("openai:")
+                ? "I authorize OpenAI processing"
+                : "I authorize local processing"}{" "}
+              of my pasted project text.
             </label>
             <button
               disabled={!authorized || !title.trim() || !idea.trim()}
@@ -292,7 +343,10 @@ function App() {
                   checked={sourceAuthorized}
                   onChange={(e) => setSourceAuthorized(e.target.checked)}
                 />
-                I am authorized to process this source text locally.
+                {provider.startsWith("openai:")
+                  ? "I authorize OpenAI to process"
+                  : "I am authorized to process"}{" "}
+                this source text locally.
               </label>
               <label className="check">
                 <input
@@ -373,28 +427,25 @@ function App() {
             <section>
               <h2>Evaluate this revision</h2>
               <p>
-                The fake adapter selects its fixed response internally. The
-                unchanged synthetic example and source demonstrate arithmetic;
-                other inputs retain pending judgments.
+                {provider === "deterministic-fake-v1" || provider === "fake"
+                  ? "Offline fake evaluation uses fixed synthetic responses; other inputs retain pending judgments."
+                  : `Provider: ${provider}. Bounded evaluation includes a focused checking pass; interpretive support is not independent evidence verification.`}
               </p>
               <button
                 onClick={() =>
                   void work(async () => {
-                    setReview(
-                      await api<Review>(
-                        "/projects/" + view.project.project_id + "/evaluations",
-                        "POST",
-                        { expected_revision: view.project.revision },
-                      ),
-                    );
+                    setReview(await evaluateRevision(view));
                     update(
                       await api<View>("/projects/" + view.project.project_id),
                     );
                   })
                 }
               >
-                Run fake evaluation
+                {provider === "deterministic-fake-v1" || provider === "fake"
+                  ? "Run fake evaluation"
+                  : "Run evaluation"}
               </button>
+              {runMessage && <p role="status">{runMessage}</p>}
               <ul>
                 {view.reviews.map((r) => (
                   <li key={r.snapshot_id}>
@@ -516,6 +567,39 @@ function App() {
                     ))}
                   </ul>
                 </details>
+                {review.provider_run && (
+                  <details>
+                    <summary>Provider usage and focused support checks</summary>
+                    <p>
+                      Run {review.provider_run.run_id}:{" "}
+                      {review.provider_run.status}
+                    </p>
+                    <ul>
+                      {review.provider_run.calls.map((call, i) => (
+                        <li key={i}>
+                          {call.task}:{" "}
+                          {call.returned_model ?? call.configured_model} ·{" "}
+                          {call.status} · input {call.input_tokens ?? "unknown"}
+                          , output {call.output_tokens ?? "unknown"}
+                        </li>
+                      ))}
+                    </ul>
+                    <ul>
+                      {review.statements.map((statement) => (
+                        <li key={statement.statement_id}>
+                          {statement.kind}: {statement.text}
+                        </li>
+                      ))}
+                    </ul>
+                    <ul>
+                      {review.checks.map((check) => (
+                        <li key={check.target}>
+                          {check.target}: {check.disposition} — {check.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 <h3>Readiness and applicability</h3>
                 <ul aria-label="Readiness gates">
                   {review.policy.gates.map((gate) => (

@@ -7,14 +7,17 @@ from pydantic import Field, StrictBool, StrictInt, model_validator
 
 from domain.models import (
     Assessment,
+    AttributedStatement,
     DocumentVersion,
     EvaluationSnapshot,
     Frozen,
     Hash,
     Project,
+    ProviderRun,
     ReviewContent,
     ReviewSummary,
     Revision,
+    StructuralCheck,
     Text,
 )
 from domain.results import PolicyResult
@@ -200,6 +203,10 @@ class StoredSnapshot(Frozen):
     policy_result: PolicyResult | None = None
     coverage: tuple[HistoricalCoverage, ...] | None = None
     exclusions: tuple[HistoricalExclusion, ...] | None = None
+    provider_run: ProviderRun | None = None
+    checked_statements: tuple[AttributedStatement, ...] = ()
+    checks: tuple[dict[str, object], ...] = ()
+    structural_checks: tuple[StructuralCheck, ...] = ()
 
     @model_validator(mode="after")
     def same_target(self) -> Self:

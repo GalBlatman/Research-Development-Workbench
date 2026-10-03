@@ -1,9 +1,10 @@
-from typing import Final, Protocol
+from typing import Final
 
 from domain.application import (
     AssessmentFields,
     AssessmentTask,
     CandidateReview,
+    CheckedReview,
     Interpretation,
     InterpretationTask,
     ProposedAssessment,
@@ -15,18 +16,12 @@ from domain.models import (
     Status,
     Verification,
 )
+from model_adapters.contracts import ModelAdapter as ModelAdapter
+from model_adapters.contracts import OutputVerifier as OutputVerifier
 
 DEMO_IDEA = "Synthetic example: Why do fictional teams share knowledge? A proposed explanation links explicit requests to shared understanding, with conditions and rival predictions specified."
 DEMO_SOURCE = "Synthetic predecessor: fictional teams may share knowledge because of shared incentives. This is a test fixture, not a published article or empirical evidence."
 DISCLAIMER: Final = "Fake fixture output; no scientific assessment or semantic verification."
-
-
-class ModelAdapter(Protocol):
-    configuration: str
-
-    def interpret(self, task: InterpretationTask) -> Interpretation: ...
-
-    def assess(self, task: AssessmentTask) -> CandidateReview: ...
 
 
 class FakeModel:
@@ -82,7 +77,7 @@ class FakeModel:
                 inspected_material=("exact-synthetic-fixture",) if scored and dim <= 7 else (),
                 verification=Verification.UNRESOLVED,
             )
-            for dim in range(1, 11)
+            for dim in (task.dimensions or tuple(range(1, 11)))
         )
         return CandidateReview(
             assessment=ProposedAssessment(
@@ -115,12 +110,6 @@ class FakeModel:
         )
 
 
-class OutputVerifier(Protocol):
-    def interpretation(self, task: InterpretationTask, candidate: Interpretation) -> None: ...
-
-    def verify(self, task: AssessmentTask, candidate: CandidateReview) -> AssessmentFields: ...
-
-
 class FixtureVerifier:
     """Exact fixture conformance only; no semantic research verification."""
 
@@ -138,3 +127,6 @@ class FixtureVerifier:
             if rating["rating"] is not None:
                 rating["verification"] = Verification.SUPPORTED
         return AssessmentFields.model_validate(data)
+
+    def review(self, task: AssessmentTask, candidate: CandidateReview) -> CheckedReview:
+        return CheckedReview(assessment=self.verify(task, candidate), summary=candidate.summary)

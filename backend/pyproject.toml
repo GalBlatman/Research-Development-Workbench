@@ -4,6 +4,7 @@ version = "0.0.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi==0.142.2",
+    "httpx==0.28.1",
     "psycopg[binary]==3.3.6",
     "pydantic==2.13.5",
     "uvicorn==0.54.0",
@@ -14,7 +15,6 @@ dev = [
     "pytest==9.1.1",
     "ruff==0.16.10",
     "mypy==2.4.0",
-    "httpx==0.28.1",
 ]
 
 [tool.ruff]

@@ -14,13 +14,21 @@ from domain.application import (
     EditProject,
     EvaluateRequest,
     RevisionRequest,
+    RunHandle,
+    TargetedEvaluation,
 )
+from domain.models import ProviderRun
 from domain.presentation import ProjectView, ReviewView
+from model_adapters.checking import AssessmentChecker
+from model_adapters.config import ProviderConfig
 from model_adapters.fake import DEMO_IDEA, DEMO_SOURCE
+from model_adapters.openai import OpenAIAdapter
+from model_adapters.runtime import ProviderFailure
 from persistence.database import Database
 from persistence.originals import OriginalFileStore
 from persistence.repository import AccessDenied, Conflict, Repository
 from policy_engine.manifest import Manifest
+from services.runs import RunManager
 from services.sources import SourceService
 from services.workbench import InvalidModelOutput, Workbench
 
@@ -31,6 +39,7 @@ def create_app(service: Workbench | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if service is not None:
+            app.state.runs = None
             app.state.workbench = service
             yield
             return
@@ -44,22 +53,55 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             raise RuntimeError("Runtime data must be outside the repository")
         runtime.mkdir(parents=True, exist_ok=True)
         dsn = os.environ.get("RDW_POSTGRES_DSN")
-        database = Database.postgres(dsn) if dsn else Database.sqlite(runtime / "projects.sqlite")
-        database.initialize()
-        repo = Repository(database)
         manifest = Manifest.model_validate_json(
             (ROOT / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
         )
-        app.state.workbench = Workbench(
-            repo, SourceService(repo, OriginalFileStore(runtime / "originals")), manifest
+        config = ProviderConfig.environment()
+        receipts = runtime / "provider-receipts"
+
+        def record_receipt(receipt: ProviderRun) -> None:
+            receipts.mkdir(parents=True, exist_ok=True)
+            # Run ID originates in the server ledger, never provider content.
+            (receipts / (receipt.run_id + ".json")).write_text(
+                receipt.model_dump_json() + "\n", encoding="utf-8", newline="\n"
+            )
+
+        def make_service() -> Workbench:
+            database = (
+                Database.postgres(dsn) if dsn else Database.sqlite(runtime / "projects.sqlite")
+            )
+            database.initialize()
+            repo = Repository(database)
+            adapter = (
+                OpenAIAdapter(config, receipt_sink=record_receipt)
+                if config.provider == "openai"
+                else None
+            )
+            verifier = AssessmentChecker(adapter) if adapter is not None else None
+            return Workbench(
+                repo,
+                SourceService(repo, OriginalFileStore(runtime / "originals")),
+                manifest,
+                adapter,
+                verifier,
+            )
+
+        app.state.workbench = make_service()
+        app.state.runs = (
+            RunManager(runtime / "runs", make_service) if config.provider == "openai" else None
         )
         try:
             yield
         finally:
-            database.close()
+            if app.state.runs:
+                app.state.runs.close()
+            app.state.workbench.repository.db.close()
+            close = getattr(app.state.workbench.adapter, "close", None)
+            if close:
+                close()
 
     app = FastAPI(
-        title="Research Development Workbench — fake local slice",
+        title="Research Development Workbench — bounded local workflow",
         lifespan=lifespan,
         separate_input_output_schemas=False,
     )
@@ -81,6 +123,17 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             )
         return cast(Response, await call_next(request))
 
+    @app.exception_handler(ProviderFailure)
+    async def provider_error(request: Request, exc: ProviderFailure) -> JSONResponse:
+        return JSONResponse(
+            {
+                "detail": exc.code,
+                "code": exc.code,
+                "provider_run": exc.metadata.model_dump(mode="json") if exc.metadata else None,
+            },
+            status_code=503,
+        )
+
     @app.exception_handler(InvalidModelOutput)
     async def model_error(request: Request, exc: InvalidModelOutput) -> JSONResponse:
         return JSONResponse({"detail": str(exc), "code": "INVALID_MODEL_OUTPUT"}, status_code=502)
@@ -100,8 +153,21 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         return JSONResponse({"detail": str(exc).split("\n")[0]}, status_code=422)
 
     @app.get("/api/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "model": "fake"}
+    async def health(request: Request) -> dict[str, Any]:
+        adapter = request.app.state.workbench.adapter
+        config = getattr(adapter, "provider_config", None)
+        return {
+            "status": "ok",
+            "model": adapter.configuration,
+            "budget": {
+                "max_calls": config.max_calls,
+                "max_run_tokens": config.max_run_tokens,
+                "output_limit": config.max_output_tokens,
+                "timeout_seconds": config.timeout,
+            }
+            if config
+            else None,
+        }
 
     @app.get("/api/demo")
     async def demo() -> dict[str, str]:
@@ -132,11 +198,46 @@ def create_app(service: Workbench | None = None) -> FastAPI:
     @app.post(
         "/api/projects/{project_id}/evaluations",
         status_code=201,
-        response_model=ReviewView,
+        response_model=ReviewView | RunHandle,
         response_model_exclude_unset=True,
     )
-    async def evaluate(project_id: str, body: EvaluateRequest, request: Request) -> dict[str, Any]:
-        return request.app.state.workbench.run(project_id, body.expected_revision)  # type: ignore[no-any-return]
+    async def evaluate(project_id: str, body: EvaluateRequest, request: Request) -> Any:
+        workbench = request.app.state.workbench
+        manager = request.app.state.runs
+        if manager is not None:
+            workbench._current(project_id, body.expected_revision)
+            return JSONResponse(
+                manager.submit(project_id, body.expected_revision).model_dump(mode="json"),
+                status_code=202,
+            )
+        return workbench.run(project_id, body.expected_revision)
+
+    @app.post(
+        "/api/projects/{project_id}/evaluations/targeted",
+        response_model=ReviewView | RunHandle,
+        response_model_exclude_unset=True,
+    )
+    async def targeted(project_id: str, body: TargetedEvaluation, request: Request) -> Any:
+        workbench = request.app.state.workbench
+        manager = request.app.state.runs
+        workbench._current(project_id, body.expected_revision)
+        if manager is not None:
+            return JSONResponse(
+                manager.submit(project_id, body.expected_revision, body.dimensions).model_dump(
+                    mode="json"
+                ),
+                status_code=202,
+            )
+        return workbench.run(project_id, body.expected_revision, body.dimensions)
+
+    @app.get("/api/projects/{project_id}/runs/{run_id}", response_model=RunHandle)
+    async def run_state(project_id: str, run_id: str, request: Request) -> RunHandle:
+        request.app.state.workbench.repository.authorize(
+            request.app.state.workbench.scope(project_id)
+        )
+        if request.app.state.runs is None:
+            raise ValueError("No provider run in the offline fake workflow")
+        return cast(RunHandle, request.app.state.runs.get(project_id, run_id))
 
     @app.get(
         "/api/projects/{project_id}/reviews/{snapshot_id}",

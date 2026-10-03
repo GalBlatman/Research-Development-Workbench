@@ -2,11 +2,13 @@ from typing import Annotated, Literal, Self
 
 from pydantic import Field, StrictBool, model_validator
 
+from domain.models import AttributedStatement as AttributedStatement
 from domain.models import (
     Brief,
     Frozen,
     Hash,
     Project,
+    ProviderRun,
     Rating,
     ReviewContent,
     Revision,
@@ -15,6 +17,7 @@ from domain.models import (
     Scope,
     SourceReference,
     Stage,
+    StructuralCheck,
     Text,
     Truth,
     Verification,
@@ -58,6 +61,7 @@ class EvaluateRequest(RevisionRequest):
 class Interpretation(Frozen):
     brief: Brief
     limitations: tuple[Text, ...]
+    statements: tuple[AttributedStatement, ...] = ()
 
 
 class RuleJudgment(Frozen):
@@ -91,12 +95,34 @@ class ProposedAssessment(AssessmentFields):
 class CandidateReview(Frozen):
     assessment: ProposedAssessment
     summary: ReviewContent
+    statements: tuple[AttributedStatement, ...] = ()
+
+
+class CheckDecision(Frozen):
+    target: Text
+    disposition: Verification
+    reason: Text
+    source_refs: tuple[SourceReference, ...]
+
+
+class CheckResult(Frozen):
+    decisions: tuple[CheckDecision, ...]
+    summary: ReviewContent
+
+
+class CheckedReview(Frozen):
+    assessment: AssessmentFields
+    summary: ReviewContent
+    statements: tuple[AttributedStatement, ...] = ()
+    checks: tuple[CheckDecision, ...] = ()
+    structural_checks: tuple[StructuralCheck, ...] = ()
 
 
 class Passage(Frozen):
     source: SourceRecord
     anchor: SourceAnchor
     text: str
+    historical: StrictBool = False
 
 
 class ContextPacket(Frozen):
@@ -120,3 +146,39 @@ class AssessmentTask(Frozen):
     policy_sha256: Hash
     policy_manifest_sha256: Hash
     policy_implementation_version: Text
+    dimensions: tuple[Annotated[int, Field(ge=1, le=10)], ...] = ()
+
+    @model_validator(mode="after")
+    def unique_targets(self) -> Self:
+        if len(set(self.dimensions)) != len(self.dimensions):
+            raise ValueError("Duplicate targeted dimensions")
+        return self
+
+
+class CheckingTask(Frozen):
+    schema_version: Literal["rdw-task-1"] = "rdw-task-1"
+    task: Literal["VerifyAssessment"] = "VerifyAssessment"
+    assessment_task: AssessmentTask
+    candidate: CandidateReview
+
+
+class RunHandle(Frozen):
+    run_id: Text
+    project_id: Text
+    expected_revision: Revision
+    state: Literal["queued", "running", "succeeded", "failed"]
+    snapshot_id: str | None = None
+    error_code: str | None = None
+    provider_run: ProviderRun | None = None
+
+
+class TargetedEvaluation(RevisionRequest):
+    dimensions: Annotated[
+        tuple[Annotated[int, Field(ge=1, le=10)], ...], Field(min_length=1, max_length=10)
+    ]
+
+    @model_validator(mode="after")
+    def unique_dimensions(self) -> Self:
+        if len(set(self.dimensions)) != len(self.dimensions):
+            raise ValueError("Duplicate targeted dimensions")
+        return self

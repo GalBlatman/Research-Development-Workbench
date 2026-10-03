@@ -42,7 +42,9 @@ from domain.sources import (
     SourceRole,
     StoredSnapshot,
 )
-from model_adapters.fake import FakeModel, FixtureVerifier, ModelAdapter, OutputVerifier
+from model_adapters.contracts import ModelAdapter, OutputVerifier
+from model_adapters.fake import FakeModel, FixtureVerifier
+from model_adapters.runtime import ProviderFailure, provider_session
 from persistence.repository import Conflict, Repository
 from policy_engine.engine import evaluate
 from policy_engine.manifest import Manifest
@@ -82,9 +84,12 @@ class Workbench:
                 workspace_id=self.workspace,
                 owner_id=self.actor,
                 access_policy="loopback single owner; no authentication",
-                model_processing_policy="fake only; no external processing",
+                model_processing_policy="bounded OpenAI packet processing authorized by runtime configuration/intake"
+                if getattr(self.adapter, "provider_config", None)
+                else "fake only; no external processing",
                 storage_policy="explicit private runtime",
             ),
+            allow_model_policy_change=True,
         )
 
     def scope(self, project_id: str) -> AccessScope:
@@ -100,34 +105,60 @@ class Workbench:
         bundle = self.bundle(project_id, True)
         current = {v.document.document_id: v for v in bundle.versions}
         admitted = {(a.document_id, a.version) for a in bundle.admissions if a.admitted}
+        project = self.repository.project(scope)
+        refs = tuple(
+            ref
+            for obj in project.objects
+            for ref in (
+                obj.source_refs
+                + tuple(r for check in obj.checks for r in check.source_refs)
+                + tuple(r for statement in obj.statements for r in statement.source_refs)
+            )
+        )
+        referenced = {(r.document_id, r.version) for r in refs}
+        for ref in refs:
+            self.repository.get_anchor(scope, ref)
         passages, exclusions = [], []
         for source in bundle.sources:
-            version = current[source.document_id]
-            key = (source.document_id, version.document.version)
+            latest = current[source.document_id]
+            key = (source.document_id, latest.document.version)
             if key not in admitted:
                 exclusions.append(f"{source.title}: not admitted")
-                continue
-            if version.text is None:
-                exclusions.append(
-                    f"{source.title}: {version.extraction_state}/{version.text_presence}"
+            selected = [
+                v
+                for v in bundle.versions
+                if v.document.document_id == source.document_id
+                and (v.document.document_id, v.document.version) in admitted
+                and (
+                    (v.document.document_id, v.document.version) == key
+                    or (v.document.document_id, v.document.version) in referenced
                 )
-                continue
-            for anchor in anchors(version):
-                self.repository.get_anchor(
-                    scope,
-                    SourceReference(
-                        document_id=source.document_id,
-                        version=version.document.version,
-                        anchor_id=anchor.anchor_id,
-                    ),
-                )
-                passages.append(
-                    Passage(
-                        source=source, anchor=anchor, text=version.text[anchor.start : anchor.end]
+            ]
+            for version in selected:
+                if version.text is None:
+                    exclusions.append(
+                        f"{source.title}: {version.extraction_state}/{version.text_presence}"
                     )
-                )
+                    continue
+                for anchor in anchors(version):
+                    self.repository.get_anchor(
+                        scope,
+                        SourceReference(
+                            document_id=source.document_id,
+                            version=version.document.version,
+                            anchor_id=anchor.anchor_id,
+                        ),
+                    )
+                    passages.append(
+                        Passage(
+                            source=source,
+                            anchor=anchor,
+                            text=version.text[anchor.start : anchor.end],
+                            historical=version.document.version != latest.document.version,
+                        )
+                    )
         if sum(len(p.text) for p in passages) > 100000:
-            raise ValueError("Fake context limit exceeded; narrow the supplied packet")
+            raise ValueError("Context limit exceeded; narrow the supplied packet")
         return ContextPacket(
             project=self.repository.project(scope),
             passages=tuple(passages),
@@ -137,8 +168,14 @@ class Workbench:
     def _proposal(self, context: ContextPacket, revision: int) -> ProjectObject:
         try:
             task = InterpretationTask(context=context)
-            output = Interpretation.model_validate(self.adapter.interpret(task))
-            self.verifier.interpretation(task, output)
+            with provider_session(self.adapter) as ledger:
+                output = Interpretation.model_validate(self.adapter.interpret(task))
+                self.verifier.interpretation(task, output)
+                if ledger:
+                    ledger.state = "SUCCEEDED"
+                run_metadata = ledger.receipt() if ledger else None
+        except ProviderFailure:
+            raise
         except (ValueError, TypeError) as exc:
             raise InvalidModelOutput(
                 "Invalid fake-model interpretation; no proposal was saved"
@@ -151,7 +188,12 @@ class Workbench:
             origin=Origin.INFERENCE,
             adoption=Adoption.PROPOSED,
             evidence_state=EvidenceState.UNINSPECTED,
-            generated_by_run_id="fake-interpretation-v1",
+            generated_by_run_id=run_metadata.run_id if run_metadata else "fake-interpretation-v1",
+            provider_run=run_metadata,
+            statements=output.statements,
+            source_refs=tuple(
+                {ref for statement in output.statements for ref in statement.source_refs}
+            ),
         )
 
     def create(self, request: CreateProject) -> dict[str, Any]:
@@ -177,7 +219,9 @@ class Workbench:
                 source_kind="pasted_original",
                 role=SourceRole.DRAFT,
                 media_type="text/plain",
-                rights_declaration="User authorized local processing of their original text",
+                rights_declaration="User authorized bounded OpenAI processing of their original text"
+                if getattr(self.adapter, "provider_config", None)
+                else "User authorized local processing of their original text",
             )
             self.sources.paste(scope, source, request.idea)
             self.repository.set_admission(scope, source.document_id, 1, True)
@@ -243,7 +287,9 @@ class Workbench:
                 source_kind="pasted_excerpt",
                 role=SourceRole.LITERATURE,
                 media_type="text/plain",
-                rights_declaration="User authorized local processing; attribution is user-reported",
+                rights_declaration="User authorized bounded OpenAI processing; attribution is user-reported"
+                if getattr(self.adapter, "provider_config", None)
+                else "User authorized local processing; attribution is user-reported",
             )
             self.sources.paste(scope, source, request.text)
             self.repository.set_admission(scope, source.document_id, 1, request.admitted)
@@ -268,49 +314,74 @@ class Workbench:
             self.repository.save_project(self.scope(project_id), updated, project.revision)
         return self.view(project_id)
 
-    def run(self, project_id: str, expected: int) -> dict[str, Any]:
+    def run(
+        self, project_id: str, expected: int, dimensions: tuple[int, ...] = ()
+    ) -> dict[str, Any]:
         scope = self.scope(project_id)
-        with self.repository.db.transaction():
-            project = self._current(project_id, expected)
-            context = self.context(project_id)
-            versions = {(p.source.document_id, p.anchor.version) for p in context.passages}
-            documents = tuple(
-                self.repository.version(scope, d, v).document for d, v in sorted(versions)
-            )
-            snapshot = EvaluationSnapshot(
-                snapshot_id=uuid4().hex,
-                project=project,
-                documents=documents,
-                policy_version=self.manifest.version,
-                policy_sha256=self.manifest.canonical_sha256,
-                policy_manifest_sha256=self.manifest.sha256,
-                policy_implementation_version=self.manifest.implementation_version,
-                scope=Scope.INITIAL_SCREEN,
-                model_configuration=self.adapter.configuration,
-            )
-            task = AssessmentTask(
-                context=context,
-                scope=snapshot.scope,
-                policy_version=snapshot.policy_version,
-                policy_sha256=snapshot.policy_sha256,
-                policy_manifest_sha256=snapshot.policy_manifest_sha256,
-                policy_implementation_version=snapshot.policy_implementation_version,
-            )
-            try:
+        project = self._current(project_id, expected)
+        context = self.context(project_id)
+        if context.project != project:
+            raise Conflict("Working revision changed during context assembly")
+        versions = {(p.source.document_id, p.anchor.version) for p in context.passages}
+        documents = tuple(
+            self.repository.version(scope, d, v).document for d, v in sorted(versions)
+        )
+        snapshot = EvaluationSnapshot(
+            snapshot_id=uuid4().hex,
+            project=project,
+            documents=documents,
+            policy_version=self.manifest.version,
+            policy_sha256=self.manifest.canonical_sha256,
+            policy_manifest_sha256=self.manifest.sha256,
+            policy_implementation_version=self.manifest.implementation_version,
+            scope=Scope.TARGETED_CHECK if dimensions else Scope.INITIAL_SCREEN,
+            prompt_version="evaluation-v1/checking-v1"
+            if getattr(self.adapter, "provider_config", None)
+            else None,
+            model_configuration=self.adapter.configuration,
+        )
+        task = AssessmentTask(
+            context=context,
+            dimensions=dimensions,
+            scope=snapshot.scope,
+            policy_version=snapshot.policy_version,
+            policy_sha256=snapshot.policy_sha256,
+            policy_manifest_sha256=snapshot.policy_manifest_sha256,
+            policy_implementation_version=snapshot.policy_implementation_version,
+        )
+        try:
+            with provider_session(self.adapter) as ledger:
                 candidate = CandidateReview.model_validate(self.adapter.assess(task))
-                verified = self.verifier.verify(task, candidate)
-                # Provider never supplies/echoes snapshot or scope identifiers.
-                fields = verified.model_dump(exclude={"findings"})
-                findings = tuple(
-                    Finding(**finding.model_dump(), scope=snapshot.snapshot_id)
-                    for finding in verified.findings
-                )
-                assessment = Assessment(snapshot=snapshot, findings=findings, **fields)
-                evaluated = evaluate(assessment, self.manifest)
-            except (ValueError, TypeError) as exc:
-                raise InvalidModelOutput(
-                    "Invalid fake-model evaluation: " + str(exc).split("\n")[0]
-                ) from exc
+                self._current(project_id, expected)
+                for passage in context.passages:
+                    self.repository.get_anchor(
+                        scope,
+                        SourceReference(
+                            document_id=passage.source.document_id,
+                            version=passage.anchor.version,
+                            anchor_id=passage.anchor.anchor_id,
+                        ),
+                    )
+                checked = self.verifier.review(task, candidate)
+                verified = checked.assessment
+                if ledger:
+                    ledger.state = "SUCCEEDED"
+                run_metadata = ledger.receipt() if ledger else None
+            # Provider never supplies/echoes snapshot or scope identifiers.
+            fields = verified.model_dump(exclude={"findings"})
+            findings = tuple(
+                Finding(**finding.model_dump(), scope=snapshot.snapshot_id)
+                for finding in verified.findings
+            )
+            assessment = Assessment(snapshot=snapshot, findings=findings, **fields)
+            evaluated = evaluate(assessment, self.manifest)
+        except ProviderFailure:
+            raise
+        except (ValueError, TypeError) as exc:
+            raise InvalidModelOutput(
+                "Invalid model evaluation: " + str(exc).split("\n")[0]
+            ) from exc
+        with self.repository.db.transaction():
             # Recheck scoped sources and revision at publication, not merely at intake.
             self._current(project_id, expected)
             result = policy_view(asdict(evaluated))
@@ -334,7 +405,9 @@ class Workbench:
                     version=v,
                     state=self.repository.version(scope, d, v).extraction_state,
                     anchors=anchors(self.repository.version(scope, d, v)),
-                    note="Provided to fake fixture; no semantic source inspection.",
+                    note="Supplied packet; focused support dispositions are interpretive, not independent data verification."
+                    if run_metadata
+                    else "Provided to fake fixture; no semantic source inspection.",
                 )
                 for d, v in sorted(versions)
             )
@@ -358,7 +431,11 @@ class Workbench:
                 StoredSnapshot(
                     snapshot=snapshot,
                     assessment=assessment,
-                    review=candidate.summary,
+                    review=checked.summary,
+                    provider_run=run_metadata,
+                    checked_statements=checked.statements,
+                    checks=tuple(c.model_dump(mode="json") for c in checked.checks),
+                    structural_checks=checked.structural_checks,
                     policy_result=PolicyResult.model_validate(result),
                     coverage=coverage,
                     exclusions=exclusions,
@@ -374,9 +451,11 @@ class Workbench:
             raise ValueError(
                 "Historical rendering was not captured for this legacy snapshot; deliberate reevaluation is required"
             )
-        return {
+        result = {
             "snapshot": stored.snapshot.model_dump(
-                mode="json", exclude={"documents": {"__all__": {"original_storage_reference"}}}
+                mode="json",
+                exclude_unset=True,
+                exclude={"documents": {"__all__": {"original_storage_reference"}}},
             ),
             "coverage": [c.model_dump(mode="json") for c in stored.coverage],
             "exclusions": [c.model_dump(mode="json") for c in stored.exclusions],
@@ -386,6 +465,14 @@ class Workbench:
             "stale": self.repository.project(self.scope(project_id)).revision
             != stored.snapshot.project.revision,
         }
+        if stored.provider_run is not None:
+            result["provider_run"] = stored.provider_run.model_dump(mode="json")
+            result["statements"] = [s.model_dump(mode="json") for s in stored.checked_statements]
+            result["checks"] = list(stored.checks)
+            result["structural_checks"] = [
+                c.model_dump(mode="json") for c in stored.structural_checks
+            ]
+        return result
 
     def view(self, project_id: str) -> dict[str, Any]:
         bundle = self.bundle(project_id, True)
@@ -461,7 +548,7 @@ class Workbench:
         lines = [
             "# " + bundle.revisions[-1].title,
             "",
-            "Fake-model local slice; no scientific validation.",
+            "Development review; interpretive checking is not independent scientific validation.",
             "",
             f"Working revision: {bundle.revisions[-1].revision}",
         ]
@@ -490,7 +577,20 @@ class Workbench:
                     "",
                     "```json",
                     json.dumps(
-                        {"assessment": review["assessment"], "policy": review["policy"]},
+                        {
+                            "assessment": review["assessment"],
+                            "policy": review["policy"],
+                            **(
+                                {
+                                    "provider_run": review["provider_run"],
+                                    "statements": review["statements"],
+                                    "checks": review["checks"],
+                                    "structural_checks": review["structural_checks"],
+                                }
+                                if "provider_run" in review
+                                else {}
+                            ),
+                        },
                         ensure_ascii=False,
                         indent=2,
                     ),
