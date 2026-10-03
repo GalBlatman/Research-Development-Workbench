@@ -401,7 +401,7 @@ test("dependency edit preserves lineage and focused review invalidates after lat
     .selectOption("wording");
   await page
     .getByLabel("Boundaries on use", { exact: true })
-    .fill("Same synthetic boundary, clarified wording");
+    .fill("Original synthetic  boundary");
   await page
     .getByRole("button", { name: "Save usefulness record", exact: true })
     .click();
@@ -433,5 +433,46 @@ test("dependency edit preserves lineage and focused review invalidates after lat
   await workspace(page, "Study");
   await expect(page.getByLabel("Targeted workspace review")).toContainText(
     "affected by change",
+  );
+});
+
+test("GATE-3 Overview preserves integrated review and scoped reviews reopen with reproducibility metadata", async ({
+  page,
+}) => {
+  const { view, root } = await setup(page);
+  const full = await (
+    await page.request.post(root + "/evaluations", {
+      data: {
+        expected_revision: view.project.revision,
+        scope: "FULL_EVALUATION",
+      },
+    })
+  ).json();
+  const scoped = await (
+    await page.request.post(root + "/workspace-checks", {
+      data: { expected_revision: view.project.revision, workspace: "Study" },
+    })
+  ).json();
+  await page.reload();
+  await expect(page.getByLabel("Evaluation review")).toContainText(
+    "FULL_EVALUATION",
+  );
+  await expect(page.getByLabel("Evaluation review")).toContainText("Rubric v5");
+  await expect(page.getByLabel("Evaluation review")).toContainText(
+    full.snapshot.policy_manifest_sha256,
+  );
+  await workspace(page, "Study");
+  await expect(page.getByLabel("Targeted workspace review")).toContainText(
+    "TARGETED_CHECK",
+  );
+  await expect(page.getByLabel("Targeted workspace review")).toContainText(
+    String(scoped.snapshot.project.revision),
+  );
+  await workspace(page, "Overview");
+  await expect(page.getByLabel("Evaluation review")).toContainText(
+    "Integrated project review",
+  );
+  await expect(page.getByLabel("Evaluation review")).toContainText(
+    "FULL_EVALUATION",
   );
 });

@@ -185,6 +185,9 @@ class Brief(Frozen):
 
 class ResearchField(Frozen):
     key: Text
+    claim_kind: Literal[
+        "interpretive_judgment", "proposed_action", "hypothetical_result", "reported_result"
+    ] = "interpretive_judgment"
     text: Annotated[str, Field(max_length=20000)] | None = None
     state: EvidenceState = EvidenceState.UNINSPECTED
     origin: Origin = Origin.USER
@@ -294,6 +297,7 @@ class ProjectObject(Frozen):
     checks: tuple[EvidenceCheck, ...] = ()
     operation_id: str | None = None
     generated_by_run_id: str | None = None
+    imported: StrictBool = False
     provider_run: ProviderRun | None = None
     statements: tuple[AttributedStatement, ...] = ()
     dependencies: tuple[Dependency, ...] = ()
@@ -358,6 +362,7 @@ class Project(Frozen):
 
 
 class EvaluationSnapshot(Frozen):
+    imported: StrictBool = False
     snapshot_id: Text
     project: Project
     documents: tuple[DocumentVersion, ...] = ()
@@ -455,12 +460,16 @@ class RouteItem(Frozen):
     ]
     status: Literal["ADEQUATE FOR STAGE", "DEVELOPMENT NEEDED", "BLOCKING", "NOT INSPECTED"]
     reason: Text
+    verification: Verification = Verification.SUPPORTED
+    source_refs: tuple[SourceReference, ...] = ()
 
 
 class Assessment(Frozen):
     snapshot: EvaluationSnapshot
     account_articulated: StrictBool
     study_assessable: StrictBool
+    account_articulated_verification: Verification = Verification.SUPPORTED
+    study_assessable_verification: Verification = Verification.SUPPORTED
     ratings: tuple[Rating, ...]
     findings: tuple[Finding, ...]
     route_assessment: tuple[RouteItem, ...] = ()
@@ -483,6 +492,27 @@ class Assessment(Frozen):
         return self
 
 
+class DiagnosticAction(Frozen):
+    issue: Text
+    task: Text
+    required_input: Text
+    deliverable: Text
+    outcome_branches: Annotated[tuple[Text, ...], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def substantive_structure(self) -> Self:
+        for text in (
+            self.issue,
+            self.task,
+            self.required_input,
+            self.deliverable,
+            *self.outcome_branches,
+        ):
+            if text.strip().casefold() in {"tbd", "todo", "n/a", "unspecified", "placeholder"}:
+                raise ValueError("Diagnostic action requires specified inputs and outputs")
+        return self
+
+
 class ReviewContent(Frozen):
     contribution: Text
     obstacle: Text
@@ -491,6 +521,7 @@ class ReviewContent(Frozen):
     deliverable: Text
     outcome_branches: tuple[Text, ...]
     disclaimer: Text
+    diagnostic_action: DiagnosticAction | None = None
 
 
 class ReviewSummary(ReviewContent):

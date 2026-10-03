@@ -57,7 +57,7 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         local = LocalConfiguration.environment()
         runtime = local.runtime
         manifest = Manifest.model_validate_json(
-            (ROOT / "policies/rubric-v4.manifest.json").read_text(encoding="utf-8")
+            (ROOT / "policies/rubric-v5.manifest.json").read_text(encoding="utf-8")
         )
         config = local.provider
         receipts = runtime / "provider-receipts"
@@ -183,6 +183,9 @@ def create_app(service: Workbench | None = None) -> FastAPI:
         return {
             "status": "ok",
             "model": adapter.configuration,
+            "policy_version": request.app.state.workbench.manifest.version,
+            "policy_manifest_sha256": request.app.state.workbench.manifest.sha256,
+            "prompt_version": getattr(adapter, "prompt_configuration", None),
             "budget": {
                 "max_calls": config.max_calls,
                 "max_run_tokens": config.max_run_tokens,

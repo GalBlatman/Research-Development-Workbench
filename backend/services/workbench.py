@@ -121,7 +121,10 @@ class Workbench:
         for ref in refs:
             self.repository.get_anchor(scope, ref)
         passages, exclusions = [], []
-        for source in bundle.sources:
+        for source in sorted(
+            bundle.sources,
+            key=lambda s: (s.presentation_order is None, s.presentation_order or 0, s.document_id),
+        ):
             latest = current[source.document_id]
             key = (source.document_id, latest.document.version)
             if key not in admitted:
@@ -228,7 +231,20 @@ class Workbench:
             )
             self.sources.paste(scope, source, request.idea)
             self.repository.set_admission(scope, source.document_id, 1, True)
-            proposal = self._proposal(self.context(identifier), 2)
+        # Persist intake before remote interpretation; no provider latency holds a DB lock.
+        context = self.context(identifier)
+        proposal = self._proposal(context, 2)
+        with self.repository.db.transaction():
+            self._current(identifier, 1)
+            for passage in context.passages:
+                self.repository.get_anchor(
+                    scope,
+                    SourceReference(
+                        document_id=passage.source.document_id,
+                        version=passage.anchor.version,
+                        anchor_id=passage.anchor.anchor_id,
+                    ),
+                )
             proposal = proposal.model_copy(
                 update={"dependencies": dependencies(project, ("Brief",))}
             )
@@ -471,11 +487,7 @@ class Workbench:
                         project,
                         ((target_workspace,) if target_workspace else tuple(FIELDS))
                         + review_keys(project, target_workspace)
-                        + tuple(
-                            "source:" + ref.document_id
-                            for decision in checked.checks
-                            for ref in decision.source_refs
-                        ),
+                        + tuple("source:" + d.document_id for d in documents),
                     ),
                     policy_result=PolicyResult.model_validate(result),
                     coverage=coverage,
@@ -563,6 +575,13 @@ class Workbench:
                     "revision": s.snapshot.project.revision,
                     "workspace": s.target_workspace,
                     "stale": bool(self.review(project_id, s.snapshot.snapshot_id)["stale"]),
+                    "scope": s.snapshot.scope,
+                    "policy_version": s.snapshot.policy_version,
+                    "policy_sha256": s.snapshot.policy_sha256,
+                    "policy_implementation_version": s.snapshot.policy_implementation_version,
+                    "policy_manifest_sha256": s.snapshot.policy_manifest_sha256,
+                    "prompt_version": s.snapshot.prompt_version,
+                    "model_configuration": s.snapshot.model_configuration,
                 }
                 for s in sorted(
                     bundle.snapshots,
@@ -674,6 +693,22 @@ class Workbench:
                     "",
                     "## Review " + review["snapshot"]["snapshot_id"],
                     "",
+                    "Frozen revision: " + str(review["snapshot"]["project"]["revision"]),
+                    "Scope: "
+                    + review["snapshot"]["scope"]
+                    + "; target: "
+                    + str(review["target_workspace"]),
+                    "Stale: " + str(review["stale"]),
+                    "Imported historical review (not independently reverified): "
+                    + str(review["snapshot"].get("imported", False)),
+                    "Rubric: v"
+                    + review["snapshot"]["policy_version"]
+                    + "; manifest: "
+                    + review["snapshot"]["policy_manifest_sha256"],
+                    "Model: "
+                    + str(review["snapshot"]["model_configuration"])
+                    + "; prompt: "
+                    + str(review["snapshot"]["prompt_version"]),
                     summary.disclaimer,
                     "",
                     "Contribution to preserve: " + summary.contribution,
@@ -681,6 +716,14 @@ class Workbench:
                     "Principal obstacle: " + summary.obstacle,
                     "",
                     "Next action: " + summary.next_action,
+                    *(
+                        [
+                            "Decision issue: " + summary.diagnostic_action.issue,
+                            "Required input: " + summary.diagnostic_action.required_input,
+                        ]
+                        if summary.diagnostic_action
+                        else []
+                    ),
                     "",
                     "Deliverable: " + summary.deliverable,
                     "",

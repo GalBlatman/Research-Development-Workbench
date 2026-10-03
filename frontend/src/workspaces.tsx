@@ -130,20 +130,39 @@ export function ResearchWorkspaces({
       return order(a).localeCompare(order(b), undefined, { numeric: true });
     });
   const fieldLabels = catalog?.fields[active];
-  const payload = (): Record => ({
-    kind: "research_record",
-    workspace: active as Record["workspace"],
-    title: titles[active]?.trim() || active + " note",
-    fields: Object.keys(fieldLabels ?? {}).map((key) => ({
-      key,
-      text: drafts[active]?.[key]?.trim() || null,
-      state:
-        states[active]?.[key] ??
-        (drafts[active]?.[key]?.trim() ? "specified_but_untested" : "missing"),
-      origin: "user_text",
-      source_refs: [],
-    })),
-  });
+  const payload = (): Record => {
+    const previous = view.project.objects.find(
+      (o) => o.object_id === editing[active],
+    );
+    const original =
+      previous?.payload.kind === "research_record" ? previous.payload : null;
+    const keys = Object.keys(fieldLabels ?? {}).filter(
+      (key) =>
+        !original ||
+        original.fields.some((f) => f.key === key) ||
+        drafts[active]?.[key]?.trim(),
+    );
+    return {
+      kind: "research_record",
+      workspace: active as Record["workspace"],
+      title: titles[active]?.trim() || active + " note",
+      fields: keys.map((key) => ({
+        key,
+        claim_kind:
+          original?.fields.find((f) => f.key === key)?.claim_kind ??
+          "interpretive_judgment",
+        text: drafts[active]?.[key]?.trim() || null,
+        state:
+          states[active]?.[key] ??
+          (drafts[active]?.[key]?.trim()
+            ? "specified_but_untested"
+            : "missing"),
+        origin: "user_text",
+        source_refs:
+          original?.fields.find((f) => f.key === key)?.source_refs ?? [],
+      })),
+    };
+  };
   const supportingSource = view.sources.find(
     (s) =>
       s.source.document_id === supportingAnchor.split("|")[0] && s.admitted,
@@ -190,7 +209,10 @@ export function ResearchWorkspaces({
   }
   async function save() {
     const record = payload();
-    record.fields = record.fields.map((f) => ({ ...f, source_refs: refs }));
+    record.fields = record.fields.map((f) => ({
+      ...f,
+      source_refs: preservedRefs.length ? f.source_refs : refs,
+    }));
     await update(
       await request<View>(root + "/records", "POST", {
         expected_revision: view.project.revision,
@@ -619,7 +641,7 @@ export function ResearchWorkspaces({
                           <dd>
                             {f.text ?? "Not known yet"}{" "}
                             <small>
-                              ({f.origin}; {f.state})
+                              ({f.origin}; {f.state}; {f.claim_kind})
                             </small>
                           </dd>
                         </div>

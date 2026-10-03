@@ -81,6 +81,8 @@ class RuleJudgment(Frozen):
 class AssessmentFields(Frozen):
     account_articulated: StrictBool
     study_assessable: StrictBool
+    account_articulated_verification: Verification = Verification.UNRESOLVED
+    study_assessable_verification: Verification = Verification.UNRESOLVED
     ratings: tuple[Rating, ...]
     findings: tuple[RuleJudgment, ...]
     route_assessment: tuple[RouteItem, ...] = ()
@@ -89,6 +91,12 @@ class AssessmentFields(Frozen):
 class ProposedAssessment(AssessmentFields):
     @model_validator(mode="after")
     def cannot_self_verify(self) -> Self:
+        if (
+            self.account_articulated_verification != Verification.UNRESOLVED
+            or self.study_assessable_verification != Verification.UNRESOLVED
+            or any(r.verification != Verification.UNRESOLVED for r in self.route_assessment)
+        ):
+            raise ValueError("Provider output cannot self-verify applicability/route judgments")
         if any(
             r.verification != Verification.UNRESOLVED
             or (r.benchmark is not None and r.benchmark.verification != Verification.UNRESOLVED)
@@ -102,6 +110,21 @@ class CandidateReview(Frozen):
     assessment: ProposedAssessment
     summary: ReviewContent
     statements: tuple[AttributedStatement, ...] = ()
+
+    @model_validator(mode="after")
+    def diagnostic_next_action(self) -> Self:
+        if self.summary.diagnostic_action is None:
+            raise ValueError("Review requires a structured diagnostic next action")
+        action = self.summary.diagnostic_action
+        if (
+            self.summary.next_action != action.task
+            or self.summary.deliverable != action.deliverable
+            or self.summary.outcome_branches != action.outcome_branches
+        ):
+            raise ValueError(
+                "Review next-action fields must match their structured diagnostic action"
+            )
+        return self
 
 
 class CheckDecision(Frozen):

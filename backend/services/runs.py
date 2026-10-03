@@ -24,7 +24,10 @@ def write_provider_receipt(root: Path, receipt: ProviderRun) -> None:
     if len(receipt.run_id) != 32 or any(c not in "0123456789abcdef" for c in receipt.run_id):
         raise ValueError("INVALID_SERVER_RUN_ID")
     root.mkdir(parents=True, exist_ok=True)
-    target = root / (receipt.run_id + ".json")
+    suffix = (
+        ".json" if receipt.status != "RUNNING" else ".call-" + str(len(receipt.calls)) + ".json"
+    )
+    target = root / (receipt.run_id + suffix)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(

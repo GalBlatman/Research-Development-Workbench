@@ -113,13 +113,7 @@ def transport(monkeypatch, change=None):
         else:
             task = AssessmentTask.model_validate(payload["assessment_task"])
             candidate = CandidateReview.model_validate(payload["candidate"])
-            targets = [
-                "rating:" + str(r.dimension)
-                for r in candidate.assessment.ratings
-                if r.rating is not None
-            ]
-            targets += ["finding:" + f.rule_id for f in candidate.assessment.findings]
-            targets += ["statement:" + s.statement_id for s in candidate.statements]
+            targets = payload["targets"]
             output = {
                 "summary": candidate.summary.model_dump(mode="json"),
                 "decisions": [
@@ -220,7 +214,9 @@ def test_checker_withdraws_unsupported_judgment_without_policy_change(packet, mo
 
     def change(kind, output):
         if kind == "rdw_checking":
-            output["decisions"][0]["disposition"] = "needs_revision"
+            next(d for d in output["decisions"] if d["target"] == "rating:1")["disposition"] = (
+                "needs_revision"
+            )
             output["decisions"][0]["reason"] = (
                 "Allegation not supported by supplied original passage."
             )
@@ -242,7 +238,10 @@ def test_checker_withdraws_unsupported_judgment_without_policy_change(packet, mo
     assert result["policy"]["policy_implementation_version"] == "4.2.0"
     assert result["provider_run"]["status"] == "SUCCEEDED"
     assert result["structural_checks"][0]["status"] == "SOURCE_REFS_RESOLVED"
-    assert result["checks"][0]["disposition"] == "needs_revision"
+    assert (
+        next(d for d in result["checks"] if d["target"] == "rating:1")["disposition"]
+        == "needs_revision"
+    )
     assert result["snapshot"]["project"] == view["project"]
     assert all(
         s.source_kind != "model" for s in workbench.bundle(view["project"]["project_id"]).sources
@@ -674,6 +673,7 @@ def test_checking_contract_explicit_targets_and_rejects_omissions(packet, monkey
     expected = {
         "rating:" + str(r.dimension) for r in candidate.assessment.ratings if r.rating is not None
     }
+    expected |= {"flag:account_articulated", "flag:study_assessable"}
     expected |= {"finding:" + f.rule_id for f in candidate.assessment.findings}
     expected |= {"statement:" + s.statement_id for s in candidate.statements}
     assert set(payload["targets"]) == expected

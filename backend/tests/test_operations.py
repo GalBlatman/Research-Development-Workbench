@@ -193,7 +193,18 @@ def test_portable_export_import_preserves_state_without_file_authority(tmp_path,
     assert import_project(other, export) == pid
     source = w.bundle(pid)
     imported = other.bundle(pid)
-    assert source.revisions == imported.revisions
+    assert all(o.imported for p in imported.revisions for o in p.objects)
+    assert (
+        tuple(
+            p.model_copy(
+                update={
+                    "objects": tuple(o.model_copy(update={"imported": False}) for o in p.objects)
+                }
+            )
+            for p in imported.revisions
+        )
+        == source.revisions
+    )
     assert len(source.snapshots) == len(imported.snapshots)
     assert imported.snapshots[0].policy_result == source.snapshots[0].policy_result
     assert imported.snapshots[0].snapshot.snapshot_id == source.snapshots[0].snapshot.snapshot_id
@@ -522,7 +533,8 @@ def test_health_checks_are_read_only_and_do_not_send_credentials(tmp_path, manif
 
     monkeypatch.setattr("services.pilot.subprocess.run", run)
     config = LocalConfiguration.environment()
-    # test service database uses synthetic.sqlite, while real operator config uses projects.sqlite
+    (tmp_path / "projects.sqlite").touch()
+    # The test substitutes an existing synthetic store after the read-only existence preflight.
     monkeypatch.setattr(
         LocalConfiguration, "database", lambda self: Database.sqlite(tmp_path / "synthetic.sqlite")
     )

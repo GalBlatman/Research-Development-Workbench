@@ -33,9 +33,9 @@ class Profile(Frozen):
 
 class Manifest(Frozen):
     rubric_id: Literal["research-idea-protocol"]
-    version: Literal["4"]
-    implementation_version: Literal["4.2.0"]
-    canonical_path: Literal["policies/rubric-v4.md"]
+    version: Literal["4", "5"]
+    implementation_version: Literal["4.2.0", "5.0.0"]
+    canonical_path: Literal["policies/rubric-v4.md", "policies/rubric-v5.md"]
     canonical_sha256: Hash
     status: Literal["implemented"]
     executable: Literal[True]
@@ -50,6 +50,12 @@ class Manifest(Frozen):
 
     @model_validator(mode="after")
     def versioned_contract(self) -> Self:
+        expected = {
+            "4": ("4.2.0", "policies/rubric-v4.md"),
+            "5": ("5.0.0", "policies/rubric-v5.md"),
+        }[self.version]
+        if (self.implementation_version, self.canonical_path) != expected:
+            raise ValueError("Manifest policy/version identity mismatch")
         if tuple(d.id for d in self.dimensions) != tuple(range(1, 11)):
             raise ValueError("Manifest requires the ten ordered v4 dimensions")
         if tuple(d.weight for d in self.dimensions) != (10, 10, 15, 15, 8, 9, 8, 10, 10, 5):

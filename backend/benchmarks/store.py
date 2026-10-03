@@ -4,14 +4,17 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TypeVar
+from typing import Literal, TypeVar
 
-from benchmarks.variants import content_hash, validate_import
+from benchmarks.variants import content_hash, package_identity, validate_import
 from domain.benchmark import (
+    BenchmarkExpectation,
     BenchmarkProject,
     BenchmarkRun,
     BenchmarkVariant,
+    FrozenExpectations,
     FrozenSplit,
+    ReservationReport,
     RunConfiguration,
 )
 from domain.models import Frozen
@@ -33,6 +36,7 @@ class AdminStore:
             "claims",
             "batch_slots",
             "annotations",
+            "expectations",
         }:
             raise ValueError("Unknown administrator artifact category")
         folder = self.root / category
@@ -68,19 +72,92 @@ class AdminStore:
         )
 
     def freeze(self, manifest: FrozenSplit) -> None:
+        # All historical assignments remain authoritative, including across versions.
+        for path in (self.root / "splits").glob("*.json"):
+            previous = FrozenSplit.model_validate_json(path.read_text(encoding="utf-8"))
+            for identity, package_id, source_hash, split in manifest.package_assignments:
+                for old_identity, old_package, old_hash, old_split in previous.package_assignments:
+                    if source_hash == old_hash and identity != old_identity:
+                        raise ValueError("Duplicate package relabeled under another project")
+                    if (
+                        identity == old_identity or package_id == old_package
+                    ) and source_hash != old_hash:
+                        raise ValueError("Permanent project/package content identity collision")
+                    if (identity == old_identity or source_hash == old_hash) and split != old_split:
+                        raise ValueError("Permanent package split cannot change")
+            old = {a[0]: a[1] for a in previous.assignments}
+            if any(
+                identity in old and old[identity] != split
+                for identity, split, _ in manifest.assignments
+            ):
+                raise ValueError("Permanent project split cannot change")
         self.write("splits", manifest.version, manifest)
 
     def import_project(self, project: BenchmarkProject, manifest: FrozenSplit) -> None:
+        self.require_manifest(manifest)
         validate_import(project, manifest)
-        self.write("projects", project.benchmark_id, project)
+        identity = package_identity(project)
+        for path in (self.root / "projects").glob("*.json"):
+            previous = BenchmarkProject.model_validate_json(path.read_text(encoding="utf-8"))
+            same_content = package_identity(previous) == identity
+            same_id = previous.benchmark_id == project.benchmark_id
+            same_package = previous.source_package.package_id == project.source_package.package_id
+            if same_content and not same_id:
+                raise ValueError("Duplicate package relabeled under another project")
+            if (same_id or same_package) and not same_content:
+                raise ValueError("Permanent project/package content identity collision")
+            if same_id and previous.split != project.split:
+                raise ValueError("Permanent project split cannot change")
+        self.write("projects", project.benchmark_id + ":" + project.version, project)
 
     def save_variant(
         self, variant: BenchmarkVariant, project: BenchmarkProject, manifest: FrozenSplit
     ) -> None:
+        self.require_manifest(manifest)
         validate_import(project, manifest)
+        if variant.package_hash != content_hash(project) or variant.split_hash != content_hash(
+            manifest
+        ):
+            raise ValueError("Variant frozen package binding mismatch")
         if variant.benchmark_id != project.benchmark_id or variant.split != project.split:
             raise ValueError("Sibling cross-split variant rejected")
         self.write("variants", variant.variant_id, variant)
+
+    def require_manifest(self, manifest: FrozenSplit) -> None:
+        if self.read("splits", manifest.version, FrozenSplit) != manifest:
+            raise ValueError("Stored frozen manifest differs")
+
+    def freeze_expectations(
+        self, variant: BenchmarkVariant, expectations: tuple[BenchmarkExpectation, ...]
+    ) -> None:
+        self.write(
+            "expectations",
+            variant.variant_id,
+            FrozenExpectations(
+                variant_id=variant.variant_id,
+                variant_hash=content_hash(variant),
+                expectations=expectations,
+            ),
+        )
+
+    def require_case(
+        self,
+        project: BenchmarkProject,
+        variant: BenchmarkVariant,
+        manifest: FrozenSplit,
+        expectations: tuple[BenchmarkExpectation, ...],
+    ) -> None:
+        self.require_manifest(manifest)
+        if (
+            self.read("projects", project.benchmark_id + ":" + project.version, BenchmarkProject)
+            != project
+        ):
+            raise ValueError("Stored project differs")
+        if self.read("variants", variant.variant_id, BenchmarkVariant) != variant:
+            raise ValueError("Stored variant differs")
+        artifact = self.read("expectations", variant.variant_id, FrozenExpectations)
+        if artifact.variant_hash != content_hash(variant) or artifact.expectations != expectations:
+            raise ValueError("Frozen expectations differ")
 
     def cache_key(
         self, variant: BenchmarkVariant, manifest: FrozenSplit, configuration: RunConfiguration
@@ -114,3 +191,20 @@ class AdminStore:
             except FileExistsError:
                 continue
         return False
+
+    def reservation_report(self, key: str) -> ReservationReport:
+        record = json.loads(self._path("claims", key).read_text(encoding="utf-8"))
+        status: Literal["INTERRUPTED_UNCERTAIN", "SUCCEEDED", "FAILED", "INTERRUPTED"]
+        try:
+            run = self.read("runs", record["run_id"], BenchmarkRun)
+            status = run.status
+        except FileNotFoundError:
+            status = "INTERRUPTED_UNCERTAIN"
+        report = ReservationReport(reservation_key=key, run_id=record["run_id"], status=status)
+        if status == "INTERRUPTED_UNCERTAIN":
+            try:
+                self.write("annotations", "reservation:" + key, report)
+            except FileExistsError:
+                if self.read("annotations", "reservation:" + key, ReservationReport) != report:
+                    raise ValueError("Reservation recovery report differs")
+        return report

@@ -286,7 +286,7 @@ def test_explicit_dependencies_wording_resources_and_source_changes(workspace_cl
         client,
         view,
         "Argument",
-        {"claim": "Synthetic original claim, wording clarified"},
+        {"claim": "Synthetic original  claim"},
         object_id=argument["object_id"],
         change="wording",
     )

@@ -1,6 +1,7 @@
 """Explicit expectation comparisons; no reconstruction or keyword science scoring."""
 
 from collections import defaultdict
+from typing import Any
 
 from domain.benchmark import (
     BenchmarkExpectation,
@@ -34,7 +35,7 @@ def compare(
         old = previous.get(e.judgment)
 
         def signature(item: Judgment | None) -> object:
-            return (item.state.casefold(), item.value, item.verification) if item else None
+            return (item.state.casefold(), item.value) if item else None
 
         changed = signature(j) != signature(old) if j is not None and old is not None else None
         allowed = (
@@ -58,6 +59,27 @@ def compare(
         direction = None
         if e.direction and old and j and old.value is not None and j.value is not None:
             direction = j.value < old.value if e.direction == "lower" else j.value > old.value
+        degraded = references.get(e.degraded_reference or "")
+        degraded_judgment = (
+            next((x for x in degraded.judgments if x.key == e.judgment), None) if degraded else None
+        )
+        degraded_changed = (
+            old is not None
+            and degraded_judgment is not None
+            and signature(old) != signature(degraded_judgment)
+        )
+        if e.behavior == "unchanged" and old is not None and j is not None:
+            invariant.append(signature(old) == signature(j))
+            if signature(old) != signature(j):
+                violations.append(e.judgment)
+        downgrade = direction
+        if e.behavior == "downgrade" and downgrade is None and j and old:
+            if old.value is not None and j.value is not None:
+                downgrade = j.value < old.value
+            elif e.acceptable_states:
+                downgrade = bool(changed and allowed and old.state not in e.acceptable_states)
+            else:
+                downgrade = False
         withholding = None
         if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
             withholding = bool(
@@ -66,18 +88,28 @@ def compare(
                 and allowed
                 and (
                     j.state.casefold()
-                    in ("PENDING", "NOT_INSPECTED", "UNRESOLVED", "missing", "not_inspected")
-                    or j.verification == "unresolved"
+                    in ("pending", "unresolved", "missing", "not_inspected", "unknown")
                 )
             )
         metrics.append(
             FeatureMetrics(
                 feature=e.feature,
-                detection=count(changed if e.behavior in ("detect", "downgrade") else None),
+                verification_change=count(
+                    j.verification != old.verification if j and old else None
+                ),
+                detection=count(
+                    downgrade
+                    if e.behavior == "downgrade"
+                    else changed
+                    if e.behavior == "detect"
+                    else None
+                ),
                 invariance=Metric(numerator=sum(invariant), denominator=len(invariant)),
                 withholding=count(withholding),
                 restoration=count(
-                    not changed if changed is not None and e.behavior == "restore" else None
+                    (not changed and degraded_changed)
+                    if changed is not None and e.behavior == "restore"
+                    else None
                 ),
                 direction=count(direction),
                 state=count(state),
@@ -113,7 +145,7 @@ def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
     groups: dict[str, list[BenchmarkRun]] = defaultdict(list)
     for run in runs:
         groups[run.benchmark_id].append(run)
-    papers = {}
+    papers: dict[str, Any] = {}
     names = (
         "detection",
         "invariance",
@@ -127,15 +159,83 @@ def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
     for paper, nested in sorted(groups.items()):
         modes = {}
         for mode in sorted({r.configuration.mode for r in nested}):
-            records = [r for r in nested if r.configuration.mode == mode]
+            raw_records = [r for r in nested if r.configuration.mode == mode]
+            from benchmarks.variants import content_hash
+
+            unique = {}
+            for r in sorted(raw_records, key=lambda r: (r.timestamp, r.run_id)):
+                unique[
+                    (r.variant_id, content_hash(r.configuration), content_hash(r.prompt_hashes))
+                ] = r
+            records = list(unique.values())
             values = {}
             for name in names:
                 counts = [getattr(m, name) for r in records if r.result for m in r.result.metrics]
                 n, d = sum(c.numerator for c in counts), sum(c.denominator for c in counts)
                 values[name] = {"numerator": n, "denominator": d, "rate": n / d if d else None}
-            modes[mode] = {"cases": len(records), "metrics": values}
+            configurations: dict[str, Any] = {}
+            for r in records:
+                identity = content_hash((r.configuration.model_dump(mode="json"), r.prompt_hashes))
+                group = configurations.setdefault(
+                    identity,
+                    {
+                        "configuration": r.configuration.model_dump(mode="json"),
+                        "prompt_hashes": r.prompt_hashes,
+                        "cases": [],
+                        "failed": 0,
+                        "interrupted": 0,
+                    },
+                )
+                group["cases"].append(
+                    {
+                        "variant_id": r.variant_id,
+                        "run_id": r.run_id,
+                        "status": r.status,
+                        "failure_type": r.failure_type,
+                        "metrics": r.result.model_dump(mode="json") if r.result else None,
+                    }
+                )
+                group["failed"] += int(r.status == "FAILED")
+                group["interrupted"] += int(r.status == "INTERRUPTED")
+            for configuration_id, group in configurations.items():
+                matching = [
+                    r
+                    for r in records
+                    if content_hash((r.configuration.model_dump(mode="json"), r.prompt_hashes))
+                    == configuration_id
+                ]
+                group["metrics"] = {}
+                for name in names:
+                    counts = [
+                        getattr(metric, name)
+                        for record in matching
+                        if record.result
+                        for metric in record.result.metrics
+                    ]
+                    numerator, denominator = (
+                        sum(c.numerator for c in counts),
+                        sum(c.denominator for c in counts),
+                    )
+                    group["metrics"][name] = {
+                        "numerator": numerator,
+                        "denominator": denominator,
+                        "rate": numerator / denominator if denominator else None,
+                    }
+            modes[mode] = {
+                "cases": len(records),
+                "metrics": values if len(configurations) == 1 else None,
+                "configurations": configurations,
+                "excluded_duplicate_reruns": len(raw_records) - len(records),
+                "failed": sum(r.status == "FAILED" for r in records),
+                "interrupted": sum(r.status == "INTERRUPTED" for r in records),
+            }
         papers[paper] = modes
-    return {"paper_count": len(groups), "case_count": len(runs), "papers": papers}
+    return {
+        "paper_count": len(groups),
+        "case_count": sum(mode["cases"] for paper in papers.values() for mode in paper.values()),
+        "submitted_run_count": len(runs),
+        "papers": papers,
+    }
 
 
 def equivalent_diagnostic(first: Observation, paraphrased: Observation) -> tuple[str, ...]:

@@ -56,6 +56,11 @@ function App() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [provider, setProvider] = useState("loading");
+  const [activePolicy, setActivePolicy] = useState<{
+    policy_version: string;
+    policy_manifest_sha256: string;
+    prompt_version: string | null;
+  } | null>(null);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [runMessage, setRunMessage] = useState("");
   const projectId = new URLSearchParams(location.search).get("project");
@@ -80,9 +85,16 @@ function App() {
     }
   }
   useEffect(() => {
-    void api<{ model: string; budget: Budget | null }>("/health")
+    void api<{
+      model: string;
+      budget: Budget | null;
+      policy_version: string;
+      policy_manifest_sha256: string;
+      prompt_version: string | null;
+    }>("/health")
       .then((health) => {
         setProvider(health.model);
+        setActivePolicy(health);
         setBudget(health.budget);
       })
       .catch(() => setError("Provider configuration could not be loaded."));
@@ -90,7 +102,9 @@ function App() {
       void work(async () => {
         const saved = await api<View>("/projects/" + projectId);
         update(saved);
-        const latest = saved.reviews.at(-1);
+        const latest = saved.reviews
+          .filter((r) => r.workspace == null && r.scope !== "TARGETED_CHECK")
+          .at(-1);
         if (latest)
           setReview(
             await api<Review>(
@@ -99,6 +113,39 @@ function App() {
           );
       });
   }, []);
+  useEffect(() => {
+    if (
+      !view ||
+      active === "Review" ||
+      active === "History" ||
+      active === "Next Actions"
+    )
+      return;
+    const latest = view.reviews
+      .filter((r) =>
+        active === "Overview"
+          ? r.workspace == null && r.scope !== "TARGETED_CHECK"
+          : r.workspace === active,
+      )
+      .at(-1);
+    if (!latest) {
+      if (active === "Overview") setReview(null);
+      return;
+    }
+    let cancelled = false;
+    void api<Review>(
+      "/projects/" + view.project.project_id + "/reviews/" + latest.snapshot_id,
+    )
+      .then((value) => {
+        if (!cancelled) setReview(value);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Saved review could not be loaded.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, view?.project.revision, view?.reviews.length]);
   async function evaluateRevision(current: View): Promise<Review> {
     const root = "/projects/" + current.project.project_id;
     const result = await api<Review | Run>(root + "/evaluations", "POST", {
@@ -526,7 +573,10 @@ function App() {
                           })
                         }
                       >
-                        Open review of revision {r.revision}
+                        Open review of revision {r.revision} ·{" "}
+                        {r.workspace ?? "Integrated"} · {r.scope} ·{" "}
+                        {r.stale ? "affected" : "current"} · rubric v
+                        {r.policy_version}
                       </button>
                     </li>
                   ))}
@@ -542,6 +592,39 @@ function App() {
                     {review.snapshot.scope} · {review.snapshot.project.route} ·{" "}
                     {review.snapshot.project.stage}
                   </p>
+                  <p>
+                    Rubric v{review.snapshot.policy_version} · manifest{" "}
+                    {review.snapshot.policy_manifest_sha256}
+                  </p>
+                  <p>
+                    Model {review.snapshot.model_configuration ?? "fixture"} ·
+                    prompts {review.snapshot.prompt_version ?? "fixture"}
+                  </p>
+                  <p>
+                    Target:{" "}
+                    {review.target_workspace ?? "Integrated project review"}.
+                    Frozen metadata remains historical after configuration
+                    changes.
+                  </p>
+                  {activePolicy &&
+                    (review.snapshot.policy_manifest_sha256 !==
+                      activePolicy.policy_manifest_sha256 ||
+                      review.snapshot.model_configuration !== provider ||
+                      review.snapshot.prompt_version !==
+                        activePolicy.prompt_version) && (
+                      <p role="status">
+                        Historical review configuration differs from the active
+                        rubric, model or prompts. Deliberate reevaluation is
+                        required for a current comparison.
+                      </p>
+                    )}
+                  {review.snapshot.imported && (
+                    <p role="status">
+                      Imported historical review: supplied provenance and
+                      support dispositions have not been independently
+                      reverified by this server.
+                    </p>
+                  )}
                   <p>{review.summary.disclaimer}</p>
                   {review.stale && (
                     <p role="status">
@@ -681,6 +764,17 @@ function App() {
                   </ul>
                   <h3>Recommended next action</h3>
                   <p>{review.summary.next_action}</p>
+                  {review.summary.diagnostic_action && (
+                    <>
+                      <p>
+                        Decision issue: {review.summary.diagnostic_action.issue}
+                      </p>
+                      <p>
+                        Required input:{" "}
+                        {review.summary.diagnostic_action.required_input}
+                      </p>
+                    </>
+                  )}
                   <p>{review.summary.deliverable}</p>
                   <ul>
                     {review.summary.outcome_branches.map((branch, i) => (

@@ -65,6 +65,7 @@ class BlindEvaluator:
         repository.create_project(scope, project)
         for index, block in enumerate(packet.blocks):
             source = SourceRecord(
+                presentation_order=index,
                 document_id=hashlib.sha256(
                     (packet.packet_id + ":" + str(index)).encode()
                 ).hexdigest(),
@@ -74,7 +75,7 @@ class BlindEvaluator:
                 source_kind="pasted_original",
                 role=block.role,
                 media_type="text/plain",
-                rights_declaration="Authorized synthetic benchmark packet",
+                rights_declaration="Authorized supplied material for this scoped evaluation",
             )
             self.workbench.sources.paste(scope, source, block.text)
             repository.set_admission(scope, source.document_id, 1, True)
@@ -102,6 +103,10 @@ class BlindEvaluator:
                     output = w.adapter.call("baseline", payload, CandidateReview)
             else:
                 output = CandidateReview.model_validate(w.adapter.assess(task))
+            if isinstance(w.adapter, OpenAIAdapter):
+                from model_adapters.checking import AssessmentChecker
+
+                AssessmentChecker(w.adapter).validate_candidate(task, output)
             return output.model_dump(mode="json"), ("baseline",)
         components = []
         if component == "FULL":
@@ -142,7 +147,7 @@ class BlindEvaluator:
             for r in fields["ratings"]
         ]
         judgments.extend(
-            Judgment(key="route:" + r["item"], state=r["status"])
+            Judgment(key="route:" + r["item"], state=r["status"], verification=r["verification"])
             for r in fields.get("route_assessment", [])
         )
         judgments.extend(

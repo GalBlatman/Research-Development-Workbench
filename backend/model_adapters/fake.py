@@ -12,6 +12,7 @@ from domain.application import (
 )
 from domain.models import (
     Brief,
+    DiagnosticAction,
     EvidenceState,
     Origin,
     Rating,
@@ -22,7 +23,13 @@ from domain.models import (
     Status,
     Verification,
 )
-from domain.research import CHOICES, WorkspaceCheckResult, WorkspaceProposal, WorkspaceTask
+from domain.research import (
+    CHOICES,
+    ResultGrounding,
+    WorkspaceCheckResult,
+    WorkspaceProposal,
+    WorkspaceTask,
+)
 from model_adapters.contracts import ModelAdapter as ModelAdapter
 from model_adapters.contracts import OutputVerifier as OutputVerifier
 
@@ -116,6 +123,17 @@ class FakeModel:
                     "The question needs reformulation.",
                     "Inspection remains incomplete; retain pending status.",
                 ),
+                diagnostic_action=DiagnosticAction(
+                    issue="Contribution and attributed departure remain uninspected",
+                    task="Clarify the intended contribution and inspect the nearest relevant predecessor.",
+                    required_input="Author question and admitted original literature passage",
+                    deliverable="A bounded question and an attributed overlap/departure note; resources remain unspecified.",
+                    outcome_branches=(
+                        "A defensible departure is identified.",
+                        "The question needs reformulation.",
+                        "Inspection remains incomplete; retain pending status.",
+                    ),
+                ),
                 disclaimer=DISCLAIMER,
             ),
         )
@@ -205,6 +223,16 @@ class FakeModel:
             ),
             reason="Fixed synthetic development fixture; adopt only as representation",
             limitations=(DISCLAIMER,),
+            result_grounding=tuple(
+                ResultGrounding(field=f.key, existing_object_id=existing.object_id)
+                for f in fields
+                if existing
+                and (
+                    f.claim_kind == "reported_result"
+                    or (f.key == "evidence_phase" and f.text == "completed (user-reported)")
+                    or (f.key == "support" and f.text == "demonstrated (user-reported)")
+                )
+            ),
         )
 
 
@@ -221,6 +249,8 @@ class FixtureVerifier:
                 "Invalid fake-model output: not the internal fixture; no automatic repairs"
             )
         data = candidate.assessment.model_dump()
+        data["account_articulated_verification"] = Verification.SUPPORTED
+        data["study_assessable_verification"] = Verification.SUPPORTED
         for rating in data["ratings"]:
             if rating["rating"] is not None:
                 rating["verification"] = Verification.SUPPORTED

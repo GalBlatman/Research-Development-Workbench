@@ -237,10 +237,25 @@ class WorkspaceTask(Frozen):
     allowed_fields: tuple[str, ...]
 
 
+class ResultGrounding(Frozen):
+    field: Text
+    existing_object_id: str | None = None
+    source_refs: tuple[SourceReference, ...] = ()
+
+    @model_validator(mode="after")
+    def bounded(self) -> Self:
+        if not self.existing_object_id and not self.source_refs:
+            raise ValueError(
+                "Reported-result grounding requires existing author input or admitted source refs"
+            )
+        return self
+
+
 class WorkspaceProposal(Frozen):
     record: ResearchRecord
     reason: Text
     limitations: tuple[Text, ...]
+    result_grounding: tuple[ResultGrounding, ...] = ()
 
     @model_validator(mode="after")
     def proposed_not_evidence(self) -> Self:
@@ -250,6 +265,15 @@ class WorkspaceProposal(Frozen):
             for f in self.record.fields
         ):
             raise ValueError("Model proposals cannot become user text or verified evidence")
+        reported = {
+            f.key
+            for f in self.record.fields
+            if f.claim_kind == "reported_result"
+            or (f.key == "evidence_phase" and f.text == "completed (user-reported)")
+            or (f.key == "support" and f.text == "demonstrated (user-reported)")
+        }
+        if not reported <= {g.field for g in self.result_grounding}:
+            raise ValueError("Generated reported results require explicit existing-input grounding")
         if self.record.workspace == "Next Actions":
             required = {
                 "task",
