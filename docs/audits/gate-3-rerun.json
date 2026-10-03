@@ -1,0 +1,49 @@
+{
+  "gate": "GATE-3",
+  "audited_commit": "90d0c12aa4ba997991c19cd05acda4e3f68db79a",
+  "result": "FAIL",
+  "provenance": "Independent rerun findings supplied by product owner; full requirements preserved in docs/tasks/GATE-3-rerun-repair.md",
+  "rubric_questions": [],
+  "findings": [
+    {
+      "id": "G3-RERUN-B1",
+      "status": "OPEN",
+      "description": "Gold feature ownership and restoration comparison roles insufficiently validated"
+    },
+    {
+      "id": "G3-RERUN-B2",
+      "status": "OPEN",
+      "description": "Canonical route NOT INSPECTED receives no withholding credit"
+    },
+    {
+      "id": "G3-RERUN-B3",
+      "status": "OPEN",
+      "description": "Unverifiable imported inspection/support metadata reaches working context"
+    },
+    {
+      "id": "G3-RERUN-B4",
+      "status": "OPEN",
+      "description": "Scientific edit classified resources bypasses workspace staleness"
+    },
+    {
+      "id": "G3-RERUN-N1",
+      "status": "OPEN",
+      "description": "Terminal punctuation evades diagnostic placeholder validation"
+    },
+    {
+      "id": "G3-RERUN-N2",
+      "status": "OPEN",
+      "description": "Nested historical assessment snapshot leaks storage locator"
+    },
+    {
+      "id": "G3-RERUN-N3",
+      "status": "OPEN",
+      "description": "Malformed store health continues into schema-dependent queries"
+    },
+    {
+      "id": "G3-RERUN-N4",
+      "status": "OPEN",
+      "description": "Synchronous provider interpretation blocks API event loop"
+    }
+  ]
+}

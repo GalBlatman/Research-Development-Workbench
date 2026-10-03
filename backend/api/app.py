@@ -1,5 +1,7 @@
+import asyncio
 import sqlite3
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -31,7 +33,7 @@ from domain.research import (
     WorkspaceCheckRequest,
 )
 from model_adapters.checking import AssessmentChecker
-from model_adapters.fake import DEMO_IDEA, DEMO_SOURCE
+from model_adapters.fake import DEMO_IDEA, DEMO_SOURCE, FakeModel
 from model_adapters.openai import OpenAIAdapter
 from model_adapters.runtime import ProviderFailure
 from persistence.originals import OriginalFileStore
@@ -47,12 +49,55 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def create_app(service: Workbench | None = None) -> FastAPI:
+    workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="rdw-intake")
+    injected_factory: Callable[[], Workbench] | None = None
+    if service is not None and not isinstance(service.adapter, FakeModel):
+        connect = service.repository.db.connection_factory()
+
+        def injected_factory() -> Workbench:
+            database = connect()
+            try:
+                repo = Repository(database)
+                return Workbench(
+                    repo,
+                    SourceService(repo, service.sources.originals),
+                    service.manifest,
+                    service.adapter,
+                    service.verifier,
+                )
+            except BaseException:
+                database.close()
+                raise
+
+    async def blocking(request: Request, operation: Callable[[Workbench], Any]) -> Any:
+        factory = getattr(request.app.state, "worker_factory", injected_factory)
+        if factory is None:
+            return operation(request.app.state.workbench)
+
+        def execute() -> Any:
+            workbench = factory()
+            try:
+                return operation(workbench)
+            finally:
+                workbench.repository.db.close()
+                # Injected adapters belong to the caller; production workers own theirs.
+                if service is None:
+                    close = getattr(workbench.adapter, "close", None)
+                    if close:
+                        close()
+
+        return await asyncio.get_running_loop().run_in_executor(workers, execute)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if service is not None:
             app.state.runs = None
             app.state.workbench = service
-            yield
+            app.state.worker_factory = injected_factory
+            try:
+                yield
+            finally:
+                workers.shutdown(wait=True)
             return
         local = LocalConfiguration.environment()
         runtime = local.runtime
@@ -84,12 +129,14 @@ def create_app(service: Workbench | None = None) -> FastAPI:
             )
 
         app.state.workbench = make_service()
+        app.state.worker_factory = make_service if config.provider == "openai" else None
         app.state.runs = (
             RunManager(runtime / "runs", make_service) if config.provider == "openai" else None
         )
         try:
             yield
         finally:
+            workers.shutdown(wait=True)
             if app.state.runs:
                 app.state.runs.close()
             app.state.workbench.repository.db.close()
@@ -202,7 +249,9 @@ def create_app(service: Workbench | None = None) -> FastAPI:
 
     @app.post("/api/projects", status_code=201, response_model=ProjectView)
     async def create(body: CreateProject, request: Request) -> dict[str, Any]:
-        return request.app.state.workbench.create(body)  # type: ignore[no-any-return]
+        return cast(
+            dict[str, Any], await blocking(request, lambda workbench: workbench.create(body))
+        )
 
     @app.get("/api/projects/{project_id}", response_model=ProjectView)
     async def project(project_id: str, request: Request) -> dict[str, Any]:
@@ -242,7 +291,12 @@ def create_app(service: Workbench | None = None) -> FastAPI:
                 ).model_dump(mode="json"),
                 status_code=202,
             )
-        return workbench.run(project_id, body.expected_revision, evaluation_scope=body.scope)
+        return await blocking(
+            request,
+            lambda worker: worker.run(
+                project_id, body.expected_revision, evaluation_scope=body.scope
+            ),
+        )
 
     @app.post(
         "/api/projects/{project_id}/evaluations/targeted",
@@ -263,7 +317,9 @@ def create_app(service: Workbench | None = None) -> FastAPI:
                 ).model_dump(mode="json"),
                 status_code=202,
             )
-        return workbench.run(project_id, body.expected_revision, body.dimensions)
+        return await blocking(
+            request, lambda worker: worker.run(project_id, body.expected_revision, body.dimensions)
+        )
 
     @app.get("/api/projects/{project_id}/runs/{run_id}", response_model=RunHandle)
     async def run_state(project_id: str, run_id: str, request: Request) -> RunHandle:
@@ -325,7 +381,9 @@ def create_app(service: Workbench | None = None) -> FastAPI:
                 ).model_dump(mode="json"),
                 status_code=202,
             )
-        return ResearchService(workbench).develop(project_id, body)
+        return await blocking(
+            request, lambda worker: ResearchService(worker).develop(project_id, body)
+        )
 
     @app.post(
         "/api/projects/{project_id}/workspace-checks",
@@ -350,7 +408,12 @@ def create_app(service: Workbench | None = None) -> FastAPI:
                 ).model_dump(mode="json"),
                 status_code=202,
             )
-        return workbench.run(project_id, body.expected_revision, dimensions, body.workspace)
+        return await blocking(
+            request,
+            lambda worker: worker.run(
+                project_id, body.expected_revision, dimensions, body.workspace
+            ),
+        )
 
     @app.post(
         "/api/projects/{project_id}/sources/{document_id}/versions", response_model=ProjectView

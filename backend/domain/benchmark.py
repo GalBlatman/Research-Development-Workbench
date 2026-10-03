@@ -65,6 +65,11 @@ class SourcePackage(Frozen):
     def unique(self) -> Self:
         if len({b.block_id for b in self.blocks}) != len(self.blocks):
             raise ValueError("Duplicate source block")
+        for block in self.blocks:
+            if len(set(block.features)) != len(block.features) or (
+                block.metadata_only and block.features
+            ):
+                raise ValueError("Duplicate or contradictory block ownership")
         return self
 
 
@@ -396,13 +401,21 @@ class BenchmarkPackage(Frozen):
             raise ValueError("Manifest and package project identities differ")
         for project in self.projects:
             validate_import(project, self.manifest)
-            blocks = {b.block_id for b in project.source_package.blocks}
+            blocks = {b.block_id: b for b in project.source_package.blocks}
             features = {f for b in project.source_package.blocks for f in b.features}
             if len({g.feature for g in project.gold}) != len(project.gold):
                 raise ValueError("Duplicate gold feature")
             for gold in project.gold:
-                if gold.feature not in features or not set(gold.source_anchors) <= blocks:
-                    raise ValueError("Gold references unknown feature or source block")
+                if (
+                    gold.feature not in features
+                    or not gold.source_anchors
+                    or len(set(gold.source_anchors)) != len(gold.source_anchors)
+                    or any(
+                        anchor not in blocks or gold.feature not in blocks[anchor].features
+                        for anchor in gold.source_anchors
+                    )
+                ):
+                    raise ValueError("Gold requires distinct feature-owned source anchors")
         for variant in self.variants:
             variant_project = projects.get(variant.benchmark_id)
             if variant_project is None:
@@ -446,7 +459,9 @@ class BenchmarkPackage(Frozen):
                 }
                 if expectation.feature not in owned:
                     raise ValueError("Expectation references unknown feature")
-                if expectation.behavior == "restore" and not expectation.degraded_reference:
+                if expectation.behavior == "restore" and (
+                    not expectation.degraded_reference or not expectation.reference_variant
+                ):
                     raise ValueError("Restoration needs intact and degraded references")
                 degraded_ref = expectation.degraded_reference
                 if degraded_ref is not None and (
@@ -461,6 +476,27 @@ class BenchmarkPackage(Frozen):
                     or variants[ref].benchmark_id != variants[artifact.variant_id].benchmark_id
                 ):
                     raise ValueError("Unknown or cross-project expectation reference")
+                if expectation.behavior == "restore":
+                    restored = variants[artifact.variant_id]
+                    intact = variants[expectation.reference_variant or ""]
+                    degraded = variants[expectation.degraded_reference or ""]
+                    feature = expectation.feature
+                    if (
+                        restored.mutation.transformation != Transformation.RESTORE
+                        or degraded.variant_id != restored.mutation.parent_variant
+                        or feature not in restored.mutation.targets
+                        or not dict(intact.visibility).get(feature)
+                        or dict(degraded.visibility).get(feature)
+                        or not dict(restored.visibility).get(feature)
+                        or intact.variant_id in (degraded.variant_id, restored.variant_id)
+                        or degraded.packet.blocks == restored.packet.blocks
+                    ):
+                        raise ValueError("Restoration comparison roles or target lineage differ")
+            variant = variants[artifact.variant_id]
+            if variant.mutation.transformation == Transformation.RESTORE and {
+                e.feature for e in artifact.expectations if e.behavior == "restore"
+            } != set(variant.mutation.targets):
+                raise ValueError("Every restored target requires intact and degraded comparisons")
         return self
 
 

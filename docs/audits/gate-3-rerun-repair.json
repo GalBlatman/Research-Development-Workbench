@@ -1,0 +1,119 @@
+{
+  "gate": "GATE-3",
+  "roadmap_step": "11/16 â€” GATE-3 repair",
+  "audited_baseline": "90d0c12aa4ba997991c19cd05acda4e3f68db79a",
+  "contract": "docs/tasks/GATE-3-rerun-repair.md",
+  "independent_rerun": "NOT_PERFORMED â€” this is a repair record, not an independent gate acceptance verdict",
+  "findings": [
+    {
+      "id": "G3-RERUN-B1",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/domain/benchmark.py",
+        "backend/benchmarks/fixtures.py"
+      ],
+      "resolution": "Declared feature-owned nonempty distinct gold anchors and explicit intact/degraded restoration roles validated before CLI registration; v1 shape unchanged.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-B2",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/benchmarks/metrics.py"
+      ],
+      "resolution": "Canonical typed judgment-kind withholding mapping; no presentation casefold comparisons and no credit for confident null or non-applicability.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-B3",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/services/provenance.py",
+        "backend/services/portability.py",
+        "backend/services/workbench.py"
+      ],
+      "resolution": "Unverifiable imported inspections removed, unsupported dispositions demoted, imported attribution retained, and model context checks verification provenance and scoped anchor authorization.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-B4",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/services/research.py"
+      ],
+      "resolution": "Actual structural workspace controls invalidation irrespective of user resources label; Next Actions logistics retain selective scope.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-N1",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/domain/models.py"
+      ],
+      "resolution": "Mechanical terminal punctuation/case/whitespace normalization rejects placeholder generated fields and indistinguishable action roles; manual notes unchanged.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-N2",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/services/exporting.py",
+        "backend/services/research.py",
+        "backend/services/workbench.py"
+      ],
+      "resolution": "Recursive public export sanitizer strips storage authority at every nesting level while preserving source identities, hashes and anchors; private backup unchanged.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-N3",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/services/pilot.py"
+      ],
+      "resolution": "Connectivity, schema and integrity are ordered; incompatible schema halts deeper queries with structured failure classification.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    },
+    {
+      "id": "G3-RERUN-N4",
+      "status": "RESOLVED",
+      "implementation": [
+        "backend/api/app.py",
+        "backend/persistence/database.py"
+      ],
+      "resolution": "Provider workflows leave event loop through two bounded local worker threads; each worker opens/closes its own persistence connection. Existing durable RunManager path remains unchanged.",
+      "regression": "backend/tests/test_gate3_rerun_repair.py"
+    }
+  ],
+  "local_validation": {
+    "backend_passed": 446,
+    "backend_failed": 0,
+    "postgres_only_skipped": 31,
+    "v5_golden": "16/16",
+    "v5_policy_and_existing_benchmark_tests": "88 passed",
+    "new_requirement_reproductions": "80 passed locally; PostgreSQL connection ownership additionally mandatory in CI",
+    "browser": "11/11",
+    "fake_workbench": "27/27 SUCCEEDED",
+    "fake_baseline": "27/27 SUCCEEDED",
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS",
+    "contracts": "PASS",
+    "governing_integrity": "PASS",
+    "publication": "PASS"
+  },
+  "required_merge_checks": [
+    "foundation",
+    "domain-policy (PostgreSQL 17 mandatory, including worker ownership and all existing parity/lifecycle tests)",
+    "browser"
+  ],
+  "remote_evidence": "Pull request and exact commit workflow checks are authoritative; integration is prohibited until all required jobs pass.",
+  "review": "Reviewed against owner-authorized scope, all eight requirement-derived negative reproductions, module boundaries and immutable governing baselines; no scientific policy, roadmap, provider prompt, schema shape or historical rubric changes.",
+  "scope_exclusions": [
+    "No Step 12",
+    "No private or published papers",
+    "No calibration",
+    "No live provider calls",
+    "No new roadmap item"
+  ],
+  "ci_correction": "Mandatory PostgreSQL connection ownership test exposed credential scrubbing in Connection.info.dsn. Workers now reopen through the privately retained original connect capability; a synthetic unit regression and PostgreSQL parity verify it."
+}

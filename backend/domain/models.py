@@ -501,15 +501,28 @@ class DiagnosticAction(Frozen):
 
     @model_validator(mode="after")
     def substantive_structure(self) -> Self:
-        for text in (
-            self.issue,
-            self.task,
-            self.required_input,
-            self.deliverable,
-            *self.outcome_branches,
-        ):
-            if text.strip().casefold() in {"tbd", "todo", "n/a", "unspecified", "placeholder"}:
-                raise ValueError("Diagnostic action requires specified inputs and outputs")
+        values = tuple(
+            text.strip().rstrip(".!?;:,… ").casefold()
+            for text in (
+                self.issue,
+                self.task,
+                self.required_input,
+                self.deliverable,
+                *self.outcome_branches,
+            )
+        )
+        placeholders = {
+            "tbd",
+            "todo",
+            "n/a",
+            "na",
+            "unknown",
+            "unspecified",
+            "placeholder",
+            "do more research",
+        }
+        if any(not value or value in placeholders for value in values) or len(set(values[:4])) == 1:
+            raise ValueError("Diagnostic action requires distinct specified inputs and outputs")
         return self
 
 

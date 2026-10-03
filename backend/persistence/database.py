@@ -1,5 +1,5 @@
 import sqlite3
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Literal
@@ -29,10 +29,12 @@ class Database:
         self,
         connection: sqlite3.Connection | psycopg.Connection[Any],
         dialect: Literal["sqlite", "postgres"],
+        reconnect: Callable[[], "Database"] | None = None,
     ):
         self.connection = connection
         self.dialect = dialect
         self._sequence = 0
+        self._reconnect = reconnect
 
     @classmethod
     def sqlite(cls, filename: str | Path = ":memory:") -> "Database":
@@ -42,7 +44,38 @@ class Database:
 
     @classmethod
     def postgres(cls, dsn: str) -> "Database":
-        return cls(psycopg.connect(dsn, autocommit=True), "postgres")
+        return cls(
+            psycopg.connect(dsn, autocommit=True), "postgres", reconnect=lambda: cls.postgres(dsn)
+        )
+
+    def connection_factory(self) -> Callable[[], "Database"]:
+        """Capture connection identity on its owner thread; reopen only inside the worker."""
+        if isinstance(self.connection, sqlite3.Connection):
+            filename = next(
+                row[2]
+                for row in self.execute("PRAGMA database_list").fetchall()
+                if row[1] == "main"
+            )
+            if not filename:
+                raise ValueError("WORKER_REQUIRES_PERSISTENT_DATABASE")
+            return lambda: Database.sqlite(filename)
+        # Connection.info.dsn intentionally omits credentials. Retain the original
+        # connect capability privately, never serialize/log a reconstructed DSN.
+        reconnect = self._reconnect
+        if reconnect is None:
+            raise ValueError("WORKER_REQUIRES_CONNECTION_FACTORY")
+        schema = self.execute("SELECT current_schema()").fetchone()[0]
+
+        def connect() -> "Database":
+            database = reconnect()
+            database.execute(
+                psycopg.sql.SQL("SET search_path TO {}")
+                .format(psycopg.sql.Identifier(schema))
+                .as_string()
+            )
+            return database
+
+        return connect
 
     def execute(self, sql: str, parameters: Sequence[object] = ()) -> Any:
         if self.dialect == "postgres":

@@ -10,9 +10,24 @@ from domain.benchmark import (
     BenchmarkRun,
     FeatureMetrics,
     Judgment,
+    JudgmentState,
     Metric,
     Observation,
 )
+
+WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
+    "rating": frozenset(("pending", "unresolved", "not_inspected")),
+    "finding": frozenset(("UNKNOWN",)),
+    "route": frozenset(("NOT INSPECTED",)),
+    "statement": frozenset(("unresolved", "not_inspected")),
+}
+
+
+def is_withholding(judgment: Judgment) -> bool:
+    return (
+        judgment.value is None
+        and judgment.state in WITHHOLDING_STATES[judgment.key.split(":", 1)[0]]
+    )
 
 
 def count(value: bool | None) -> Metric:
@@ -35,16 +50,12 @@ def compare(
         old = previous.get(e.judgment)
 
         def signature(item: Judgment | None) -> object:
-            return (item.state.casefold(), item.value) if item else None
+            return (item.state, item.value) if item else None
 
         changed = signature(j) != signature(old) if j is not None and old is not None else None
         allowed = (
-            (
-                j.state.casefold() in {s.casefold() for s in e.acceptable_states}
-                if e.acceptable_states
-                else True
-            )
-            and j.state.casefold() not in {s.casefold() for s in e.forbidden_states}
+            (j.state in e.acceptable_states if e.acceptable_states else True)
+            and j.state not in e.forbidden_states
             if j is not None
             else False
         )
@@ -82,15 +93,7 @@ def compare(
                 downgrade = False
         withholding = None
         if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
-            withholding = bool(
-                j
-                and j.value is None
-                and allowed
-                and (
-                    j.state.casefold()
-                    in ("pending", "unresolved", "missing", "not_inspected", "unknown")
-                )
-            )
+            withholding = bool(j and allowed and is_withholding(j))
         metrics.append(
             FeatureMetrics(
                 feature=e.feature,

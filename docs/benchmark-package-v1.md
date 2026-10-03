@@ -34,3 +34,9 @@ Validation makes no provider calls and writes no administrator artifacts. Import
 The administrator holds papers, gold, mutation definitions, splits and expectations. It passes only `BlindPacket` into `BlindEvaluator`: neutral packet ID, route/stage and ordered visible `(role, text)` blocks. The evaluator creates an isolated normal Workbench context with no builder path, administrator store, hidden block, feature map, expectation, gold, split label or sibling content. The provider rights declaration is neutral. Physical builder separation and normal application capabilities prevent access; arbitrary malicious Python with operating-system file access is outside this capability claim. Administrator files never enter ordinary project exports.
 
 Before execution, reservations consume conservative budgets. An orphan reservation is reported and stored as `INTERRUPTED_UNCERTAIN`; it is never silently retried. Malformed cases generate administrative invalid-case reports without aborting unrelated cases or entering scientific metric denominators.
+
+## GATE-3 rerun semantic correction
+
+The v1 JSON shape and machine schema remain unchanged. All currently defined gold features require distinct nonempty block anchors owned by that feature; no anchor-free gold feature type exists. A metadata-only block cannot own scientific features. Shared blocks may explicitly own multiple distinct features.
+
+Every controlled-restoration target requires a restore expectation with both references. The degraded reference must be the declared predecessor and must withhold that target; the intact reference must expose that target and differ from both predecessor and restoration. Regenerated restored packets must expose the target and differ from their predecessor. These checks validate declared structure, not scientific paraphrase equivalence. Validate-only and import both enforce them before writing any artifacts.

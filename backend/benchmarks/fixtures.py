@@ -125,7 +125,21 @@ def synthetic() -> tuple[tuple[BenchmarkProject, ...], tuple[Case, ...]]:
             splits,
             degraded,
         )
-        cases.append(Case(p, restored))
+        cases.append(
+            Case(
+                p,
+                restored,
+                (
+                    BenchmarkExpectation(
+                        feature=Feature.MEASURES,
+                        behavior="restore",
+                        judgment="rating:8",
+                        reference_variant=p.benchmark_id + "-intact",
+                        degraded_reference=degraded.variant_id,
+                    ),
+                ),
+            )
+        )
         for n in range(3):
             cases.append(
                 Case(

@@ -49,6 +49,8 @@ from model_adapters.runtime import ProviderFailure, provider_session, timestamp
 from persistence.repository import Conflict, Repository
 from policy_engine.engine import evaluate
 from policy_engine.manifest import Manifest
+from services.exporting import sanitize_export
+from services.provenance import assert_context_provenance
 from services.research import changed, dependencies, invalidate, review_keys
 from services.sources import SourceService
 
@@ -108,6 +110,7 @@ class Workbench:
         current = {v.document.document_id: v for v in bundle.versions}
         admitted = {(a.document_id, a.version) for a in bundle.admissions if a.admitted}
         project = self.repository.project(scope)
+        assert_context_provenance(project)
         refs = tuple(
             ref
             for obj in project.objects
@@ -115,6 +118,9 @@ class Workbench:
                 obj.source_refs
                 + tuple(r for check in obj.checks for r in check.source_refs)
                 + tuple(r for statement in obj.statements for r in statement.source_refs)
+                + tuple(
+                    r for disposition in obj.support_dispositions for r in disposition.source_refs
+                )
             )
         )
         referenced = {(r.document_id, r.version) for r in refs}
@@ -639,12 +645,14 @@ class Workbench:
                     for document in stored["assessment"]["snapshot"]["documents"]:
                         document.pop("original_storage_reference", None)
             return json.dumps(
-                {
-                    "schema_version": "rdw-app-1",
-                    "project_history": safe,
-                    "reviews": reviews,
-                    "import_bundle": portable,
-                },
+                sanitize_export(
+                    {
+                        "schema_version": "rdw-app-1",
+                        "project_history": safe,
+                        "reviews": reviews,
+                        "import_bundle": portable,
+                    }
+                ),
                 ensure_ascii=False,
                 sort_keys=True,
                 indent=2,
