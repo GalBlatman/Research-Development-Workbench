@@ -6,30 +6,42 @@ from uuid import uuid4
 
 from domain.application import (
     AddSource,
+    AssessmentTask,
     CandidateReview,
     ContextPacket,
     CreateProject,
     EditProject,
     Interpretation,
+    InterpretationTask,
     Passage,
 )
 from domain.locations import anchors
 from domain.models import (
     Adoption,
+    Assessment,
     EvaluationSnapshot,
     EvidenceState,
+    Finding,
     Freshness,
     Origin,
     Project,
     ProjectObject,
-    ReviewSummary,
+    ReviewContent,
     Scope,
     SourceReference,
     Workspace,
     accept_content,
 )
-from domain.presentation import PolicyResult
-from domain.sources import AccessScope, ProjectBundle, SourceRecord, SourceRole, StoredSnapshot
+from domain.results import PolicyResult
+from domain.sources import (
+    AccessScope,
+    HistoricalCoverage,
+    HistoricalExclusion,
+    ProjectBundle,
+    SourceRecord,
+    SourceRole,
+    StoredSnapshot,
+)
 from model_adapters.fake import FakeModel, FixtureVerifier, ModelAdapter, OutputVerifier
 from persistence.repository import Conflict, Repository
 from policy_engine.engine import evaluate
@@ -124,8 +136,9 @@ class Workbench:
 
     def _proposal(self, context: ContextPacket, revision: int) -> ProjectObject:
         try:
-            output = Interpretation.model_validate(self.adapter.interpret(context))
-            self.verifier.interpretation(context, output)
+            task = InterpretationTask(context=context)
+            output = Interpretation.model_validate(self.adapter.interpret(task))
+            self.verifier.interpretation(task, output)
         except (ValueError, TypeError) as exc:
             raise InvalidModelOutput(
                 "Invalid fake-model interpretation; no proposal was saved"
@@ -255,7 +268,7 @@ class Workbench:
             self.repository.save_project(self.scope(project_id), updated, project.revision)
         return self.view(project_id)
 
-    def run(self, project_id: str, expected: int, fixture: str) -> dict[str, Any]:
+    def run(self, project_id: str, expected: int) -> dict[str, Any]:
         scope = self.scope(project_id)
         with self.repository.db.transaction():
             project = self._current(project_id, expected)
@@ -275,21 +288,81 @@ class Workbench:
                 scope=Scope.INITIAL_SCREEN,
                 model_configuration=self.adapter.configuration,
             )
+            task = AssessmentTask(
+                context=context,
+                scope=snapshot.scope,
+                policy_version=snapshot.policy_version,
+                policy_sha256=snapshot.policy_sha256,
+                policy_manifest_sha256=snapshot.policy_manifest_sha256,
+                policy_implementation_version=snapshot.policy_implementation_version,
+            )
             try:
-                candidate = CandidateReview.model_validate(
-                    self.adapter.assess(context, snapshot, fixture)
+                candidate = CandidateReview.model_validate(self.adapter.assess(task))
+                verified = self.verifier.verify(task, candidate)
+                # Provider never supplies/echoes snapshot or scope identifiers.
+                fields = verified.model_dump(exclude={"findings"})
+                findings = tuple(
+                    Finding(**finding.model_dump(), scope=snapshot.snapshot_id)
+                    for finding in verified.findings
                 )
-                assessment = self.verifier.verify(context, snapshot, fixture, candidate)
-                evaluate(assessment, self.manifest)
+                assessment = Assessment(snapshot=snapshot, findings=findings, **fields)
+                evaluated = evaluate(assessment, self.manifest)
             except (ValueError, TypeError) as exc:
                 raise InvalidModelOutput(
                     "Invalid fake-model evaluation: " + str(exc).split("\n")[0]
                 ) from exc
             # Recheck scoped sources and revision at publication, not merely at intake.
             self._current(project_id, expected)
+            result = policy_view(asdict(evaluated))
+            for name in (
+                "idea_uncapped",
+                "idea",
+                "study",
+                "project_uncapped",
+                "project_before_caps",
+                "project",
+            ):
+                result[name]["displayed"] = getattr(evaluated, name).displayed
+            result.update(
+                policy_version=snapshot.policy_version,
+                policy_implementation_version=snapshot.policy_implementation_version,
+            )
+            coverage = tuple(
+                HistoricalCoverage(
+                    document_id=d,
+                    title=self.repository.source(scope, d).title,
+                    version=v,
+                    state=self.repository.version(scope, d, v).extraction_state,
+                    anchors=anchors(self.repository.version(scope, d, v)),
+                    note="Provided to fake fixture; no semantic source inspection.",
+                )
+                for d, v in sorted(versions)
+            )
+            bundle = self.bundle(project_id)
+            latest = {v.document.document_id: v for v in bundle.versions}
+            exclusions = tuple(
+                HistoricalExclusion(
+                    document_id=source.document_id,
+                    title=source.title,
+                    version=latest[source.document_id].document.version,
+                    reason="Not admitted"
+                    if (source.document_id, latest[source.document_id].document.version)
+                    not in {(a.document_id, a.version) for a in bundle.admissions if a.admitted}
+                    else "Source text unavailable or empty",
+                )
+                for source in bundle.sources
+                if (source.document_id, latest[source.document_id].document.version) not in versions
+            )
             self.repository.save_snapshot(
                 scope,
-                StoredSnapshot(snapshot=snapshot, assessment=assessment, review=candidate.summary),
+                StoredSnapshot(
+                    snapshot=snapshot,
+                    assessment=assessment,
+                    review=candidate.summary,
+                    policy_result=PolicyResult.model_validate(result),
+                    coverage=coverage,
+                    exclusions=exclusions,
+                ),
             )
         return self.review(project_id, snapshot.snapshot_id)
 
@@ -297,44 +370,19 @@ class Workbench:
         stored = self.repository.snapshot(self.scope(project_id), snapshot_id)
         if stored.assessment is None or stored.review is None:
             raise ValueError("Snapshot has no application review")
-        evaluation = evaluate(stored.assessment, self.manifest)
-        result = policy_view(asdict(evaluation))
-        for name in (
-            "idea_uncapped",
-            "idea",
-            "study",
-            "project_uncapped",
-            "project_before_caps",
-            "project",
-        ):
-            result[name]["displayed"] = getattr(evaluation, name).displayed
+        if stored.policy_result is None or stored.coverage is None or stored.exclusions is None:
+            raise ValueError(
+                "Historical rendering was not captured for this legacy snapshot; deliberate reevaluation is required"
+            )
         return {
             "snapshot": stored.snapshot.model_dump(
                 mode="json", exclude={"documents": {"__all__": {"original_storage_reference"}}}
             ),
-            "coverage": [
-                {
-                    "document_id": doc.document_id,
-                    "title": self.repository.source(self.scope(project_id), doc.document_id).title,
-                    "version": doc.version,
-                    "state": self.repository.version(
-                        self.scope(project_id), doc.document_id, doc.version
-                    ).extraction_state,
-                    "anchors": [
-                        a.model_dump(mode="json")
-                        for a in anchors(
-                            self.repository.version(
-                                self.scope(project_id), doc.document_id, doc.version
-                            )
-                        )
-                    ],
-                    "note": "Provided to fake fixture; no semantic source inspection.",
-                }
-                for doc in stored.snapshot.documents
-            ],
+            "coverage": [c.model_dump(mode="json") for c in stored.coverage],
+            "exclusions": [c.model_dump(mode="json") for c in stored.exclusions],
             "summary": stored.review.model_dump(mode="json"),
             "assessment": stored.assessment.model_dump(mode="json", exclude={"snapshot"}),
-            "policy": PolicyResult.model_validate(result).model_dump(mode="json"),
+            "policy": stored.policy_result.model_dump(mode="json", exclude_unset=True),
             "stale": self.repository.project(self.scope(project_id)).revision
             != stored.snapshot.project.revision,
         }
@@ -418,7 +466,9 @@ class Workbench:
             f"Working revision: {bundle.revisions[-1].revision}",
         ]
         for review in reviews:
-            summary = ReviewSummary.model_validate(review["summary"])
+            summary = ReviewContent.model_validate(
+                {k: v for k, v in review["summary"].items() if k != "fixture"}
+            )
             lines.extend(
                 [
                     "",

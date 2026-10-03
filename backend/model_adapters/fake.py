@@ -1,12 +1,17 @@
 from typing import Final, Protocol
 
-from domain.application import CandidateReview, ContextPacket, Interpretation
+from domain.application import (
+    AssessmentFields,
+    AssessmentTask,
+    CandidateReview,
+    Interpretation,
+    InterpretationTask,
+    ProposedAssessment,
+)
 from domain.models import (
-    Assessment,
     Brief,
-    EvaluationSnapshot,
     Rating,
-    ReviewSummary,
+    ReviewContent,
     Status,
     Verification,
 )
@@ -19,17 +24,16 @@ DISCLAIMER: Final = "Fake fixture output; no scientific assessment or semantic v
 class ModelAdapter(Protocol):
     configuration: str
 
-    def interpret(self, context: ContextPacket) -> object: ...
+    def interpret(self, task: InterpretationTask) -> Interpretation: ...
 
-    def assess(
-        self, context: ContextPacket, snapshot: EvaluationSnapshot, fixture: str
-    ) -> object: ...
+    def assess(self, task: AssessmentTask) -> CandidateReview: ...
 
 
 class FakeModel:
     configuration = "deterministic-fake-v1"
 
-    def interpret(self, context: ContextPacket) -> object:
+    def interpret(self, task: InterpretationTask) -> Interpretation:
+        context = task.context
         draft = tuple(p.text for p in context.passages if p.source.role == "project_draft")
         if draft == (DEMO_IDEA,):
             return Interpretation(
@@ -42,7 +46,7 @@ class FakeModel:
                     DISCLAIMER,
                     "Fixed interpretation of the exact synthetic idea fixture.",
                 ),
-            ).model_dump(mode="json")
+            )
         return Interpretation(
             brief=Brief(
                 question="What specific knowledge would this project add?",
@@ -53,10 +57,19 @@ class FakeModel:
                 DISCLAIMER,
                 "This fixed proposal does not extract meaning from your text.",
             ),
-        ).model_dump(mode="json")
+        )
 
-    def assess(self, context: ContextPacket, snapshot: EvaluationSnapshot, fixture: str) -> object:
-        scored = fixture == "scored"
+    def assess(self, task: AssessmentTask) -> CandidateReview:
+        context = task.context
+        # Exact internal fixture identity only; never a scientific keyword heuristic.
+        drafts = tuple(p.text for p in context.passages if p.source.role == "project_draft")
+        literature = tuple(p.text for p in context.passages if p.source.role == "literature")
+        scored = (
+            drafts == (DEMO_IDEA,)
+            and literature == (DEMO_SOURCE,)
+            and context.project.route == "EXPLAIN"
+            and context.project.stage == "EARLY IDEA"
+        )
         ratings = tuple(
             Rating(
                 dimension=dim,
@@ -72,14 +85,13 @@ class FakeModel:
             for dim in range(1, 11)
         )
         return CandidateReview(
-            assessment=Assessment(
-                snapshot=snapshot,
+            assessment=ProposedAssessment(
                 account_articulated=scored,
                 study_assessable=False,
                 ratings=ratings,
                 findings=(),
             ),
-            summary=ReviewSummary(
+            summary=ReviewContent(
                 contribution="Preserve the distinction between the proposed explanation and its rival (synthetic fixture only)."
                 if scored
                 else "No distinctive contribution has yet been assessed; preserve the original question for clarification.",
@@ -98,56 +110,31 @@ class FakeModel:
                     "The question needs reformulation.",
                     "Inspection remains incomplete; retain pending status.",
                 ),
-                fixture="scored" if scored else "limited",
                 disclaimer=DISCLAIMER,
             ),
-        ).model_dump(mode="json")
+        )
 
 
 class OutputVerifier(Protocol):
-    def interpretation(self, context: ContextPacket, candidate: Interpretation) -> None: ...
+    def interpretation(self, task: InterpretationTask, candidate: Interpretation) -> None: ...
 
-    def verify(
-        self,
-        context: ContextPacket,
-        snapshot: EvaluationSnapshot,
-        fixture: str,
-        candidate: CandidateReview,
-    ) -> Assessment: ...
+    def verify(self, task: AssessmentTask, candidate: CandidateReview) -> AssessmentFields: ...
 
 
 class FixtureVerifier:
-    """Checks a known fixture, never claims semantic verification of research."""
+    """Exact fixture conformance only; no semantic research verification."""
 
-    def interpretation(self, context: ContextPacket, candidate: Interpretation) -> None:
-        expected = Interpretation.model_validate(FakeModel().interpret(context))
-        if candidate != expected:
+    def interpretation(self, task: InterpretationTask, candidate: Interpretation) -> None:
+        if candidate != FakeModel().interpret(task):
             raise ValueError("Interpretation differs from declared fake fixture")
 
-    def verify(
-        self,
-        context: ContextPacket,
-        snapshot: EvaluationSnapshot,
-        fixture: str,
-        candidate: CandidateReview,
-    ) -> Assessment:
-        if fixture == "scored":
-            drafts = tuple(p.text for p in context.passages if p.source.role == "project_draft")
-            literature = tuple(p.text for p in context.passages if p.source.role == "literature")
-            if drafts != (DEMO_IDEA,) or literature != (DEMO_SOURCE,):
-                raise ValueError(
-                    "Scored fixture requires the exact synthetic idea and literature; use limited review for other text"
-                )
-            if snapshot.project.route != "EXPLAIN" or snapshot.project.stage != "EARLY IDEA":
-                raise ValueError("Scored fixture requires EXPLAIN / EARLY IDEA")
-        expected = CandidateReview.model_validate(FakeModel().assess(context, snapshot, fixture))
-        if candidate != expected:
+    def verify(self, task: AssessmentTask, candidate: CandidateReview) -> AssessmentFields:
+        if candidate != FakeModel().assess(task):
             raise ValueError(
-                "Invalid fake-model output: not the declared fixture; no automatic repairs"
+                "Invalid fake-model output: not the internal fixture; no automatic repairs"
             )
-        # Supported denotes exact fixture conformance only; the report states its limit.
         data = candidate.assessment.model_dump()
         for rating in data["ratings"]:
             if rating["rating"] is not None:
                 rating["verification"] = Verification.SUPPORTED
-        return Assessment.model_validate(data)
+        return AssessmentFields.model_validate(data)

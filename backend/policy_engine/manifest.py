@@ -34,7 +34,7 @@ class Profile(Frozen):
 class Manifest(Frozen):
     rubric_id: Literal["research-idea-protocol"]
     version: Literal["4"]
-    implementation_version: Literal["4.1.0"]
+    implementation_version: Literal["4.2.0"]
     canonical_path: Literal["policies/rubric-v4.md"]
     canonical_sha256: Hash
     status: Literal["implemented"]

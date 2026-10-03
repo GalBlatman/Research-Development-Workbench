@@ -1,6 +1,6 @@
 # Development environment
 
-Project Python 3.12.15, uv 0.12.22, Node 24.19.0, pnpm 11.19.0, exact dependencies and both committed locks. System Python is not the project interpreter. ADRs 0002–0004 record compatibility and boundaries.
+Project Python 3.12.15, uv 0.12.22, Node 24.19.0, pnpm 11.19.0, exact dependencies and both committed locks. System Python is not the project interpreter. ADRs 0002â€“0004 record compatibility and boundaries.
 
 From backend run uv sync --locked, uv run --locked pytest -q, uv run --locked ruff check ., uv run --locked ruff format --check ., uv run --locked mypy domain policy_engine persistence services model_adapters api. PostgreSQL parity uses a disposable RDW_TEST_POSTGRES_DSN; CI forbids skipping it. Never use production credentials. From root run node scripts/check.mjs and node scripts/publication-guard.mjs --staged; enable git config core.hooksPath .githooks.
 
@@ -21,7 +21,7 @@ pnpm build
 pnpm dev
 ```
 
-Open http://127.0.0.1:5173. Paste your text for a limited fake review or load the synthetic example, authorize local idea/source processing, create the project, add the prefilled synthetic source, then run the scored fixture. Bookmark the project URL for reload. Arbitrary text gets pending judgments; the scored fixture rejects changed/mismatched material. Fake outputs do not evaluate science. Binding only to loopback is required; this slice has no authentication and must not be deployed/exposed to other users.
+Open http://127.0.0.1:5173. Paste your text for a limited fake review or load the synthetic example, authorize local idea/source processing, create the project, add the prefilled synthetic source, then run fake evaluation. Bookmark the project URL for reload. Arbitrary text gets pending judgments; fixture choice is internal and changed/mismatched material keeps judgments pending. Fake outputs do not evaluate science. Binding only to loopback is required; this slice has no authentication and must not be deployed/exposed to other users.
 
 ## Contracts and browser tests
 

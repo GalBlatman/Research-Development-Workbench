@@ -1,7 +1,16 @@
 from dataclasses import dataclass
 from fractions import Fraction
 
-from domain.models import Assessment, Route, Stage, Status, Truth, Verification
+from domain.models import (
+    Assessment,
+    Commitment,
+    GateState,
+    Route,
+    Stage,
+    Status,
+    Truth,
+    Verification,
+)
 from policy_engine.manifest import Manifest
 
 
@@ -21,18 +30,22 @@ class Score:
 @dataclass(frozen=True)
 class Trace:
     rule_id: str
-    value: Truth
+    value: Truth | GateState
     consequence: str
     reasoning: str
     source: str
+    dimension: int | None = None
+    before: int | None = None
+    after: int | None = None
 
 
 @dataclass(frozen=True)
 class Gate:
     name: str
-    state: Truth
+    state: GateState
     provisional: bool
     missed: tuple[str, ...]
+    commitment: Commitment | None = None
 
 
 @dataclass(frozen=True)
@@ -115,7 +128,15 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             value
         ]
 
-    theory = route == Route.EXPLAIN and assessment.account_articulated
+    discovery = (
+        route == Route.EXPLAIN
+        and not assessment.account_articulated
+        and stage in (Stage.EARLY_IDEA, Stage.DISCOVERY)
+    )
+    theory = route == Route.EXPLAIN and not discovery
+    applicable = set(range(1, 8)) if theory else set()
+    if assessment.study_assessable:
+        applicable.update(range(8, 11))
     record(
         "ROUTE-TOTAL",
         Truth.TRUE if route != Route.EXPLAIN else Truth.FALSE,
@@ -123,13 +144,17 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
     )
     record(
         "DISCOVERY-PENDING",
-        Truth.TRUE if route == Route.EXPLAIN and not theory else Truth.FALSE,
-        "Await articulated account" if not theory else "Account articulated",
+        Truth.TRUE if discovery else Truth.FALSE,
+        "Pre-explanation stage: await articulated account"
+        if discovery
+        else "No discovery exemption; use applicable supplied judgments",
     )
     ratings: dict[int, int | None] = {i: None for i in range(1, 11)}
     input_ratings = {r.dimension: r for r in assessment.ratings}
     conditional: set[int] = set()
     for dimension, rating in input_ratings.items():
+        if dimension not in applicable:
+            continue
         if (
             rating.rating is not None
             and rating.verification == Verification.SUPPORTED
@@ -145,9 +170,24 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
                     Truth.TRUE,
                     f"d{dimension} withheld; benchmark or reassessment required",
                 )
+    if not any(t.rule_id == "HIGH-SCORE-BENCHMARK" for t in trace):
+        unverified_high = any(
+            r.dimension in applicable
+            and r.rating is not None
+            and r.rating >= 8
+            and r.verification != Verification.SUPPORTED
+            for r in assessment.ratings
+        )
+        record(
+            "HIGH-SCORE-BENCHMARK",
+            Truth.UNKNOWN if unverified_high else Truth.FALSE,
+            "Unverified exceptional request"
+            if unverified_high
+            else "No unsupported applicable exceptional rating",
+        )
     record(
         "UNINSPECTED-BLOCK",
-        Truth.TRUE if any(v is None for v in ratings.values()) else Truth.FALSE,
+        Truth.TRUE if any(ratings[i] is None for i in applicable) else Truth.FALSE,
         "Withhold each unavailable affected block; never substitute zero",
     )
     idea_caps: list[int] = []
@@ -161,7 +201,21 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
         if theory and value == Truth.TRUE:
             idea_caps.append(cap)
             if identifier == "PREMISE-NO-BASIS" and ratings[1] is not None:
+                original_d1 = ratings[1]
                 ratings[1] = min(ratings[1], 3)
+                if original_d1 != ratings[1]:
+                    trace.append(
+                        Trace(
+                            identifier,
+                            Truth.TRUE,
+                            "Dimension 1 maximum 3",
+                            facts[identifier].reasoning,
+                            specs[identifier].source,
+                            dimension=1,
+                            before=original_d1,
+                            after=ratings[1],
+                        )
+                    )
         record(
             identifier,
             value,
@@ -270,7 +324,7 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             numeric.append(
                 Truth.UNKNOWN if value is None else Truth.TRUE if value >= minimum else Truth.FALSE
             )
-        state = conjunction(numeric + requirements)
+        state = GateState(conjunction(numeric + requirements))
         # Range extrema only flag a possible gate change, never change the central score.
         crossing = False
         score_is_study = score is study
@@ -317,7 +371,9 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
                 for d in relevant
                 if d in input_ratings and input_ratings[d].plausible_range
             )
-        return Gate(name, state, crossing or state == Truth.UNKNOWN or bool(conditional), missed)
+        return Gate(
+            name, state, crossing or state == GateState.UNKNOWN or bool(conditional), missed
+        )
 
     idea_clear = [
         adverse_clear(i)
@@ -338,8 +394,20 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
         requirements = list(idea_clear)
         if name == "exceptional_idea":
             requirements.append(fact("PREDECESSORS-INSPECTED"))
-        if not theory:
-            gate = Gate(name, Truth.FALSE, False, ("Explanatory account required",))
+        if route != Route.EXPLAIN:
+            gate = Gate(
+                name,
+                GateState.NOT_APPLICABLE,
+                False,
+                ("Explanatory excellence does not apply to this route",),
+            )
+        elif discovery:
+            gate = Gate(
+                name,
+                GateState.PENDING,
+                False,
+                ("Await articulated explanatory account at pre-explanation stage",),
+            )
         else:
             gate = numeric_gate(
                 name, idea, int(profile.minimum_total or 0), profile.floors, requirements
@@ -347,10 +415,17 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
         gates.append(gate)
     for name, parent in (("strong_project", gates[0]), ("exceptional_project", gates[1])):
         profile = profiles[name]
-        requirements = [parent.state, *stage_clear]
-        gate = numeric_gate(
-            name, study, int(profile.minimum_total or 0), profile.floors, requirements
+        requirements = (
+            [Truth(parent.state), *stage_clear]
+            if parent.state in (GateState.TRUE, GateState.FALSE, GateState.UNKNOWN)
+            else stage_clear
         )
+        if parent.state in (GateState.NOT_APPLICABLE, GateState.PENDING):
+            gate = Gate(name, parent.state, False, parent.missed)
+        else:
+            gate = numeric_gate(
+                name, study, int(profile.minimum_total or 0), profile.floors, requirements
+            )
         gates.append(
             Gate(gate.name, gate.state, gate.provisional or parent.provisional, gate.missed)
         )
@@ -385,22 +460,41 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             "submission", study, 0, profiles["submission_route"].floors, submission_requirements
         )
     else:
-        submission = Gate("submission", Truth.FALSE, False, ("Articulated account required",))
+        submission = Gate(
+            "submission",
+            GateState.PENDING if discovery else GateState.UNKNOWN,
+            False,
+            ("Articulated account required",),
+        )
     gates.append(submission)
-    proposal = conjunction(
-        [
-            fact("CONTRIBUTION-STUDY-SPECIFIED"),
-            fact("PILOT-PREREQUISITES"),
-            adverse_clear("STAGE-MISMATCH"),
+    proposal_requirements = [
+        fact("CONTRIBUTION-STUDY-SPECIFIED"),
+        fact("PILOT-PREREQUISITES"),
+        adverse_clear("STAGE-MISMATCH"),
+    ]
+    if route == Route.EXPLAIN:
+        proposal_requirements += [
             adverse_clear("PREMISE-CONTRADICTED"),
+            adverse_clear("PREMISE-NO-BASIS"),
+            adverse_clear("PREMISE-CONDITIONAL"),
         ]
-    )
+    proposal = GateState(conjunction(proposal_requirements))
+    commitment = Commitment.ORDINARY if proposal == GateState.TRUE else Commitment.WITHHELD
+    if route == Route.EXPLAIN and fact("PREMISE-NO-BASIS") == Truth.TRUE:
+        commitment = Commitment.PREMISE_VERIFY_OR_REFORMULATE
+    elif route == Route.EXPLAIN and fact("PREMISE-CONDITIONAL") == Truth.TRUE:
+        commitment = Commitment.BOUNDED_PREMISE_CHECK
+    if route == Route.EXPLAIN and fact("PREMISE-CONTRADICTED") == Truth.TRUE:
+        commitment = Commitment.WITHHELD
     gates.append(
         Gate(
             "proposal_readiness",
             proposal,
-            proposal == Truth.UNKNOWN,
-            () if proposal == Truth.TRUE else ("Stage-specific prerequisites unmet/unresolved",),
+            proposal == GateState.UNKNOWN,
+            ()
+            if proposal == GateState.TRUE
+            else ("Stage prerequisites unmet/unresolved or premise restricts commitment",),
+            commitment,
         )
     )
     route_development = conjunction(
@@ -412,7 +506,7 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
     gates.append(
         Gate(
             "bounded_route_development",
-            route_development,
+            GateState(route_development),
             route_development == Truth.UNKNOWN or route_uninspected,
             (),
         )
@@ -422,15 +516,29 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             Trace(
                 gate.name,
                 gate.state,
-                "Provisional/borderline" if gate.provisional else "Gate evaluated",
+                "Not applicable"
+                if gate.state == GateState.NOT_APPLICABLE
+                else "Pending"
+                if gate.state == GateState.PENDING
+                else "Provisional/borderline"
+                if gate.provisional
+                else "Gate evaluated",
                 "; ".join(gate.missed) or "Requirements satisfied",
                 "v4 §§2.2, 8.4–8.5",
             )
         )
     label = "NO EXCELLENCE ENDORSEMENT"
     for gate in gates[:4]:
-        if gate.state == Truth.TRUE:
-            label = gate.name.upper() + (" PROVISIONAL" if gate.provisional else "")
+        if gate.state == GateState.TRUE:
+            label = (
+                gate.name.upper()
+                + (
+                    (" COMPLETED" if stage == Stage.COMPLETED else " PROPOSED")
+                    if gate.name.endswith("project")
+                    else ""
+                )
+                + (" PROVISIONAL" if gate.provisional else "")
+            )
     if theory and fact("PREMISE-CONDITIONAL") == Truth.TRUE:
         label = "PREMISE-CONDITIONAL"
     if theory and fact("PREMISE-CONTRADICTED") == Truth.TRUE:

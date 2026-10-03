@@ -274,6 +274,11 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * Commitment
+         * @enum {string}
+         */
+        Commitment: "ORDINARY_STAGE_COMMITMENT" | "PREMISE_VERIFICATION_OR_REFORMULATION" | "BOUNDED_PREMISE_CHECK_ONLY" | "WITHHELD";
         /** Comparison */
         Comparison: {
             /** Account Ids */
@@ -311,21 +316,6 @@ export interface components {
              */
             timing: string | null;
         };
-        /** CoverageView */
-        CoverageView: {
-            /** Anchors */
-            anchors: components["schemas"]["SourceAnchor"][];
-            /** Document Id */
-            document_id: string;
-            /** Note */
-            note: string;
-            /** State */
-            state: string;
-            /** Title */
-            title: string;
-            /** Version */
-            version: number;
-        };
         /** CreateProject */
         CreateProject: {
             /**
@@ -349,16 +339,13 @@ export interface components {
             /** Idea */
             idea: string;
         };
-        /** EvaluateRequest */
+        /**
+         * EvaluateRequest
+         * @description The server selects workflow/provider configuration, never the browser.
+         */
         EvaluateRequest: {
             /** Expected Revision */
             expected_revision: number;
-            /**
-             * Fixture
-             * @default limited
-             * @enum {string}
-             */
-            fixture: "limited" | "scored";
         };
         /** EvidenceCheck */
         EvidenceCheck: {
@@ -412,20 +399,53 @@ export interface components {
          * @enum {string}
          */
         Freshness: "current" | "affected_by_change" | "superseded";
+        /**
+         * GateState
+         * @enum {string}
+         */
+        GateState: "TRUE" | "FALSE" | "UNKNOWN" | "PENDING" | "NOT_APPLICABLE";
         /** GateView */
         GateView: {
+            /** @default null */
+            commitment: components["schemas"]["Commitment"] | null;
             /** Missed */
             missed: string[];
             /** Name */
             name: string;
             /** Provisional */
             provisional: boolean;
-            state: components["schemas"]["Truth"];
+            state: components["schemas"]["GateState"];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HistoricalCoverage */
+        HistoricalCoverage: {
+            /** Anchors */
+            anchors: components["schemas"]["SourceAnchor"][];
+            /** Document Id */
+            document_id: string;
+            /** Note */
+            note: string;
+            /** State */
+            state: string;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
+        };
+        /** HistoricalExclusion */
+        HistoricalExclusion: {
+            /** Document Id */
+            document_id: string;
+            /** Reason */
+            reason: string;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
         };
         /**
          * Origin
@@ -452,10 +472,20 @@ export interface components {
             idea_uncapped: components["schemas"]["ScoreView"];
             /** Label */
             label: string;
+            /**
+             * Policy Engine
+             * @default rdw-python-policy-engine
+             * @constant
+             */
+            policy_engine: "rdw-python-policy-engine";
+            /** Policy Implementation Version */
+            policy_implementation_version: string;
             /** Policy Manifest Sha256 */
             policy_manifest_sha256: string;
             /** Policy Sha256 */
             policy_sha256: string;
+            /** Policy Version */
+            policy_version: string;
             project: components["schemas"]["ScoreView"];
             project_before_caps: components["schemas"]["ScoreView"];
             project_uncapped: components["schemas"]["ScoreView"];
@@ -581,6 +611,23 @@ export interface components {
             status: components["schemas"]["Status"];
             verification: components["schemas"]["Verification"];
         };
+        /** ReviewContent */
+        ReviewContent: {
+            /** Contribution */
+            contribution: string;
+            /** Deliverable */
+            deliverable: string;
+            /** Disclaimer */
+            disclaimer: string;
+            /** Limitations */
+            limitations: string[];
+            /** Next Action */
+            next_action: string;
+            /** Obstacle */
+            obstacle: string;
+            /** Outcome Branches */
+            outcome_branches: string[];
+        };
         /** ReviewIndex */
         ReviewIndex: {
             /** Revision */
@@ -588,17 +635,17 @@ export interface components {
             /** Snapshot Id */
             snapshot_id: string;
         };
-        /** ReviewSummary */
+        /**
+         * ReviewSummary
+         * @description Legacy RDW-004 summary; retain historical metadata, never use as provider output.
+         */
         ReviewSummary: {
             /** Contribution */
             contribution: string;
             /** Deliverable */
             deliverable: string;
-            /**
-             * Disclaimer
-             * @constant
-             */
-            disclaimer: "Fake fixture output; no scientific assessment or semantic verification.";
+            /** Disclaimer */
+            disclaimer: string;
             /**
              * Fixture
              * @enum {string}
@@ -617,12 +664,15 @@ export interface components {
         ReviewView: {
             assessment: components["schemas"]["AssessmentView"];
             /** Coverage */
-            coverage: components["schemas"]["CoverageView"][];
+            coverage: components["schemas"]["HistoricalCoverage"][];
+            /** Exclusions */
+            exclusions: components["schemas"]["HistoricalExclusion"][];
             policy: components["schemas"]["PolicyResult"];
             snapshot: components["schemas"]["SnapshotView"];
             /** Stale */
             stale: boolean;
-            summary: components["schemas"]["ReviewSummary"];
+            /** Summary */
+            summary: components["schemas"]["ReviewSummary"] | components["schemas"]["ReviewContent"];
         };
         /** RevisionRequest */
         RevisionRequest: {
@@ -810,15 +860,31 @@ export interface components {
         };
         /** TraceView */
         TraceView: {
+            /**
+             * After
+             * @default null
+             */
+            after: number | null;
+            /**
+             * Before
+             * @default null
+             */
+            before: number | null;
             /** Consequence */
             consequence: string;
+            /**
+             * Dimension
+             * @default null
+             */
+            dimension: number | null;
             /** Reasoning */
             reasoning: string;
             /** Rule Id */
             rule_id: string;
             /** Source */
             source: string;
-            value: components["schemas"]["Truth"];
+            /** Value */
+            value: components["schemas"]["Truth"] | components["schemas"]["GateState"];
         };
         /**
          * Truth

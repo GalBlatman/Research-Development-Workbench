@@ -1,0 +1,34 @@
+{
+  "gate": "GATE-1",
+  "audited_commit": "8a031d240b514604122300bfebef0c130a819461",
+  "result": "PASS",
+  "provenance": "Independent audit result and five nonblockers supplied by owner; corrective implementation review is same-session only",
+  "findings": [
+    {
+      "id": "G1-N1",
+      "finding": "Persist historical policy output/identity and server coverage; never recompute historical review",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "G1-N2",
+      "finding": "Premise no-basis/conditional restrict ordinary proposal/full-study commitment",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "G1-N3",
+      "finding": "Distinct gate applicability/pending, applicable inspection, benchmark trigger, clamp trace, qualified endorsements",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "G1-N4",
+      "finding": "Discovery exemption only at early/discovery; later missing account remains substantive",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "G1-N5",
+      "finding": "Provider-neutral tasks/output; internal fake choice; server owns snapshot",
+      "status": "UNRESOLVED"
+    }
+  ],
+  "phase": "RDW-005 6A"
+}

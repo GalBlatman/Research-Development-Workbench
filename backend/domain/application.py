@@ -1,17 +1,23 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, StrictBool
+from pydantic import Field, StrictBool, model_validator
 
 from domain.models import (
-    Assessment,
     Brief,
     Frozen,
+    Hash,
     Project,
-    ReviewSummary,
+    Rating,
+    ReviewContent,
     Revision,
     Route,
+    RouteItem,
+    Scope,
+    SourceReference,
     Stage,
     Text,
+    Truth,
+    Verification,
 )
 from domain.sources import SourceAnchor, SourceRecord
 
@@ -46,7 +52,7 @@ class RevisionRequest(Frozen):
 
 
 class EvaluateRequest(RevisionRequest):
-    fixture: Literal["limited", "scored"] = "limited"
+    """The server selects workflow/provider configuration, never the browser."""
 
 
 class Interpretation(Frozen):
@@ -54,9 +60,37 @@ class Interpretation(Frozen):
     limitations: tuple[Text, ...]
 
 
+class RuleJudgment(Frozen):
+    rule_id: Text
+    value: Truth
+    reasoning: Text
+    verification: Verification = Verification.UNRESOLVED
+    source_refs: tuple[SourceReference, ...] = ()
+
+
+class AssessmentFields(Frozen):
+    account_articulated: StrictBool
+    study_assessable: StrictBool
+    ratings: tuple[Rating, ...]
+    findings: tuple[RuleJudgment, ...]
+    route_assessment: tuple[RouteItem, ...] = ()
+
+
+class ProposedAssessment(AssessmentFields):
+    @model_validator(mode="after")
+    def cannot_self_verify(self) -> Self:
+        if any(
+            r.verification != Verification.UNRESOLVED
+            or (r.benchmark is not None and r.benchmark.verification != Verification.UNRESOLVED)
+            for r in self.ratings
+        ) or any(f.verification != Verification.UNRESOLVED for f in self.findings):
+            raise ValueError("Provider output cannot self-verify judgments")
+        return self
+
+
 class CandidateReview(Frozen):
-    assessment: Assessment
-    summary: ReviewSummary
+    assessment: ProposedAssessment
+    summary: ReviewContent
 
 
 class Passage(Frozen):
@@ -69,3 +103,20 @@ class ContextPacket(Frozen):
     project: Project
     passages: tuple[Passage, ...]
     exclusions: tuple[str, ...]
+
+
+class InterpretationTask(Frozen):
+    schema_version: Literal["rdw-task-1"] = "rdw-task-1"
+    task: Literal["ExtractProject"] = "ExtractProject"
+    context: ContextPacket
+
+
+class AssessmentTask(Frozen):
+    schema_version: Literal["rdw-task-1"] = "rdw-task-1"
+    task: Literal["AssessProject"] = "AssessProject"
+    context: ContextPacket
+    scope: Scope
+    policy_version: Text
+    policy_sha256: Hash
+    policy_manifest_sha256: Hash
+    policy_implementation_version: Text
