@@ -26,12 +26,13 @@ from domain.models import (
     Origin,
     Project,
     ProjectObject,
+    ResearchRecord,
     ReviewContent,
     Scope,
     SourceReference,
     Workspace,
-    accept_content,
 )
+from domain.research import AFFECTED, FIELDS
 from domain.results import PolicyResult
 from domain.sources import (
     AccessScope,
@@ -44,10 +45,11 @@ from domain.sources import (
 )
 from model_adapters.contracts import ModelAdapter, OutputVerifier
 from model_adapters.fake import FakeModel, FixtureVerifier
-from model_adapters.runtime import ProviderFailure, provider_session
+from model_adapters.runtime import ProviderFailure, provider_session, timestamp
 from persistence.repository import Conflict, Repository
 from policy_engine.engine import evaluate
 from policy_engine.manifest import Manifest
+from services.research import changed, dependencies, invalidate
 from services.sources import SourceService
 
 
@@ -209,6 +211,7 @@ class Workbench:
                 revision=1,
                 route=request.route,
                 stage=request.stage,
+                session_goal=request.session_goal,
             )
             self.repository.create_project(scope, project)
             source = SourceRecord(
@@ -226,6 +229,9 @@ class Workbench:
             self.sources.paste(scope, source, request.idea)
             self.repository.set_admission(scope, source.document_id, 1, True)
             proposal = self._proposal(self.context(identifier), 2)
+            proposal = proposal.model_copy(
+                update={"dependencies": dependencies(project, ("Brief",))}
+            )
             updated = Project.model_validate(
                 {**project.model_dump(), "revision": 2, "objects": (proposal,)}
             )
@@ -264,8 +270,16 @@ class Workbench:
                 )
                 for obj in project.objects
             )
+            versions = dict(project.dependency_versions)
+            for key in AFFECTED["Brief"] + ("source:" + draft,):
+                versions[key] = versions.get(key, 0) + 1
             updated = Project.model_validate(
-                {**project.model_dump(), "revision": project.revision + 1, "objects": changed}
+                {
+                    **project.model_dump(),
+                    "revision": project.revision + 1,
+                    "objects": changed,
+                    "dependency_versions": versions,
+                }
             )
             self.repository.save_project(scope, updated, project.revision)
         return self.view(project_id)
@@ -293,29 +307,37 @@ class Workbench:
             )
             self.sources.paste(scope, source, request.text)
             self.repository.set_admission(scope, source.document_id, 1, request.admitted)
+            versions = (
+                changed(project, "Literature")
+                if request.admitted
+                else dict(project.dependency_versions)
+            )
             updated = Project.model_validate(
-                {**project.model_dump(), "revision": project.revision + 1}
+                {
+                    **project.model_dump(),
+                    "revision": project.revision + 1,
+                    "dependency_versions": versions,
+                    "objects": invalidate(project.objects, versions),
+                }
             )
             self.repository.save_project(scope, updated, project.revision)
         return self.view(project_id)
 
     def accept(self, project_id: str, object_id: str, expected: int) -> dict[str, Any]:
-        with self.repository.db.transaction():
-            project = self._current(project_id, expected)
-            if object_id not in {o.object_id for o in project.objects}:
-                raise ValueError("Proposal not found in this project")
-            objects = tuple(
-                accept_content(o, project.revision + 1) if o.object_id == object_id else o
-                for o in project.objects
-            )
-            updated = Project.model_validate(
-                {**project.model_dump(), "revision": project.revision + 1, "objects": objects}
-            )
-            self.repository.save_project(self.scope(project_id), updated, project.revision)
-        return self.view(project_id)
+        from domain.research import DecisionRequest
+        from services.research import ResearchService
+
+        return ResearchService(self).decide(
+            project_id, object_id, DecisionRequest(expected_revision=expected, action="accepted")
+        )
 
     def run(
-        self, project_id: str, expected: int, dimensions: tuple[int, ...] = ()
+        self,
+        project_id: str,
+        expected: int,
+        dimensions: tuple[int, ...] = (),
+        target_workspace: str | None = None,
+        evaluation_scope: Scope = Scope.INITIAL_SCREEN,
     ) -> dict[str, Any]:
         scope = self.scope(project_id)
         project = self._current(project_id, expected)
@@ -328,13 +350,14 @@ class Workbench:
         )
         snapshot = EvaluationSnapshot(
             snapshot_id=uuid4().hex,
+            created_at=timestamp(),
             project=project,
             documents=documents,
             policy_version=self.manifest.version,
             policy_sha256=self.manifest.canonical_sha256,
             policy_manifest_sha256=self.manifest.sha256,
             policy_implementation_version=self.manifest.implementation_version,
-            scope=Scope.TARGETED_CHECK if dimensions else Scope.INITIAL_SCREEN,
+            scope=Scope.TARGETED_CHECK if dimensions else evaluation_scope,
             prompt_version=getattr(self.adapter, "prompt_configuration", None),
             model_configuration=self.adapter.configuration,
         )
@@ -434,6 +457,16 @@ class Workbench:
                     checked_statements=checked.statements,
                     checks=tuple(c.model_dump(mode="json") for c in checked.checks),
                     structural_checks=checked.structural_checks,
+                    target_workspace=target_workspace,
+                    dependencies=dependencies(
+                        project,
+                        ((target_workspace,) if target_workspace else tuple(FIELDS))
+                        + tuple(
+                            "source:" + ref.document_id
+                            for decision in checked.checks
+                            for ref in decision.source_refs
+                        ),
+                    ),
                     policy_result=PolicyResult.model_validate(result),
                     coverage=coverage,
                     exclusions=exclusions,
@@ -449,6 +482,12 @@ class Workbench:
             raise ValueError(
                 "Historical rendering was not captured for this legacy snapshot; deliberate reevaluation is required"
             )
+        current = self.repository.project(self.scope(project_id))
+        affected = tuple(
+            d.key
+            for d in stored.dependencies
+            if current.dependency_versions.get(d.key, 0) != d.version
+        )
         result = {
             "snapshot": stored.snapshot.model_dump(
                 mode="json",
@@ -460,8 +499,11 @@ class Workbench:
             "summary": stored.review.model_dump(mode="json"),
             "assessment": stored.assessment.model_dump(mode="json", exclude={"snapshot"}),
             "policy": stored.policy_result.model_dump(mode="json", exclude_unset=True),
-            "stale": self.repository.project(self.scope(project_id)).revision
-            != stored.snapshot.project.revision,
+            "stale": bool(affected)
+            if stored.dependencies
+            else current.revision != stored.snapshot.project.revision,
+            "affected_workspaces": list(affected),
+            "target_workspace": stored.target_workspace,
         }
         if stored.provider_run is not None:
             result["provider_run"] = stored.provider_run.model_dump(mode="json")
@@ -496,8 +538,19 @@ class Workbench:
             "project": bundle.revisions[-1].model_dump(mode="json"),
             "sources": sources,
             "reviews": [
-                {"snapshot_id": s.snapshot.snapshot_id, "revision": s.snapshot.project.revision}
-                for s in bundle.snapshots
+                {
+                    "snapshot_id": s.snapshot.snapshot_id,
+                    "revision": s.snapshot.project.revision,
+                    "workspace": s.target_workspace,
+                    "stale": bool(self.review(project_id, s.snapshot.snapshot_id)["stale"]),
+                }
+                for s in sorted(
+                    bundle.snapshots,
+                    key=lambda item: (
+                        item.snapshot.project.revision,
+                        item.snapshot.created_at or "",
+                    ),
+                )
                 if s.review is not None
             ],
         }
@@ -541,7 +594,7 @@ class Workbench:
                 sort_keys=True,
                 indent=2,
             )
-        if format != "markdown":
+        if format not in ("markdown", "plan"):
             raise ValueError("Supported exports: markdown, json")
         lines = [
             "# " + bundle.revisions[-1].title,
@@ -549,8 +602,34 @@ class Workbench:
             "Development review; interpretive checking is not independent scientific validation.",
             "",
             f"Working revision: {bundle.revisions[-1].revision}",
+            f"Route: {bundle.revisions[-1].route}; stage: {bundle.revisions[-1].stage}",
+            f"Evaluation target: {bundle.revisions[-1].evaluation_target}",
+            f"Current help request: {bundle.revisions[-1].session_goal}",
         ]
-        for review in reviews:
+        for obj in bundle.revisions[-1].objects:
+            if isinstance(obj.payload, ResearchRecord) and (
+                format != "plan" or obj.payload.workspace == "Next Actions"
+            ):
+                lines += [
+                    "",
+                    "## " + obj.payload.workspace + ": " + obj.payload.title,
+                    "",
+                    f"Object {obj.object_id}; revision {obj.revision}; origin {obj.origin}; adoption {obj.adoption}; evidence {obj.evidence_state}; freshness {obj.freshness}",
+                ]
+                for field in obj.payload.fields:
+                    lines += [
+                        "",
+                        f"{field.key}: {field.text or 'Not known yet'} (origin: {field.origin}; state: {field.state})",
+                    ]
+                lines += [
+                    "",
+                    "Provenance: "
+                    + json.dumps([r.model_dump(mode="json") for r in obj.source_refs]),
+                    "",
+                    "Dependencies: "
+                    + json.dumps([d.model_dump(mode="json") for d in obj.dependencies]),
+                ]
+        for review in reviews if format != "plan" else []:
             summary = ReviewContent.model_validate(
                 {k: v for k, v in review["summary"].items() if k != "fixture"}
             )

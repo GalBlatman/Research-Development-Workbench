@@ -183,8 +183,48 @@ class Brief(Frozen):
     intended_contribution: str | None = None
 
 
+class ResearchField(Frozen):
+    key: Text
+    text: Annotated[str, Field(max_length=20000)] | None = None
+    state: EvidenceState = EvidenceState.UNINSPECTED
+    origin: Origin = Origin.USER
+    source_refs: tuple[SourceReference, ...] = ()
+
+
+class ResearchRecord(Frozen):
+    kind: Literal["research_record"] = "research_record"
+    workspace: Literal[
+        "Brief", "Literature", "Argument", "Alternatives", "Study", "Usefulness", "Next Actions"
+    ]
+    title: Annotated[str, Field(min_length=1, max_length=200)]
+    fields: Annotated[tuple[ResearchField, ...], Field(min_length=1, max_length=32)]
+
+    @model_validator(mode="after")
+    def unique_fields(self) -> Self:
+        if not self.fields or len({f.key for f in self.fields}) != len(self.fields):
+            raise ValueError("Research records require distinct fields")
+        if any(f.state == EvidenceState.DOCUMENTED for f in self.fields):
+            raise ValueError("Workspace entries do not independently verify evidence")
+        return self
+
+
+class Dependency(Frozen):
+    key: Text
+    version: Annotated[StrictInt, Field(ge=0)]
+    reason: Text
+
+
+class UserAction(Frozen):
+    object_id: Text
+    action: Literal["accepted", "rejected", "edited", "superseded"]
+    actor: Text
+    revision: Revision
+    reason: Text
+
+
 Payload = Annotated[
-    Question | Construct | Claim | Study | Comparison | Brief, Field(discriminator="kind")
+    Question | Construct | Claim | Study | Comparison | Brief | ResearchRecord,
+    Field(discriminator="kind"),
 ]
 
 
@@ -234,6 +274,13 @@ class AttributedStatement(Frozen):
     source_refs: tuple[SourceReference, ...] = ()
 
 
+class SupportDisposition(Frozen):
+    target: Text
+    disposition: Verification
+    reason: Text
+    source_refs: tuple[SourceReference, ...]
+
+
 class ProjectObject(Frozen):
     object_id: Text
     project_id: Text
@@ -248,6 +295,10 @@ class ProjectObject(Frozen):
     generated_by_run_id: str | None = None
     provider_run: ProviderRun | None = None
     statements: tuple[AttributedStatement, ...] = ()
+    dependencies: tuple[Dependency, ...] = ()
+    target_object_id: str | None = None
+    reason: str | None = None
+    support_dispositions: tuple[SupportDisposition, ...] = ()
 
     @model_validator(mode="after")
     def evidence_is_explicit(self) -> Self:
@@ -285,6 +336,12 @@ class Project(Frozen):
     route: Route
     stage: Stage
     objects: tuple[ProjectObject, ...] = ()
+    session_goal: str = "Assess the idea and identify the next useful step"
+    evaluation_target: Literal["manuscript_as_written", "current_project_as_clarified"] = (
+        "current_project_as_clarified"
+    )
+    dependency_versions: dict[str, int] = {}
+    actions: tuple[UserAction, ...] = ()
 
     @model_validator(mode="after")
     def consistent_objects(self) -> Self:
@@ -309,6 +366,7 @@ class EvaluationSnapshot(Frozen):
     prompt_version: str | None = None
     model_configuration: str | None = None
     scope: Scope
+    created_at: str | None = None
 
     @model_validator(mode="after")
     def consistent_documents(self) -> Self:

@@ -8,6 +8,7 @@ from pydantic import Field, StrictBool, StrictInt, model_validator
 from domain.models import (
     Assessment,
     AttributedStatement,
+    Dependency,
     DocumentVersion,
     EvaluationSnapshot,
     Frozen,
@@ -207,6 +208,8 @@ class StoredSnapshot(Frozen):
     checked_statements: tuple[AttributedStatement, ...] = ()
     checks: tuple[dict[str, object], ...] = ()
     structural_checks: tuple[StructuralCheck, ...] = ()
+    dependencies: tuple[Dependency, ...] = ()
+    target_workspace: str | None = None
 
     @model_validator(mode="after")
     def same_target(self) -> Self:

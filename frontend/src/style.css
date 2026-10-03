@@ -134,3 +134,51 @@ summary {
     padding: 16px;
   }
 }
+
+.workspace-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f5f4ef;
+  padding: 10px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid #d8ded9;
+}
+.workspace-nav button {
+  background: white;
+  color: #285b49;
+  border: 1px solid #b7c7bd;
+  padding: 8px 10px;
+  margin: 0;
+}
+.workspace-nav button[aria-current="page"] {
+  background: #285b49;
+  color: white;
+}
+.research-record {
+  border-left: 3px solid #b7c7bd;
+  padding: 8px 18px;
+  margin: 18px 0;
+}
+.research-record dt {
+  font-weight: 600;
+}
+.research-record dd {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}
+.research-record small {
+  display: block;
+  color: #56655e;
+}
+.research-field {
+  border-bottom: 1px solid #e2e7e3;
+}
+.research-field textarea {
+  min-height: 80px;
+}
+[hidden] {
+  display: none !important;
+}

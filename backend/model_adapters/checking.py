@@ -13,6 +13,12 @@ from domain.application import (
     InterpretationTask,
 )
 from domain.models import SourceReference, StructuralCheck, Verification
+from domain.research import (
+    WorkspaceCheckingTask,
+    WorkspaceCheckResult,
+    WorkspaceProposal,
+    WorkspaceTask,
+)
 from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check
 from model_adapters.runtime import ProviderFailure
 
@@ -161,3 +167,27 @@ class AssessmentChecker:
                 if decision.source_refs
             ),
         )
+
+    def workspace(self, task: WorkspaceTask, candidate: WorkspaceProposal) -> WorkspaceCheckResult:
+        packet_check(task.context)
+        for field in candidate.record.fields:
+            self.references(task.context, field.source_refs)
+            if field.key == "source_claim" and field.text:
+                roles = {p.anchor.anchor_id: p.source.role for p in task.context.passages}
+                if not field.source_refs or any(
+                    roles[r.anchor_id] != "literature" for r in field.source_refs
+                ):
+                    raise ProviderFailure("MISSING_SOURCE_SUPPORT")
+        targets = tuple(f.key for f in candidate.record.fields)
+        checked = self.adapter.workspace_check(
+            WorkspaceCheckingTask(context=task.context, candidate=candidate, targets=targets)
+        )
+        if len(checked.decisions) != len(targets) or {d.target for d in checked.decisions} != set(
+            targets
+        ):
+            raise ProviderFailure("INCOMPLETE_CHECK")
+        for decision in checked.decisions:
+            self.references(task.context, decision.source_refs)
+            if decision.disposition == Verification.SUPPORTED and not decision.source_refs:
+                raise ProviderFailure("MISSING_SOURCE_SUPPORT")
+        return checked

@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { components } from "../generated/api";
 import "./style.css";
+import { ResearchWorkspaces, type Workspace } from "./workspaces";
 
 type Create = components["schemas"]["CreateProject"];
 type View = components["schemas"]["ProjectView"];
@@ -31,6 +32,14 @@ async function api<T>(url: string, method = "GET", data?: unknown): Promise<T> {
 }
 
 function App() {
+  const [reviewScope, setReviewScope] =
+    useState<components["schemas"]["EvaluateRequest"]["scope"]>(
+      "INITIAL_SCREEN",
+    );
+  const [active, setActive] = useState<Workspace>("Overview");
+  const [sessionGoal, setSessionGoal] = useState(
+    "Assess the idea and identify the next useful step",
+  );
   const [view, setView] = useState<View | null>(null);
   const [title, setTitle] = useState("");
   const [idea, setIdea] = useState("");
@@ -79,13 +88,22 @@ function App() {
       .catch(() => setError("Provider configuration could not be loaded."));
     if (projectId)
       void work(async () => {
-        update(await api<View>("/projects/" + projectId));
+        const saved = await api<View>("/projects/" + projectId);
+        update(saved);
+        const latest = saved.reviews.at(-1);
+        if (latest)
+          setReview(
+            await api<Review>(
+              "/projects/" + projectId + "/reviews/" + latest.snapshot_id,
+            ),
+          );
       });
   }, []);
   async function evaluateRevision(current: View): Promise<Review> {
     const root = "/projects/" + current.project.project_id;
     const result = await api<Review | Run>(root + "/evaluations", "POST", {
       expected_revision: current.project.revision,
+      scope: reviewScope,
     });
     if ("snapshot" in result) return result;
     setRunMessage("Evaluation queued; checking runs before publication.");
@@ -215,6 +233,13 @@ function App() {
                 </select>
               </label>
             </div>
+            <label>
+              What help do you need?
+              <textarea
+                value={sessionGoal}
+                onChange={(e) => setSessionGoal(e.target.value)}
+              />
+            </label>
             <label className="check">
               <input
                 type="checkbox"
@@ -227,12 +252,13 @@ function App() {
               of my pasted project text.
             </label>
             <button
-              disabled={!authorized || !title.trim() || !idea.trim()}
+              disabled={!authorized || !idea.trim()}
               onClick={() =>
                 void work(async () => {
                   update(
                     await api<View>("/projects", "POST", {
-                      title,
+                      title: title.trim() || "Untitled project",
+                      session_goal: sessionGoal,
                       idea,
                       route,
                       stage,
@@ -247,414 +273,459 @@ function App() {
           </section>
         ) : (
           <>
-            <section>
-              <h2>{view.project.title}</h2>
-              <p>
-                Working revision {view.project.revision} · {view.project.route}{" "}
-                · {view.project.stage}
-              </p>
-              <label>
-                Edit original idea
-                <textarea
-                  value={idea}
-                  maxLength={20000}
-                  onChange={(e) => setIdea(e.target.value)}
-                />
-              </label>
-              <button onClick={() => void work(saveEdit)}>
-                Save new revision
-              </button>
-            </section>
-            <section>
-              <h2>Structured interpretation</h2>
-              <p>
-                Fixed fake proposal. Accepting confirms representation only;
-                evidence remains not inspected.
-              </p>
-              {view.project.objects.map((obj) => (
-                <article key={obj.object_id}>
-                  <p>
-                    <strong>
-                      {"question" in obj.payload
-                        ? obj.payload.question
-                        : obj.payload.kind}
-                    </strong>
-                  </p>
-                  {"core_insight" in obj.payload && (
-                    <p>{obj.payload.core_insight}</p>
-                  )}
-                  <p>
-                    Origin: {obj.origin} · Adoption: {obj.adoption} · Evidence:{" "}
-                    {obj.evidence_state} · Freshness: {obj.freshness}
-                  </p>
-                  {obj.adoption === "proposed" && (
-                    <button
-                      onClick={() =>
-                        void work(async () => {
-                          await changed(
-                            await api<View>(
-                              "/projects/" +
-                                view.project.project_id +
-                                "/proposals/" +
-                                obj.object_id +
-                                "/accept",
-                              "POST",
-                              { expected_revision: view.project.revision },
-                            ),
-                          );
-                        })
-                      }
-                    >
-                      Accept representation
-                    </button>
-                  )}
-                </article>
-              ))}
-            </section>
-            <section>
-              <h2>Literature and sources</h2>
-              <label>
-                Source title
-                <input
-                  value={sourceTitle}
-                  maxLength={200}
-                  onChange={(e) => setSourceTitle(e.target.value)}
-                />
-              </label>
-              <label>
-                Attribution
-                <input
-                  value={attribution}
-                  maxLength={500}
-                  onChange={(e) => setAttribution(e.target.value)}
-                />
-              </label>
-              <label>
-                Pasted source text
-                <textarea
-                  value={sourceText}
-                  maxLength={50000}
-                  onChange={(e) => setSourceText(e.target.value)}
-                />
-              </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={sourceAuthorized}
-                  onChange={(e) => setSourceAuthorized(e.target.checked)}
-                />
-                {provider.startsWith("openai:")
-                  ? "I authorize OpenAI to process"
-                  : "I am authorized to process"}{" "}
-                this source text locally.
-              </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={admitted}
-                  onChange={(e) => setAdmitted(e.target.checked)}
-                />
-                Include this version in the evaluation packet.
-              </label>
-              <button
-                disabled={
-                  !sourceAuthorized ||
-                  !sourceTitle.trim() ||
-                  !attribution.trim() ||
-                  !sourceText.trim()
-                }
-                onClick={() =>
-                  void work(async () => {
-                    await changed(
-                      await api<View>(
-                        "/projects/" + view.project.project_id + "/sources",
-                        "POST",
-                        {
-                          expected_revision: view.project.revision,
-                          title: sourceTitle,
-                          attribution,
-                          text: sourceText,
-                          authorized: sourceAuthorized,
-                          admitted,
-                        },
-                      ),
-                    );
-                    setSourceText("");
-                  })
-                }
-              >
-                Add source
-              </button>
-              <ul>
-                {view.sources.map((s) => (
-                  <li key={s.source.document_id}>
-                    {s.source.title} · version {s.version} · {s.source.role} ·{" "}
-                    {s.state} · {s.admitted ? "included" : "excluded"}{" "}
-                    {s.admitted &&
-                      s.anchors.map((a) => (
+            <ResearchWorkspaces
+              view={view}
+              review={review}
+              active={active}
+              navigate={setActive}
+              update={changed}
+              showReview={setReview}
+              work={work}
+            />
+            <div
+              hidden={
+                active !== "Overview" &&
+                active !== "Review" &&
+                active !== "Literature" &&
+                active !== "Brief"
+              }
+            >
+              <section hidden={active !== "Overview" && active !== "Brief"}>
+                <h2>{view.project.title}</h2>
+                <p>
+                  Working revision {view.project.revision} ·{" "}
+                  {view.project.route} · {view.project.stage}
+                </p>
+                <label>
+                  Edit original idea
+                  <textarea
+                    value={idea}
+                    maxLength={20000}
+                    onChange={(e) => setIdea(e.target.value)}
+                  />
+                </label>
+                <button onClick={() => void work(saveEdit)}>
+                  Save new revision
+                </button>
+              </section>
+              <section hidden={active !== "Overview" && active !== "Brief"}>
+                <h2>Structured interpretation</h2>
+                <p>
+                  Proposed interpretation. Accepting confirms representation
+                  only; evidence remains not inspected.
+                </p>
+                {view.project.objects
+                  .filter((obj) => obj.payload.kind !== "research_record")
+                  .map((obj) => (
+                    <article key={obj.object_id}>
+                      <p>
+                        <strong>
+                          {"question" in obj.payload
+                            ? obj.payload.question
+                            : obj.payload.kind}
+                        </strong>
+                      </p>
+                      {"core_insight" in obj.payload && (
+                        <p>{obj.payload.core_insight}</p>
+                      )}
+                      <p>
+                        Origin: {obj.origin} · Adoption: {obj.adoption} ·
+                        Evidence: {obj.evidence_state} · Freshness:{" "}
+                        {obj.freshness}
+                      </p>
+                      {obj.adoption === "proposed" && (
                         <button
-                          key={a.anchor_id}
                           onClick={() =>
                             void work(async () => {
-                              const p = await api<{ text: string }>(
-                                "/projects/" +
-                                  view.project.project_id +
-                                  "/sources/" +
-                                  s.source.document_id +
-                                  "/" +
-                                  s.version +
-                                  "/" +
-                                  a.anchor_id,
+                              await changed(
+                                await api<View>(
+                                  "/projects/" +
+                                    view.project.project_id +
+                                    "/proposals/" +
+                                    obj.object_id +
+                                    "/accept",
+                                  "POST",
+                                  { expected_revision: view.project.revision },
+                                ),
                               );
-                              setPassage(p.text);
                             })
                           }
                         >
-                          Inspect {s.source.title}, lines {a.line_start}–
-                          {a.line_end}
+                          Accept representation
                         </button>
-                      ))}
-                  </li>
-                ))}
-              </ul>
-              {passage !== null && (
-                <aside aria-label="Source passage">
-                  <h3>Original source passage</h3>
-                  <pre>{passage}</pre>
-                </aside>
-              )}
-            </section>
-            <section>
-              <h2>Evaluate this revision</h2>
-              <p>
-                {provider === "deterministic-fake-v1" || provider === "fake"
-                  ? "Offline fake evaluation uses fixed synthetic responses; other inputs retain pending judgments."
-                  : `Provider: ${provider}. Bounded evaluation includes a focused checking pass; interpretive support is not independent evidence verification.`}
-              </p>
-              <button
-                onClick={() =>
-                  void work(async () => {
-                    setReview(await evaluateRevision(view));
-                    update(
-                      await api<View>("/projects/" + view.project.project_id),
-                    );
-                  })
-                }
-              >
-                {provider === "deterministic-fake-v1" || provider === "fake"
-                  ? "Run fake evaluation"
-                  : "Run evaluation"}
-              </button>
-              {runMessage && <p role="status">{runMessage}</p>}
-              <ul>
-                {view.reviews.map((r) => (
-                  <li key={r.snapshot_id}>
-                    <button
-                      onClick={() =>
-                        void work(async () => {
-                          setReview(
-                            await api<Review>(
-                              "/projects/" +
-                                view.project.project_id +
-                                "/reviews/" +
-                                r.snapshot_id,
-                            ),
-                          );
-                        })
-                      }
-                    >
-                      Open review of revision {r.revision}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            {review && (
-              <section aria-label="Evaluation review">
-                <h2>Review of revision {review.snapshot.project.revision}</h2>
-                <p>
-                  {review.snapshot.scope} · {review.snapshot.project.route} ·{" "}
-                  {review.snapshot.project.stage}
-                </p>
-                <p>{review.summary.disclaimer}</p>
-                {review.stale && (
-                  <p role="status">
-                    Historical review — working project has changed. This
-                    snapshot remains unchanged.
-                  </p>
-                )}
-                <h3>Contribution / insight to preserve</h3>
-                <p>{review.summary.contribution}</p>
-                <h3>Principal obstacle</h3>
-                <p>{review.summary.obstacle}</p>
-                <h3>Evidence and status limitations</h3>
-                <ul>
-                  {review.summary.limitations.map((l, i) => (
-                    <li key={i}>{l}</li>
+                      )}
+                    </article>
                   ))}
-                </ul>
-                <h3>Source packet for this snapshot</h3>
-                <p>
-                  Provided to the fake fixture; no semantic inspection. Each
-                  link opens the frozen source version.
-                </p>
+              </section>
+              <section
+                hidden={active !== "Overview" && active !== "Literature"}
+              >
+                <h2>Literature and sources</h2>
+                <label>
+                  Source title
+                  <input
+                    value={sourceTitle}
+                    maxLength={200}
+                    onChange={(e) => setSourceTitle(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Attribution
+                  <input
+                    value={attribution}
+                    maxLength={500}
+                    onChange={(e) => setAttribution(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Pasted source text
+                  <textarea
+                    value={sourceText}
+                    maxLength={50000}
+                    onChange={(e) => setSourceText(e.target.value)}
+                  />
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={sourceAuthorized}
+                    onChange={(e) => setSourceAuthorized(e.target.checked)}
+                  />
+                  {provider.startsWith("openai:")
+                    ? "I authorize OpenAI to process"
+                    : "I am authorized to process"}{" "}
+                  this source text locally.
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={admitted}
+                    onChange={(e) => setAdmitted(e.target.checked)}
+                  />
+                  Include this version in the evaluation packet.
+                </label>
+                <button
+                  disabled={
+                    !sourceAuthorized ||
+                    !sourceTitle.trim() ||
+                    !attribution.trim() ||
+                    !sourceText.trim()
+                  }
+                  onClick={() =>
+                    void work(async () => {
+                      await changed(
+                        await api<View>(
+                          "/projects/" + view.project.project_id + "/sources",
+                          "POST",
+                          {
+                            expected_revision: view.project.revision,
+                            title: sourceTitle,
+                            attribution,
+                            text: sourceText,
+                            authorized: sourceAuthorized,
+                            admitted,
+                          },
+                        ),
+                      );
+                      setSourceText("");
+                    })
+                  }
+                >
+                  Add source
+                </button>
                 <ul>
-                  {review.coverage.map((c) => (
-                    <li key={c.document_id}>
-                      {c.title} · version {c.version} · {c.state}
-                      {c.anchors.map((a) => (
-                        <button
-                          key={a.anchor_id}
-                          onClick={() =>
-                            void work(async () => {
-                              const p = await api<{ text: string }>(
-                                "/projects/" +
-                                  view.project.project_id +
-                                  "/sources/" +
-                                  c.document_id +
-                                  "/" +
-                                  c.version +
-                                  "/" +
-                                  a.anchor_id,
-                              );
-                              setPassage(p.text);
-                            })
-                          }
-                        >
-                          Read snapshot source {c.title}, lines {a.line_start}–
-                          {a.line_end}
-                        </button>
-                      ))}
+                  {view.sources.map((s) => (
+                    <li key={s.source.document_id}>
+                      {s.source.title} · version {s.version} · {s.source.role} ·{" "}
+                      {s.state} · {s.admitted ? "included" : "excluded"}{" "}
+                      {s.admitted &&
+                        s.anchors.map((a) => (
+                          <button
+                            key={a.anchor_id}
+                            onClick={() =>
+                              void work(async () => {
+                                const p = await api<{ text: string }>(
+                                  "/projects/" +
+                                    view.project.project_id +
+                                    "/sources/" +
+                                    s.source.document_id +
+                                    "/" +
+                                    s.version +
+                                    "/" +
+                                    a.anchor_id,
+                                );
+                                setPassage(p.text);
+                              })
+                            }
+                          >
+                            Inspect {s.source.title}, lines {a.line_start}–
+                            {a.line_end}
+                          </button>
+                        ))}
                     </li>
                   ))}
                 </ul>
-                <h3>Applicable rubric results</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Block</th>
-                      <th>Result</th>
-                      <th>Status</th>
-                      <th>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(["idea", "study", "project"] as const).map((name) => (
-                      <tr key={name}>
-                        <th>{name}</th>
-                        <td>{review.policy[name].displayed ?? "—"}</td>
-                        <td>{review.policy[name].status}</td>
-                        <td>{review.policy[name].reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {passage !== null && (
+                  <aside aria-label="Source passage">
+                    <h3>Original source passage</h3>
+                    <pre>{passage}</pre>
+                  </aside>
+                )}
+              </section>
+              <section hidden={active !== "Overview" && active !== "Review"}>
+                <h2>Evaluate this revision</h2>
                 <p>
-                  {review.policy.label} · Editorial:{" "}
-                  {review.policy.editorial_status}
+                  {provider === "deterministic-fake-v1" || provider === "fake"
+                    ? "Offline fake evaluation uses fixed synthetic responses; other inputs retain pending judgments."
+                    : `Provider: ${provider}. Bounded evaluation includes a focused checking pass; interpretive support is not independent evidence verification.`}
                 </p>
-                <details>
-                  <summary>Dimension judgments and limits</summary>
+                <label htmlFor="review-scope">Review scope</label>
+                <select
+                  id="review-scope"
+                  value={reviewScope}
+                  onChange={(e) =>
+                    setReviewScope(
+                      e.target
+                        .value as components["schemas"]["EvaluateRequest"]["scope"],
+                    )
+                  }
+                >
+                  <option value="INITIAL_SCREEN">Initial screen</option>
+                  <option value="FULL_EVALUATION">Full evaluation</option>
+                  <option value="REVISION_REVIEW">Revision evaluation</option>
+                </select>
+                <button
+                  onClick={() =>
+                    void work(async () => {
+                      setReview(await evaluateRevision(view));
+                      update(
+                        await api<View>("/projects/" + view.project.project_id),
+                      );
+                    })
+                  }
+                >
+                  {provider === "deterministic-fake-v1" || provider === "fake"
+                    ? "Run fake evaluation"
+                    : "Run evaluation"}
+                </button>
+                {runMessage && <p role="status">{runMessage}</p>}
+                <ul>
+                  {view.reviews.map((r) => (
+                    <li key={r.snapshot_id}>
+                      <button
+                        onClick={() =>
+                          void work(async () => {
+                            setReview(
+                              await api<Review>(
+                                "/projects/" +
+                                  view.project.project_id +
+                                  "/reviews/" +
+                                  r.snapshot_id,
+                              ),
+                            );
+                          })
+                        }
+                      >
+                        Open review of revision {r.revision}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              {review && (
+                <section
+                  hidden={active !== "Overview" && active !== "Review"}
+                  aria-label="Evaluation review"
+                >
+                  <h2>Review of revision {review.snapshot.project.revision}</h2>
+                  <p>
+                    {review.snapshot.scope} · {review.snapshot.project.route} ·{" "}
+                    {review.snapshot.project.stage}
+                  </p>
+                  <p>{review.summary.disclaimer}</p>
+                  {review.stale && (
+                    <p role="status">
+                      Historical review — working project has changed. This
+                      snapshot remains unchanged.
+                    </p>
+                  )}
+                  <h3>Contribution / insight to preserve</h3>
+                  <p>{review.summary.contribution}</p>
+                  <h3>Principal obstacle</h3>
+                  <p>{review.summary.obstacle}</p>
+                  <h3>Evidence and status limitations</h3>
                   <ul>
-                    {review.assessment.ratings.map((r) => (
-                      <li key={r.dimension}>
-                        Dimension {r.dimension}: {r.rating ?? "—"} · {r.status}
-                        <p>{r.rationale}</p>
-                        <p>
-                          {r.main_limitation} Verifier: {r.verification}.
-                        </p>
+                    {review.summary.limitations.map((l, i) => (
+                      <li key={i}>{l}</li>
+                    ))}
+                  </ul>
+                  <h3>Source packet for this snapshot</h3>
+                  <p>
+                    Provided to the fake fixture; no semantic inspection. Each
+                    link opens the frozen source version.
+                  </p>
+                  <ul>
+                    {review.coverage.map((c) => (
+                      <li key={c.document_id}>
+                        {c.title} · version {c.version} · {c.state}
+                        {c.anchors.map((a) => (
+                          <button
+                            key={a.anchor_id}
+                            onClick={() =>
+                              void work(async () => {
+                                const p = await api<{ text: string }>(
+                                  "/projects/" +
+                                    view.project.project_id +
+                                    "/sources/" +
+                                    c.document_id +
+                                    "/" +
+                                    c.version +
+                                    "/" +
+                                    a.anchor_id,
+                                );
+                                setPassage(p.text);
+                              })
+                            }
+                          >
+                            Read snapshot source {c.title}, lines {a.line_start}
+                            –{a.line_end}
+                          </button>
+                        ))}
                       </li>
                     ))}
                   </ul>
-                </details>
-                {review.provider_run && (
+                  <h3>Applicable rubric results</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Block</th>
+                        <th>Result</th>
+                        <th>Status</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(["idea", "study", "project"] as const).map((name) => (
+                        <tr key={name}>
+                          <th>{name}</th>
+                          <td>{review.policy[name].displayed ?? "—"}</td>
+                          <td>{review.policy[name].status}</td>
+                          <td>{review.policy[name].reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p>
+                    {review.policy.label} · Editorial:{" "}
+                    {review.policy.editorial_status}
+                  </p>
                   <details>
-                    <summary>Provider usage and focused support checks</summary>
-                    <p>
-                      Run {review.provider_run.run_id}:{" "}
-                      {review.provider_run.status}
-                    </p>
+                    <summary>Dimension judgments and limits</summary>
                     <ul>
-                      {review.provider_run.calls.map((call, i) => (
-                        <li key={i}>
-                          {call.task}:{" "}
-                          {call.returned_model ?? call.configured_model} ·{" "}
-                          {call.status} · input {call.input_tokens ?? "unknown"}
-                          , output {call.output_tokens ?? "unknown"}
-                        </li>
-                      ))}
-                    </ul>
-                    <ul>
-                      {review.statements.map((statement) => (
-                        <li key={statement.statement_id}>
-                          {statement.kind}: {statement.text}
-                        </li>
-                      ))}
-                    </ul>
-                    <ul>
-                      {review.checks.map((check) => (
-                        <li key={check.target}>
-                          {check.target}: {check.disposition} — {check.reason}
+                      {review.assessment.ratings.map((r) => (
+                        <li key={r.dimension}>
+                          Dimension {r.dimension}: {r.rating ?? "—"} ·{" "}
+                          {r.status}
+                          <p>{r.rationale}</p>
+                          <p>
+                            {r.main_limitation} Verifier: {r.verification}.
+                          </p>
                         </li>
                       ))}
                     </ul>
                   </details>
-                )}
-                <h3>Readiness and applicability</h3>
-                <ul aria-label="Readiness gates">
-                  {review.policy.gates.map((gate) => (
-                    <li key={gate.name}>
-                      {gate.name}: {gate.state}
-                      {gate.commitment ? ` · ${gate.commitment}` : ""}
-                    </li>
-                  ))}
-                </ul>
-                <h3>Recommended next action</h3>
-                <p>{review.summary.next_action}</p>
-                <p>{review.summary.deliverable}</p>
-                <ul>
-                  {review.summary.outcome_branches.map((branch, i) => (
-                    <li key={i}>{branch}</li>
-                  ))}
-                </ul>
-                <details>
-                  <summary>
-                    Deterministic rule trace and exact backend results
-                  </summary>
-                  <pre>{JSON.stringify(review.policy, null, 2)}</pre>
-                </details>
+                  {review.provider_run && (
+                    <details>
+                      <summary>
+                        Provider usage and focused support checks
+                      </summary>
+                      <p>
+                        Run {review.provider_run.run_id}:{" "}
+                        {review.provider_run.status}
+                      </p>
+                      <ul>
+                        {review.provider_run.calls.map((call, i) => (
+                          <li key={i}>
+                            {call.task}:{" "}
+                            {call.returned_model ?? call.configured_model} ·{" "}
+                            {call.status} · input{" "}
+                            {call.input_tokens ?? "unknown"}, output{" "}
+                            {call.output_tokens ?? "unknown"}
+                          </li>
+                        ))}
+                      </ul>
+                      <ul>
+                        {review.statements.map((statement) => (
+                          <li key={statement.statement_id}>
+                            {statement.kind}: {statement.text}
+                          </li>
+                        ))}
+                      </ul>
+                      <ul>
+                        {review.checks.map((check) => (
+                          <li key={check.target}>
+                            {check.target}: {check.disposition} — {check.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  <h3>Readiness and applicability</h3>
+                  <ul aria-label="Readiness gates">
+                    {review.policy.gates.map((gate) => (
+                      <li key={gate.name}>
+                        {gate.name}: {gate.state}
+                        {gate.commitment ? ` · ${gate.commitment}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                  <h3>Recommended next action</h3>
+                  <p>{review.summary.next_action}</p>
+                  <p>{review.summary.deliverable}</p>
+                  <ul>
+                    {review.summary.outcome_branches.map((branch, i) => (
+                      <li key={i}>{branch}</li>
+                    ))}
+                  </ul>
+                  <details>
+                    <summary>
+                      Deterministic rule trace and exact backend results
+                    </summary>
+                    <pre>{JSON.stringify(review.policy, null, 2)}</pre>
+                  </details>
+                </section>
+              )}
+              <section>
+                <h2>Export and reload</h2>
+                <p>
+                  Exports include project history and reviews. Original source
+                  files and private storage references are excluded.
+                </p>
+                <a
+                  href={
+                    "/api/projects/" +
+                    view.project.project_id +
+                    "/exports/markdown"
+                  }
+                  download
+                >
+                  Export Markdown
+                </a>
+                {" · "}
+                <a
+                  href={
+                    "/api/projects/" + view.project.project_id + "/exports/json"
+                  }
+                  download
+                >
+                  Export JSON
+                </a>
+                <p>Bookmark this project URL to reload its saved state.</p>
+                <button onClick={() => location.reload()}>
+                  Reload saved project
+                </button>
               </section>
-            )}
-            <section>
-              <h2>Export and reload</h2>
-              <p>
-                Exports include project history and reviews. Original source
-                files and private storage references are excluded.
-              </p>
-              <a
-                href={
-                  "/api/projects/" +
-                  view.project.project_id +
-                  "/exports/markdown"
-                }
-                download
-              >
-                Export Markdown
-              </a>
-              {" · "}
-              <a
-                href={
-                  "/api/projects/" + view.project.project_id + "/exports/json"
-                }
-                download
-              >
-                Export JSON
-              </a>
-              <p>Bookmark this project URL to reload its saved state.</p>
-              <button onClick={() => location.reload()}>
-                Reload saved project
-              </button>
-            </section>
+            </div>
           </>
         )}
       </fieldset>

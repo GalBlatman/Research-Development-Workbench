@@ -4,6 +4,7 @@ from domain.application import (
     AssessmentFields,
     AssessmentTask,
     CandidateReview,
+    CheckDecision,
     CheckedReview,
     Interpretation,
     InterpretationTask,
@@ -11,11 +12,17 @@ from domain.application import (
 )
 from domain.models import (
     Brief,
+    EvidenceState,
+    Origin,
     Rating,
+    ResearchField,
+    ResearchRecord,
     ReviewContent,
+    SourceReference,
     Status,
     Verification,
 )
+from domain.research import CHOICES, WorkspaceCheckResult, WorkspaceProposal, WorkspaceTask
 from model_adapters.contracts import ModelAdapter as ModelAdapter
 from model_adapters.contracts import OutputVerifier as OutputVerifier
 
@@ -64,6 +71,10 @@ class FakeModel:
             and literature == (DEMO_SOURCE,)
             and context.project.route == "EXPLAIN"
             and context.project.stage == "EARLY IDEA"
+            and not any(
+                isinstance(o.payload, ResearchRecord) and o.adoption == "accepted"
+                for o in context.project.objects
+            )
         )
         ratings = tuple(
             Rating(
@@ -109,6 +120,93 @@ class FakeModel:
             ),
         )
 
+    def develop(self, task: WorkspaceTask) -> WorkspaceProposal:
+        existing = next(
+            (
+                o
+                for o in task.context.project.objects
+                if o.object_id == task.target_object_id and isinstance(o.payload, ResearchRecord)
+            ),
+            None,
+        )
+        if existing and isinstance(existing.payload, ResearchRecord):
+            fields = tuple(
+                f.model_copy(
+                    update={"origin": Origin.SUGGESTION, "state": EvidenceState.UNINSPECTED}
+                )
+                for f in existing.payload.fields
+            )
+        elif task.workspace == "Literature":
+            passage = next(
+                (p for p in task.context.passages if p.source.role == "literature"), None
+            )
+            if passage:
+                ref = SourceReference(
+                    document_id=passage.source.document_id,
+                    version=passage.anchor.version,
+                    anchor_id=passage.anchor.anchor_id,
+                )
+                fields = (
+                    ResearchField(
+                        key="source_claim",
+                        text=passage.text,
+                        origin=Origin.SUGGESTION,
+                        source_refs=(ref,),
+                    ),
+                    ResearchField(
+                        key="model_synthesis",
+                        text="Fixed fixture: overlap remains unresolved; no semantic comparison",
+                        origin=Origin.SUGGESTION,
+                    ),
+                    ResearchField(
+                        key="relation", text="unresolved overlap", origin=Origin.SUGGESTION
+                    ),
+                )
+            else:
+                fields = (
+                    ResearchField(
+                        key="coverage",
+                        text="No admitted literature passage; novelty remains unresolved",
+                        origin=Origin.SUGGESTION,
+                    ),
+                )
+        elif task.workspace == "Next Actions":
+            values = {
+                "task": "Inspect the nearest supplied predecessor passage",
+                "reason": "Resolve the attributed overlap before changing the promise",
+                "judgment": "Whether the proposed departure is supported remains unresolved",
+                "input": "Admitted original source passage and the author's current question",
+                "output": "A short attributed overlap / departure note",
+                "workspace": "Literature",
+                "dependency": "Current question and supplied source version",
+                "order": "1",
+                "branches": "Support, disagreement or incomplete inspection remain possible",
+                "state": "proposed",
+            }
+            fields = tuple(
+                ResearchField(key=k, text=v, origin=Origin.SUGGESTION) for k, v in values.items()
+            )
+        else:
+            key = task.allowed_fields[0]
+            fields = (
+                ResearchField(
+                    key=key,
+                    text=CHOICES[key][0]
+                    if key in CHOICES
+                    else "Fixed offline proposal: clarify this record using the original text; no scientific inference has been made.",
+                    origin=Origin.SUGGESTION,
+                ),
+            )
+        return WorkspaceProposal(
+            record=ResearchRecord(
+                workspace=task.workspace,
+                title="Proposed " + task.workspace + " note",
+                fields=fields,
+            ),
+            reason="Fixed synthetic development fixture; adopt only as representation",
+            limitations=(DISCLAIMER,),
+        )
+
 
 class FixtureVerifier:
     """Exact fixture conformance only; no semantic research verification."""
@@ -130,3 +228,19 @@ class FixtureVerifier:
 
     def review(self, task: AssessmentTask, candidate: CandidateReview) -> CheckedReview:
         return CheckedReview(assessment=self.verify(task, candidate), summary=candidate.summary)
+
+    def workspace(self, task: WorkspaceTask, candidate: WorkspaceProposal) -> WorkspaceCheckResult:
+        if candidate != FakeModel().develop(task):
+            raise ValueError("Invalid fake workspace proposal")
+        return WorkspaceCheckResult(
+            decisions=tuple(
+                CheckDecision(
+                    target=f.key,
+                    disposition=Verification.UNRESOLVED,
+                    reason=DISCLAIMER,
+                    source_refs=f.source_refs,
+                )
+                for f in candidate.record.fields
+            ),
+            limitations=(DISCLAIMER,),
+        )

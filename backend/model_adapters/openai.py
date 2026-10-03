@@ -17,6 +17,12 @@ from domain.application import (
     InterpretationTask,
 )
 from domain.models import ProviderCall, ProviderRun
+from domain.research import (
+    WorkspaceCheckingTask,
+    WorkspaceCheckResult,
+    WorkspaceProposal,
+    WorkspaceTask,
+)
 from model_adapters.config import ProviderConfig
 from model_adapters.runtime import ProviderFailure, active, provider_session, timestamp
 from model_adapters.schema import strict_schema
@@ -89,7 +95,7 @@ def packet_check(context: Any) -> None:
 
 
 class OpenAIAdapter:
-    prompt_configuration = "evaluation-v1/checking-v2"
+    prompt_configuration = "evaluation-v2/checking-v2"
 
     def __init__(
         self,
@@ -126,12 +132,22 @@ class OpenAIAdapter:
             payload["criteria"] = policy_contract(task.assessment_task)
             return self.call("checking", payload, CheckResult)
 
+    def develop(self, task: WorkspaceTask) -> WorkspaceProposal:
+        packet_check(task.context)
+        with provider_session(self):
+            return self.call("workspace", task.model_dump(mode="json"), WorkspaceProposal)
+
+    def workspace_check(self, task: WorkspaceCheckingTask) -> WorkspaceCheckResult:
+        packet_check(task.context)
+        with provider_session(self):
+            return self.call("workspace-check", task.model_dump(mode="json"), WorkspaceCheckResult)
+
     def call(self, kind: str, payload: dict[str, Any], model: type[T]) -> T:
         config = self.provider_config
         packet = payload.get("context") or payload.get("assessment_task", {}).get("context")
         if len(json.dumps(packet, ensure_ascii=False).encode()) > config.max_context_bytes:
             raise ProviderFailure("CONTEXT_LIMIT")
-        prompt_version = kind + ("-v2" if kind == "checking" else "-v1")
+        prompt_version = kind + ("-v2" if kind in ("checking", "evaluation") else "-v1")
         prompt = (PROMPTS / (prompt_version + ".md")).read_text(encoding="utf-8")
         prompt_hash = hashlib.sha256(
             (

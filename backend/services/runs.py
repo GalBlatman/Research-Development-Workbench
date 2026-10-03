@@ -6,7 +6,10 @@ from threading import Lock
 from uuid import uuid4
 
 from domain.application import RunHandle
+from domain.models import Scope
+from domain.research import DevelopRequest
 from model_adapters.runtime import ProviderFailure
+from services.research import ResearchService
 from services.workbench import Workbench
 
 
@@ -49,7 +52,15 @@ class RunManager:
             raise ValueError("Run unavailable")
         return run
 
-    def submit(self, project_id: str, revision: int, dimensions: tuple[int, ...] = ()) -> RunHandle:
+    def submit(
+        self,
+        project_id: str,
+        revision: int,
+        dimensions: tuple[int, ...] = (),
+        target_workspace: str | None = None,
+        evaluation_scope: Scope = Scope.INITIAL_SCREEN,
+        development: DevelopRequest | None = None,
+    ) -> RunHandle:
         with self.lock:
             if self.busy:
                 raise ValueError("Another bounded evaluation is running; retry after it completes")
@@ -59,27 +70,54 @@ class RunManager:
         )
         try:
             self.write(run)
-            self.executor.submit(self.execute, run, dimensions)
+            self.executor.submit(
+                self.execute, run, dimensions, target_workspace, evaluation_scope, development
+            )
         except BaseException:
             with self.lock:
                 self.busy = False
             raise
         return run
 
-    def execute(self, run: RunHandle, dimensions: tuple[int, ...]) -> None:
+    def execute(
+        self,
+        run: RunHandle,
+        dimensions: tuple[int, ...],
+        target_workspace: str | None = None,
+        evaluation_scope: Scope = Scope.INITIAL_SCREEN,
+        development: DevelopRequest | None = None,
+    ) -> None:
         service = None
         try:
             self.write(run.model_copy(update={"state": "running"}))
             service = self.factory()
-            review = service.run(run.project_id, run.expected_revision, dimensions)
-            run = RunHandle.model_validate(
-                {
-                    **run.model_dump(),
-                    "state": "succeeded",
-                    "snapshot_id": review["snapshot"]["snapshot_id"],
-                    "provider_run": review.get("provider_run"),
-                }
-            )
+            if development is not None:
+                view = ResearchService(service).develop(run.project_id, development)
+                latest = view["project"]["objects"][-1]
+                run = RunHandle.model_validate(
+                    {
+                        **run.model_dump(),
+                        "state": "succeeded",
+                        "result_revision": view["project"]["revision"],
+                        "provider_run": latest.get("provider_run"),
+                    }
+                )
+            else:
+                review = service.run(
+                    run.project_id,
+                    run.expected_revision,
+                    dimensions,
+                    target_workspace,
+                    evaluation_scope,
+                )
+                run = RunHandle.model_validate(
+                    {
+                        **run.model_dump(),
+                        "state": "succeeded",
+                        "snapshot_id": review["snapshot"]["snapshot_id"],
+                        "provider_run": review.get("provider_run"),
+                    }
+                )
         except ProviderFailure as exc:
             run = run.model_copy(
                 update={"state": "failed", "error_code": exc.code, "provider_run": exc.metadata}
