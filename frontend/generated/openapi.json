@@ -1178,6 +1178,19 @@
             "title": "Dependencies",
             "type": "array"
           },
+          "dependency_identity": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Dependency Identity"
+          },
           "evidence_state": {
             "$ref": "#/components/schemas/EvidenceState"
           },
@@ -1739,12 +1752,18 @@
             "type": "string"
           },
           "depends_on": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Depends On",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On"
           },
           "expected_revision": {
             "minimum": 1.0,

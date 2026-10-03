@@ -227,6 +227,10 @@ def test_checker_withdraws_unsupported_judgment_without_policy_change(packet, mo
             output["summary"]["obstacle"] = (
                 "Original allegation withdrawn; relevant support remains unresolved."
             )
+            output["obstacle_action"] = "withdraw"
+            for decision in output["decisions"]:
+                if decision["target"] == "statement:principal-obstacle":
+                    decision["disposition"] = "needs_revision"
         return output
 
     model, checker, _ = adapter(monkeypatch, change)

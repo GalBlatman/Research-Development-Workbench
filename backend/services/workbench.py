@@ -49,7 +49,7 @@ from model_adapters.runtime import ProviderFailure, provider_session, timestamp
 from persistence.repository import Conflict, Repository
 from policy_engine.engine import evaluate
 from policy_engine.manifest import Manifest
-from services.research import changed, dependencies, invalidate
+from services.research import changed, dependencies, invalidate, review_keys
 from services.sources import SourceService
 
 
@@ -461,6 +461,7 @@ class Workbench:
                     dependencies=dependencies(
                         project,
                         ((target_workspace,) if target_workspace else tuple(FIELDS))
+                        + review_keys(project, target_workspace)
                         + tuple(
                             "source:" + ref.document_id
                             for decision in checked.checks
@@ -483,9 +484,19 @@ class Workbench:
                 "Historical rendering was not captured for this legacy snapshot; deliberate reevaluation is required"
             )
         current = self.repository.project(self.scope(project_id))
+        # Older snapshots predate explicit review dependency capture. Derive their
+        # logical dependencies from their own frozen project, never today's objects.
+        tracked = {
+            d.key: d
+            for d in dependencies(
+                stored.snapshot.project,
+                review_keys(stored.snapshot.project, stored.target_workspace),
+            )
+        }
+        tracked.update({d.key: d for d in stored.dependencies})
         affected = tuple(
             d.key
-            for d in stored.dependencies
+            for d in tracked.values()
             if current.dependency_versions.get(d.key, 0) != d.version
         )
         result = {
@@ -500,7 +511,7 @@ class Workbench:
             "assessment": stored.assessment.model_dump(mode="json", exclude={"snapshot"}),
             "policy": stored.policy_result.model_dump(mode="json", exclude_unset=True),
             "stale": bool(affected)
-            if stored.dependencies
+            if tracked
             else current.revision != stored.snapshot.project.revision,
             "affected_workspaces": list(affected),
             "target_workspace": stored.target_workspace,

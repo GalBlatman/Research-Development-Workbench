@@ -199,7 +199,8 @@ class RecordRequest(RevisionRequest):
     record: ResearchRecord
     object_id: str | None = None
     source_refs: tuple[SourceReference, ...] = ()
-    depends_on: tuple[str, ...] = ()
+    # None preserves existing dependencies; an explicit empty tuple removes them.
+    depends_on: tuple[str, ...] | None = None
     change: Literal["substantive", "wording", "resources"] = "substantive"
 
 
@@ -249,6 +250,22 @@ class WorkspaceProposal(Frozen):
             for f in self.record.fields
         ):
             raise ValueError("Model proposals cannot become user text or verified evidence")
+        if self.record.workspace == "Next Actions":
+            required = {
+                "task",
+                "reason",
+                "judgment",
+                "input",
+                "output",
+                "workspace",
+                "dependency",
+                "branches",
+            }
+            present = {f.key for f in self.record.fields if f.text and f.text.strip()}
+            if not required <= present:
+                raise ValueError(
+                    "Incomplete diagnostic Next Action: " + ", ".join(sorted(required - present))
+                )
         return self
 
 
