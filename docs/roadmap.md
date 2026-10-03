@@ -7,7 +7,7 @@
 | RDW-003 | Source/document core and project persistence | RDW-002 | Complete |
 | RDW-004 | Minimal end-to-end app using a fake model | RDW-003 | Complete |
 | GATE-1 | Independent architecture/acceptance audit | RDW-004 | PASS on RDW-004 baseline; five findings resolved in RDW-005 6A |
-| RDW-005 | Real bounded LLM evaluation workflow | GATE-1 passed; provider/data/budget decisions | Implementation complete; synthetic live smoke BLOCKED_CREDENTIAL |
+| RDW-005 | Real bounded LLM evaluation workflow | GATE-1 passed; provider/data/budget decisions | Complete; live compatibility accepted (see RDW-005 task record) |
 | RDW-006 | Research workspaces and revision loop | RDW-005 | Pending |
 | GATE-2 | Independent scientific-behavior audit | RDW-006 | Required before RDW-007 |
 | RDW-007 | Benchmark and ablation harness | GATE-2 passed | Pending |

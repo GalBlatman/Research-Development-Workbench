@@ -15,6 +15,6 @@ Official references checked 2026-10-02:
 - https://developers.openai.com/api/docs/guides/structured-outputs
 - https://developers.openai.com/api/docs/guides/your-data
 
-No API key is available in the execution environment. Live synthetic smoke is BLOCKED_CREDENTIAL until an authorized environment key exists.
+At initial implementation, the environment lacked a key and live smoke was BLOCKED_CREDENTIAL. The subsequent owner-authorized compatibility acceptance combines previously observed live interpretation/evaluation with one successful corrected targeted checker call. See the RDW-005 task record; scientific calibration remains future work.
 
 Source-version convention: the current packet includes latest admitted versions plus admitted versions cited by retained project interpretations. Earlier versions are marked historical, retained for provenance, and cannot silently replace the current draft. A revoked reference fails before model processing. Structural source resolution and semantic dispositions are stored separately; neither is independent empirical data verification. Safe private provider receipts also preserve failed intake calls without storing request/response text.
