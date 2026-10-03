@@ -1,0 +1,136 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #20332d;
+  background: #f5f4ef;
+  line-height: 1.6;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 20px 70px;
+}
+header {
+  padding: 20px 0;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+h2 {
+  margin-top: 0;
+}
+.eyebrow {
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+section {
+  background: white;
+  border: 1px solid #d8ded9;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 18px 0;
+}
+label {
+  display: block;
+  margin: 16px 0;
+  font-weight: 600;
+}
+input,
+textarea,
+select {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #7c8982;
+  border-radius: 5px;
+  font: inherit;
+  margin-top: 6px;
+}
+textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+button {
+  background: #285b49;
+  color: white;
+  border: 0;
+  border-radius: 5px;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+  margin: 4px 8px 4px 0;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.check {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  font-weight: 400;
+}
+.check input {
+  width: auto;
+  margin-top: 8px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  background: #f0f3ef;
+  max-height: 500px;
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #d8ded9;
+}
+[role="alert"] {
+  background: #fff0e9;
+  border: 1px solid #a43f20;
+  padding: 16px;
+}
+a {
+  color: #1d5741;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+:focus-visible {
+  outline: 3px solid #cf8519;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  section {
+    padding: 16px;
+  }
+}

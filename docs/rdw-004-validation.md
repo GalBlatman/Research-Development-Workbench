@@ -1,0 +1,7 @@
+# RDW-004 acceptance and scope review
+
+backend/tests/test_application.py covers intake/source storage, deterministic/injectable fake boundary, exact fixture verification, limited pending and route-not-applicable results, adoption without evidence promotion, immutable reviews after edits, separate-connection reload, private-reference-free exports, selected-source inspection, excluded admissions, scope/conflict/origin rejection, invalid schema and valid-but-wrong output rejection, network-blocked evaluation and generated-contract drift. Existing golden/source suites remain applicable.
+
+frontend/e2e/flow.spec.ts exercises Chromium -> React -> real FastAPI -> repository/adapter/verifier/policy, including interpretation acceptance, source passage inspection, score/trace display, downloaded Markdown/JSON content, revision edits, unchanged historical policy, reload, limited pending results and visible invalid fixture failure. A second flow covers ESTABLISH not-applicable display and safe rendering of pasted script text. No mocked backend or model provider.
+
+Required verification: full Python regression with real PostgreSQL in CI, Ruff lint/format, strict mypy including API/adapter/workflow, frozen pnpm install, TypeScript/build, generated OpenAPI/TypeScript drift, two browser cases, Node/publication and governing-file checks. Same-session implementation review only; independent GATE-1 is unstarted. No scientific validity, calibration, authenticated deployment or real-provider readiness claimed.

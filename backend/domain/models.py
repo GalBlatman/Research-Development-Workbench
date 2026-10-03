@@ -354,3 +354,14 @@ class Assessment(Frozen):
             if any((ref.document_id, ref.version) not in versions for ref in finding.source_refs):
                 raise ValueError("Finding refers to a document outside snapshot")
         return self
+
+
+class ReviewSummary(Frozen):
+    contribution: Text
+    obstacle: Text
+    limitations: tuple[Text, ...]
+    next_action: Text
+    deliverable: Text
+    outcome_branches: tuple[Text, ...]
+    fixture: Literal["limited", "scored"]
+    disclaimer: Literal["Fake fixture output; no scientific assessment or semantic verification."]

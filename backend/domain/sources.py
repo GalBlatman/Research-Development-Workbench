@@ -12,6 +12,7 @@ from domain.models import (
     Frozen,
     Hash,
     Project,
+    ReviewSummary,
     Revision,
     Text,
 )
@@ -169,9 +170,12 @@ class Admission(Frozen):
 class StoredSnapshot(Frozen):
     snapshot: EvaluationSnapshot
     assessment: Assessment | None = None
+    review: ReviewSummary | None = None
 
     @model_validator(mode="after")
     def same_target(self) -> Self:
+        if self.review is not None and self.assessment is None:
+            raise ValueError("Application review requires its frozen assessment")
         if self.assessment is not None and self.assessment.snapshot != self.snapshot:
             raise ValueError("Assessment must retain exactly this frozen snapshot")
         return self

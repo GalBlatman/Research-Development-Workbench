@@ -1,25 +1,11 @@
 # Research Development Workbench
 
-An author-facing research workspace intended to turn supplied ideas and authorized literature into inspectable assessments and bounded next actions. Current status: pure domain/v4 policy plus scoped source records and persistence; there is no working application.
+An author-facing research workspace for inspectable assessments and bounded next actions. RDW-004 provides the first local browser/backend flow using fixed fake-model outputs. It demonstrates state, sources, policy calculations and review delivery; it does not assess scientific judgment.
 
-Evaluation policy: [rubric v4](policies/rubric-v4.md). Product behavior: [specification](docs/product-spec.md). Read [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and [task contracts](docs/tasks/RDW-001.md). The reference HTML is a synthetic design mockup, not application code.
+Create a project, paste an idea and authorized literature excerpt, inspect the proposed interpretation, run a limited or exact synthetic fake evaluation, inspect source passages and backend rubric traces, edit/reload, and export Markdown/JSON. Old evaluation snapshots remain unchanged. React/TypeScript displays backend results; Python/FastAPI/Pydantic services own state and policy. PostgreSQL is canonical; SQLite supports the local demonstration/tests. Originals stay outside Git and structured records.
 
-## Local checks
+See [development instructions](docs/development.md), [task contract](docs/tasks/RDW-004.md), [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), [product specification](docs/product-spec.md), and [immutable rubric](policies/rubric-v4.md). Python 3.12.15 / uv 0.12.22 and Node 24.19.0 / pnpm 11.19.0 have committed dependency locks. Run node scripts/check.mjs, full backend tests/type/lint, generated contract checks, frontend build and browser tests before integration.
 
-Use Git and Node 24.19.0 (pinned in .node-version). Clone the repository into a development directory outside private references and synced research folders; change into the checkout, then run:
+The app is loopback-only development, without authentication or deployment. No real model calls, prompts, provider SDKs, external literature discovery, PDF/DOCX, full workspace suite or calibration. Fake suggestions remain proposed/not inspected unless explicitly adopted as representation; adoption never verifies evidence. GATE-1 and RDW-005 require separate tasks. Licensing remains an owner decision.
 
-```text
-node scripts/check.mjs
-node --test tests/bootstrap.test.mjs
-git config core.hooksPath .githooks
-```
-
-There are no Node package dependencies to install. The dependency-free checks also run in CI. Frontend React/TypeScript package installation, formatting/linting/build and a lockfile remain pending until package tooling is available; no frontend source exists yet.
-
-The backend keeps the planned Python/FastAPI/Pydantic stack. Pure domain and policy contracts are implemented with Pydantic; no API exists. Use Python 3.12.15 and uv 0.12.22. From backend run uv sync --locked, then uv run --locked pytest -q, uv run --locked ruff check ., uv run --locked ruff format --check . and uv run --locked mypy domain policy_engine persistence services. See docs/development.md for reproducible setup.
-
-The intended architecture is a modular monolith. The backend owns deterministic policy; the frontend only presents results. Original files and structured project records are separate. Fake models precede any real provider.
-
-This repository is public. Do not add papers, their conversions, builder exports, uploaded projects, private reports or secrets. Approved governing documents are copied unchanged; their scholarly citations do not authorize redistribution of source papers. Publication checks complement explicit file review and cannot prove all content is safe.
-
-Text/Markdown versions, private original-file metadata, stable anchors, immutable revisions/snapshots, portable records and admitted lexical retrieval are implemented. PostgreSQL is canonical; SQLite runs local contracts. See backend/persistence/README.md. Not implemented: PDF/DOCX, UI, models, authentication, deployment or research-evaluation harness. Licensing remains an owner decision. Task branches must pass foundation and domain CI before main integration.
+This repository is public. Never add private papers/conversions, builder exports, uploads, runtime records, reviews or secrets. Synthetic fixtures only. Publication checks complement exact staged-tree review; scholarly citations do not authorize redistribution. The reference HTML is an approved synthetic design mockup, not the running application.

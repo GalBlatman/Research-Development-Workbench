@@ -11,10 +11,12 @@ export function inspectFile(name, bytes) {
       || /(^|\/)\.env($|\.)/.test(normalized)
       || /\.(pdf|docx?|pptx?|epub|png|jpe?g|gif|webp|zip|sqlite\d*|db|log|pem|key|p12|pfx)$/.test(normalized)) errors.push('forbidden publication category');
   const permitted = /\.(md|json|toml|mjs|ya?ml|html)$/.test(normalized)
-    || (/^backend\/(domain|policy_engine|persistence|services|tests)\/.+\.py$/.test(normalized))
+    || (/^backend\/(domain|policy_engine|persistence|services|model_adapters|api|tests)\/.+\.py$/.test(normalized))
+    || (/^frontend\/(src|generated|e2e)\/.+\.(ts|tsx|css)$/.test(normalized))
+    || ['frontend/vite.config.ts', 'frontend/playwright.config.ts', 'frontend/pnpm-lock.yaml', 'frontend/index.html'].includes(normalized)
     || ['.gitignore', '.gitattributes', '.node-version', 'backend/.python-version', 'backend/uv.lock', '.githooks/pre-commit'].includes(normalized);
   if (!permitted) errors.push('unreviewed file type; explicit safety review required');
-  if (normalized.endsWith('.html') && normalized !== 'docs/reference/interface-wireframe.html') errors.push('unapproved HTML');
+  if (normalized.endsWith('.html') && !['docs/reference/interface-wireframe.html', 'frontend/index.html'].includes(normalized)) errors.push('unapproved HTML');
   if (bytes.includes(0)) errors.push('binary content');
   const text = bytes.toString('utf8');
   if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text)
