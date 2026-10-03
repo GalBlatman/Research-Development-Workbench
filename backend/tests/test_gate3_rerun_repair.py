@@ -494,3 +494,35 @@ def test_context_rejects_forged_imported_artifact_check(tmp_path, manifest):
             workbench.context(pid)
     finally:
         workbench.repository.db.close()
+
+
+def test_postgres_worker_reuses_original_connect_capability_not_scrubbed_dsn(monkeypatch):
+    from types import SimpleNamespace
+
+    import psycopg
+
+    calls = []
+
+    class Connection:
+        info = SimpleNamespace(dsn="host=synthetic user=synthetic")
+
+        def execute(self, sql, parameters=()):
+            return SimpleNamespace(fetchone=lambda: ("synthetic_schema",))
+
+        def close(self):
+            pass
+
+    def connect(dsn, **options):
+        calls.append(dsn)
+        return Connection()
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+    original = "host=synthetic user=synthetic password=dummy"
+    database = Database.postgres(original)
+    worker = database.connection_factory()()
+    try:
+        assert worker.connection is not database.connection
+        assert calls == [original, original]
+    finally:
+        worker.close()
+        database.close()

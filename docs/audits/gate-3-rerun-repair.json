@@ -1,9 +1,9 @@
 {
   "gate": "GATE-3",
-  "roadmap_step": "11/16 — GATE-3 repair",
+  "roadmap_step": "11/16 â€” GATE-3 repair",
   "audited_baseline": "90d0c12aa4ba997991c19cd05acda4e3f68db79a",
   "contract": "docs/tasks/GATE-3-rerun-repair.md",
-  "independent_rerun": "NOT_PERFORMED — this is a repair record, not an independent gate acceptance verdict",
+  "independent_rerun": "NOT_PERFORMED â€” this is a repair record, not an independent gate acceptance verdict",
   "findings": [
     {
       "id": "G3-RERUN-B1",
@@ -114,5 +114,6 @@
     "No calibration",
     "No live provider calls",
     "No new roadmap item"
-  ]
+  ],
+  "ci_correction": "Mandatory PostgreSQL connection ownership test exposed credential scrubbing in Connection.info.dsn. Workers now reopen through the privately retained original connect capability; a synthetic unit regression and PostgreSQL parity verify it."
 }

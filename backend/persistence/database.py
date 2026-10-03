@@ -29,10 +29,12 @@ class Database:
         self,
         connection: sqlite3.Connection | psycopg.Connection[Any],
         dialect: Literal["sqlite", "postgres"],
+        reconnect: Callable[[], "Database"] | None = None,
     ):
         self.connection = connection
         self.dialect = dialect
         self._sequence = 0
+        self._reconnect = reconnect
 
     @classmethod
     def sqlite(cls, filename: str | Path = ":memory:") -> "Database":
@@ -42,7 +44,9 @@ class Database:
 
     @classmethod
     def postgres(cls, dsn: str) -> "Database":
-        return cls(psycopg.connect(dsn, autocommit=True), "postgres")
+        return cls(
+            psycopg.connect(dsn, autocommit=True), "postgres", reconnect=lambda: cls.postgres(dsn)
+        )
 
     def connection_factory(self) -> Callable[[], "Database"]:
         """Capture connection identity on its owner thread; reopen only inside the worker."""
@@ -55,11 +59,15 @@ class Database:
             if not filename:
                 raise ValueError("WORKER_REQUIRES_PERSISTENT_DATABASE")
             return lambda: Database.sqlite(filename)
-        dsn = self.connection.info.dsn
+        # Connection.info.dsn intentionally omits credentials. Retain the original
+        # connect capability privately, never serialize/log a reconstructed DSN.
+        reconnect = self._reconnect
+        if reconnect is None:
+            raise ValueError("WORKER_REQUIRES_CONNECTION_FACTORY")
         schema = self.execute("SELECT current_schema()").fetchone()[0]
 
         def connect() -> "Database":
-            database = Database.postgres(dsn)
+            database = reconnect()
             database.execute(
                 psycopg.sql.SQL("SET search_path TO {}")
                 .format(psycopg.sql.Identifier(schema))
