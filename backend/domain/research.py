@@ -14,6 +14,7 @@ from domain.models import (
     SourceReference,
     Stage,
     Text,
+    validate_diagnostic_fields,
 )
 
 WORKSPACES = (
@@ -290,6 +291,21 @@ class WorkspaceProposal(Frozen):
                 raise ValueError(
                     "Incomplete diagnostic Next Action: " + ", ".join(sorted(required - present))
                 )
+            fields = {f.key: f.text for f in self.record.fields if f.text is not None}
+            validate_diagnostic_fields(
+                tuple(
+                    fields[k]
+                    for k in (
+                        "judgment",
+                        "task",
+                        "input",
+                        "output",
+                        "branches",
+                        "reason",
+                        "dependency",
+                    )
+                )
+            )
         return self
 
 

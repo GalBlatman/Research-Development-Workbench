@@ -14,6 +14,7 @@ from domain.benchmark import (
     Metric,
     Observation,
 )
+from domain.models import Verification
 
 WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
     "rating": frozenset(("pending", "unresolved", "not_inspected")),
@@ -24,6 +25,13 @@ WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
 
 
 def is_withholding(judgment: Judgment) -> bool:
+    if judgment.key.startswith("statement:") and judgment.state == "proposed":
+        # Adoption/content state is independent of the checker support disposition.
+        return (
+            judgment.checking_performed
+            and judgment.value is None
+            and judgment.verification == Verification.UNRESOLVED
+        )
     return (
         judgment.value is None
         and judgment.state in WITHHOLDING_STATES[judgment.key.split(":", 1)[0]]
@@ -50,7 +58,7 @@ def compare(
         old = previous.get(e.judgment)
 
         def signature(item: Judgment | None) -> object:
-            return (item.state, item.value) if item else None
+            return (item.state, item.value, item.content) if item else None
 
         changed = signature(j) != signature(old) if j is not None and old is not None else None
         allowed = (

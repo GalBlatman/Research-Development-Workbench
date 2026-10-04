@@ -8,9 +8,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from domain.application import AssessmentTask, CandidateReview
+from domain.application import AssessmentTask, CandidateReview, CheckDecision
 from domain.benchmark import BlindPacket, Judgment, Observation
-from domain.models import Project, Scope
+from domain.models import Adoption, AttributedStatement, EvidenceState, Project, Scope, Verification
 from domain.sources import SourceRecord
 from model_adapters.checking import AssessmentChecker
 from model_adapters.contracts import ModelAdapter
@@ -159,14 +159,27 @@ class BlindEvaluator:
             )
             for f in fields.get("findings", [])
         )
-        judgments.extend(
-            Judgment(
-                key="statement:" + s["statement_id"],
-                state="proposed",
-                source_refs=tuple(r["anchor_id"] for r in s["source_refs"]),
+        checks = tuple(CheckDecision.model_validate(c) for c in output.get("checks", []))
+        if len({c.target for c in checks}) != len(checks):
+            raise ValueError("Duplicate statement checking target")
+        by_target = {c.target: c for c in checks}
+        for raw in output.get("statements", output.get("checked_statements", [])):
+            statement = AttributedStatement.model_validate(raw)
+            decision = by_target.get("statement:" + statement.statement_id)
+            refs = statement.source_refs + (decision.source_refs if decision else ())
+            judgments.append(
+                Judgment(
+                    key="statement:" + statement.statement_id,
+                    state="proposed",
+                    checking_performed=decision is not None,
+                    content=statement.text,
+                    adoption=Adoption.PROPOSED,
+                    evidence_state=EvidenceState.UNINSPECTED,
+                    statement_kind=statement.kind,
+                    verification=decision.disposition if decision else Verification.UNRESOLVED,
+                    source_refs=tuple(dict.fromkeys(r.anchor_id for r in refs)),
+                )
             )
-            for s in output.get("statements", output.get("checked_statements", []))
-        )
         return Observation(
             judgments=tuple(judgments),
             authorized_anchors=tuple(p.anchor.anchor_id for p in context.passages),
