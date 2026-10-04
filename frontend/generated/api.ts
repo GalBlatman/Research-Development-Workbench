@@ -879,6 +879,11 @@ export interface components {
              * @default false
              */
             imported: boolean;
+            /**
+             * Imported Support History
+             * @default []
+             */
+            imported_support_history: components["schemas"]["SupportDisposition"][];
             /** Object Id */
             object_id: string;
             /**
@@ -994,6 +999,11 @@ export interface components {
         ProviderRun: {
             /** Calls */
             calls: components["schemas"]["ProviderCall"][];
+            /**
+             * Failure Kind
+             * @default null
+             */
+            failure_kind: string | null;
             /** Max Calls */
             max_calls: number;
             /** Max Tokens */

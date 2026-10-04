@@ -295,6 +295,24 @@
           "title": "Neutral Identifier",
           "type": "string"
         },
+        "paper_identity": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paper Identity"
+        },
+        "retired": {
+          "default": false,
+          "title": "Retired",
+          "type": "boolean"
+        },
         "route": {
           "$ref": "#/$defs/Route"
         },
@@ -306,6 +324,19 @@
         },
         "stage": {
           "$ref": "#/$defs/Stage"
+        },
+        "supersedes": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Supersedes"
         },
         "version": {
           "minLength": 1,

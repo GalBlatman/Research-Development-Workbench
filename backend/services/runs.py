@@ -27,6 +27,17 @@ def write_provider_receipt(root: Path, receipt: ProviderRun) -> None:
     suffix = (
         ".json" if receipt.status != "RUNNING" else ".call-" + str(len(receipt.calls)) + ".json"
     )
+    if (
+        receipt.status == "FAILED"
+        and receipt.failure_kind == "downstream"
+        and (root / (receipt.run_id + ".json")).exists()
+    ):
+        prior = ProviderRun.model_validate_json(
+            (root / (receipt.run_id + ".json")).read_text(encoding="utf-8")
+        )
+        if prior.status == "SUCCEEDED":
+            suffix = ".failed.json"  # Preserve completed call ledger; add downstream run outcome.
+
     target = root / (receipt.run_id + suffix)
     temporary = None
     try:
@@ -298,18 +309,53 @@ class RunManager:
                 }
             )
         except Conflict as exc:
+            metadata = exc.provider_metadata or (
+                getattr(service.adapter, "last_receipt", None) if service else None
+            )
+            if metadata:
+                metadata = metadata.model_copy(
+                    update={"status": "FAILED", "failure_kind": "downstream"}
+                )
+                sink = getattr(service.adapter, "receipt_sink", None) if service else None
+                if sink:
+                    try:
+                        sink(metadata)
+                    except (OSError, ValueError):
+                        logging.getLogger("rdw.operations").error(
+                            "FAILED_USAGE_LEDGER_WRITE; usage retained in failed run receipt"
+                        )
             run = run.model_copy(
                 update={
                     "state": "failed",
                     "error_code": "REVISION_CONFLICT_NO_PUBLICATION",
                     "failure_kind": "conflict",
-                    "provider_run": exc.provider_metadata,
+                    "provider_run": metadata,
                 }
             )
-        except Exception:
+        except Exception as exc:
+            metadata = getattr(exc, "provider_metadata", None) or (
+                getattr(service.adapter, "last_receipt", None) if service else None
+            )
+            if metadata:
+                metadata = metadata.model_copy(
+                    update={"status": "FAILED", "failure_kind": "downstream"}
+                )
+                sink = getattr(service.adapter, "receipt_sink", None) if service else None
+                if sink:
+                    try:
+                        sink(metadata)
+                    except (OSError, ValueError):
+                        logging.getLogger("rdw.operations").error(
+                            "FAILED_USAGE_LEDGER_WRITE; usage retained in failed run receipt"
+                        )
             # No provider manuscript/response/credential exception string is persisted or exposed.
             run = run.model_copy(
-                update={"state": "failed", "error_code": "RUN_FAILED_NO_PUBLICATION"}
+                update={
+                    "state": "failed",
+                    "error_code": "RUN_FAILED_NO_PUBLICATION",
+                    "failure_kind": "contract",
+                    "provider_run": metadata,
+                }
             )
         finally:
             if service is not None:

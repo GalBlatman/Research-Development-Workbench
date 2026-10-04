@@ -107,6 +107,19 @@ class BenchmarkProject(Frozen):
     source_package: SourcePackage
     gold: tuple[GoldFeature, ...]
     version: Text
+    paper_identity: Text | None = None
+    supersedes: Text | None = None
+    retired: bool = False
+
+    @model_serializer(mode="wrap")
+    def legacy_identity_serialization(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        for key in ("paper_identity", "supersedes", "retired"):
+            if not data.get(key):
+                data.pop(key, None)
+        return data
 
 
 class Mutation(Frozen):
@@ -318,6 +331,40 @@ class BenchmarkExpectation(Frozen):
     forbidden_adoption_states: tuple[Adoption, ...] = ()
     verification_change: Literal["changed", "unchanged"] | None = None
 
+    def validate_constraints(self) -> None:
+        adoption = {"proposed", "accepted", "rejected", "superseded"}
+        if adoption.intersection(self.acceptable_states + self.forbidden_states):
+            raise ValueError("Scientific state constraints cannot contain adoption values")
+        if self.behavior == "downgrade" and self.direction == "higher":
+            raise ValueError("Downgrade requires a lower scientific outcome")
+        if self.direction and self.behavior not in ("detect", "downgrade"):
+            raise ValueError("Direction is incompatible with this expectation behavior")
+        allowed = set(self.acceptable_states or self.acceptable_scientific_states)
+        if self.acceptable_states and self.acceptable_scientific_states:
+            allowed &= set(self.acceptable_scientific_states)
+            if not allowed:
+                raise ValueError("Legacy and typed scientific constraints are contradictory")
+        forbidden = set(self.forbidden_states + self.forbidden_scientific_states)
+        if allowed and allowed <= forbidden:
+            raise ValueError("No permitted scientific terminal state")
+        for acceptable, denied in (
+            (self.acceptable_verification_states, self.forbidden_verification_states),
+            (self.acceptable_adoption_states, self.forbidden_adoption_states),
+        ):
+            if acceptable and set(acceptable) <= set(denied):
+                raise ValueError("No permitted terminal axis state")
+        if self.behavior == "downgrade" and not self.judgment.startswith(("rating:", "route:")):
+            raise ValueError("This judgment type has no scientific downgrade ordering")
+        if self.behavior == "downgrade" and allowed:
+            if self.judgment.startswith("route:"):
+                if not allowed.intersection({"DEVELOPMENT NEEDED", "BLOCKING"}) or allowed - {
+                    "DEVELOPMENT NEEDED",
+                    "BLOCKING",
+                }:
+                    raise ValueError("Route downgrade terminal states must admit strict worsening")
+            elif not allowed.intersection({"assessed", "conditional", "contested"}):
+                raise ValueError("Numeric downgrade requires a comparable rating terminal state")
+
     @model_serializer(mode="wrap")
     def compatible_serialization(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         # Omit absent additive constraints so frozen v1 expectations retain their hashes.
@@ -356,7 +403,7 @@ class Observation(Frozen):
     evaluator_mode: Literal["WORKBENCH", "BASELINE"] | None = None
     judgments: tuple[Judgment, ...]
     authorized_anchors: tuple[Text, ...] = ()
-    action_targets: tuple[Text, ...] = ()
+    action_targets: tuple[Text, ...] | None = None
     recognition_claim: bool | None = None
     action_annotation: Text = "No semantic annotation supplied"
     output_text: str = ""
@@ -456,6 +503,7 @@ class BenchmarkRun(Frozen):
     split_version: Text
     expectations_hash: Hash
     reference_run_ids: tuple[Text, ...] = ()
+    reference_unavailable: tuple[Text, ...] = ()
     packet_hash: Hash
     code_tree_hash: Hash
     policy_manifest_hash: Hash
@@ -498,7 +546,13 @@ class BenchmarkPackage(Frozen):
 
     @model_validator(mode="after")
     def semantic_validation(self) -> Self:
-        from benchmarks.variants import construct, content_hash, freeze, validate_import
+        from benchmarks.variants import (
+            construct,
+            content_hash,
+            freeze,
+            target_content,
+            validate_import,
+        )
 
         if freeze(self.projects, self.manifest.version) != self.manifest:
             raise ValueError("Package frozen manifest differs from canonical project identities")
@@ -559,6 +613,7 @@ class BenchmarkPackage(Frozen):
             if artifact.variant_hash != content_hash(variants[artifact.variant_id]):
                 raise ValueError("Expectation variant hash differs")
             for expectation in artifact.expectations:
+                expectation.validate_constraints()
                 owned = {
                     f
                     for b in projects[
@@ -599,6 +654,11 @@ class BenchmarkPackage(Frozen):
                         or not dict(restored.visibility).get(feature)
                         or intact.variant_id in (degraded.variant_id, restored.variant_id)
                         or degraded.packet.blocks == restored.packet.blocks
+                        or intact.packet.blocks == degraded.packet.blocks
+                        or target_content(intact, projects[restored.benchmark_id], feature)
+                        == target_content(degraded, projects[restored.benchmark_id], feature)
+                        or target_content(restored, projects[restored.benchmark_id], feature)
+                        == target_content(degraded, projects[restored.benchmark_id], feature)
                     ):
                         raise ValueError("Restoration comparison roles or target lineage differ")
             variant = variants[artifact.variant_id]

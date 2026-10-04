@@ -11,7 +11,7 @@ def imported_object(obj: ProjectObject, anchors: set[tuple[str, int, str]]) -> P
         disposition.model_copy(
             update={
                 "disposition": Verification.UNRESOLVED,
-                "reason": "Imported support has no resolvable provenance; unresolved. "
+                "reason": "Portable import contains no source passages to recheck support; unresolved. "
                 + disposition.reason,
                 "source_refs": tuple(
                     ref
@@ -21,18 +21,16 @@ def imported_object(obj: ProjectObject, anchors: set[tuple[str, int, str]]) -> P
             }
         )
         if disposition.disposition == Verification.SUPPORTED
-        and (
-            not disposition.source_refs
-            or any(
-                (ref.document_id, ref.version, ref.anchor_id) not in anchors
-                for ref in disposition.source_refs
-            )
-        )
         else disposition
         for disposition in obj.support_dispositions
     )
     return obj.model_copy(
-        update={"imported": True, "checks": checks, "support_dispositions": dispositions}
+        update={
+            "imported": True,
+            "checks": checks,
+            "support_dispositions": dispositions,
+            "imported_support_history": obj.imported_support_history or obj.support_dispositions,
+        }
     )
 
 

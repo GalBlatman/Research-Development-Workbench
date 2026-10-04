@@ -19,6 +19,7 @@ from domain.models import (
     ResearchField,
     ResearchRecord,
     ReviewContent,
+    RouteItem,
     SourceReference,
     Status,
     Verification,
@@ -87,7 +88,11 @@ class FakeModel:
             Rating(
                 dimension=dim,
                 rating=5 if scored and dim <= 7 else None,
-                status=Status.ASSESSED if scored and dim <= 7 else Status.PENDING,
+                status=Status.ASSESSED
+                if scored and dim <= 7
+                else Status.NOT_APPLICABLE
+                if context.project.route != "EXPLAIN" and dim <= 7
+                else Status.PENDING,
                 rationale="Fixed synthetic judgment for exercising the backend policy engine."
                 if scored and dim <= 7
                 else "No substantive inspection by the fake adapter.",
@@ -103,6 +108,29 @@ class FakeModel:
                 study_assessable=False,
                 ratings=ratings,
                 findings=(),
+                route_assessment=tuple(
+                    RouteItem(
+                        item=k,
+                        status="NOT INSPECTED",
+                        reason="Fixed fake fixture has not inspected this route assessment item.",
+                        verification=Verification.UNRESOLVED,
+                    )
+                    for k in (
+                        "knowledge_need",
+                        "increment",
+                        "scope_precision",
+                        "capacity_to_learn",
+                        "evidence_strategy",
+                        "next_use",
+                    )
+                )
+                if not task.dimensions
+                and (
+                    context.project.route != "EXPLAIN"
+                    or context.project.stage in ("EARLY IDEA", "DISCOVERY PROPOSAL")
+                )
+                and not scored
+                else (),
             ),
             summary=ReviewContent(
                 contribution="Preserve the distinction between the proposed explanation and its rival (synthetic fixture only)."

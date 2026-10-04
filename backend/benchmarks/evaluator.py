@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from domain.application import AssessmentTask, CandidateReview, CheckDecision
 from domain.benchmark import BlindPacket, Judgment, Observation, ScientificState
-from domain.models import Adoption, AttributedStatement, EvidenceState, Project, Scope, Verification
+from domain.models import Adoption, AttributedStatement, EvidenceState, Project, Scope
 from domain.sources import SourceRecord
 from model_adapters.checking import AssessmentChecker
 from model_adapters.contracts import ModelAdapter
@@ -83,9 +83,15 @@ class BlindEvaluator:
 
     def task(self, component: str) -> AssessmentTask:
         m = self.workbench.manifest
+        context = self.workbench.context(self.project_id)
+        dimensions = tuple(
+            d for d in DIMENSIONS[component] if context.project.route == "EXPLAIN" or d >= 8
+        )
+        if component != "FULL" and not dimensions:
+            raise ValueError("NO_APPLICABLE_TARGETED_DIMENSIONS")
         return AssessmentTask(
-            context=self.workbench.context(self.project_id),
-            dimensions=DIMENSIONS[component],
+            context=context,
+            dimensions=dimensions,
             scope=Scope.TARGETED_CHECK if component != "FULL" else Scope.FULL_EVALUATION,
             policy_version=m.version,
             policy_sha256=m.canonical_sha256,
@@ -143,6 +149,8 @@ class BlindEvaluator:
         checks = tuple(CheckDecision.model_validate(c) for c in output.get("checks", []))
         if len({c.target for c in checks}) != len(checks):
             raise ValueError("Duplicate statement checking target")
+        if self.mode == "BASELINE" and checks:
+            raise ValueError("Baseline cannot contain Workbench checking records")
         by_target = {c.target: c for c in checks}
         judgments = [
             Judgment(
@@ -173,17 +181,8 @@ class BlindEvaluator:
             if self.mode == "BASELINE" and decision is not None:
                 raise ValueError("Baseline cannot acquire Workbench checker dispositions")
             refs = statement.source_refs + (decision.source_refs if decision else ())
-            disposition_states: dict[Verification, ScientificState] = {
-                Verification.SUPPORTED: "supported",
-                Verification.UNRESOLVED: "unresolved",
-                Verification.NEEDS_REVISION: "needs_revision",
-            }
             scientific_state: ScientificState = (
-                disposition_states[decision.disposition]
-                if decision
-                else "unresolved"
-                if statement.kind == "unresolved"
-                else "assessed"
+                "unresolved" if statement.kind == "unresolved" else "assessed"
             )
             judgments.append(
                 Judgment(
@@ -205,7 +204,11 @@ class BlindEvaluator:
                     "scientific_state": j.scientific_state or j.state,
                     "evaluator_mode": self.mode,
                     "checking_performed": self.mode == "WORKBENCH" and j.key in by_target,
-                    "verification": None if self.mode == "BASELINE" else j.verification,
+                    "verification": (
+                        by_target[j.key].disposition
+                        if self.mode == "WORKBENCH" and j.key in by_target
+                        else None
+                    ),
                 }
             )
             for j in judgments

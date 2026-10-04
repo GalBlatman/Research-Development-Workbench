@@ -255,6 +255,7 @@ class ProviderCall(Frozen):
 class ProviderRun(Frozen):
     run_id: Text
     status: Text
+    failure_kind: Text | None = None
     calls: tuple[ProviderCall, ...]
     max_calls: int
     max_tokens: int
@@ -305,6 +306,7 @@ class ProjectObject(Frozen):
     target_object_id: str | None = None
     reason: str | None = None
     support_dispositions: tuple[SupportDisposition, ...] = ()
+    imported_support_history: tuple[SupportDisposition, ...] = ()
 
     @model_validator(mode="after")
     def evidence_is_explicit(self) -> Self:
@@ -493,16 +495,23 @@ class Assessment(Frozen):
 
 
 def validate_diagnostic_fields(texts: tuple[str, ...]) -> None:
-    values = tuple(text.strip().rstrip(".!?;:,… ").casefold() for text in texts)
+    import unicodedata
+
+    values = tuple(
+        "".join(c for c in unicodedata.normalize("NFKC", text).casefold() if c.isalnum())
+        for text in texts
+    )
     placeholders = {
         "tbd",
+        "tbdtbd",
         "todo",
-        "n/a",
+        "tobedetermined",
+        "none",
         "na",
         "unknown",
         "unspecified",
         "placeholder",
-        "do more research",
+        "domoreresearch",
     }
     if any(not v or v in placeholders for v in values) or len(set(values[:4])) == 1:
         raise ValueError("Diagnostic action requires distinct specified inputs and outputs")

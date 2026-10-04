@@ -26,6 +26,7 @@ from domain.models import (
     Origin,
     Project,
     ProjectObject,
+    ProviderRun,
     ResearchRecord,
     ReviewContent,
     Scope,
@@ -56,7 +57,7 @@ from services.sources import SourceService
 
 
 class InvalidModelOutput(ValueError):
-    pass
+    provider_metadata: ProviderRun | None = None
 
 
 def policy_view(value: Any) -> Any:
@@ -170,8 +171,59 @@ class Workbench:
                     )
         if sum(len(p.text) for p in passages) > 100000:
             raise ValueError("Context limit exceeded; narrow the supplied packet")
+        # Historical import provenance remains in storage, never in current provider support.
+        active_objects = []
+        allowed = {(p.anchor.document_id, p.anchor.version, p.anchor.anchor_id) for p in passages}
+        for obj in project.objects:
+            updates: dict[str, Any] = {"imported_support_history": ()}
+            if obj.imported:
+
+                def permitted(ref: SourceReference) -> bool:
+                    return (ref.document_id, ref.version, ref.anchor_id) in allowed
+
+                updates.update(
+                    source_refs=tuple(r for r in obj.source_refs if permitted(r)),
+                    statements=tuple(
+                        st.model_copy(
+                            update={"source_refs": tuple(r for r in st.source_refs if permitted(r))}
+                        )
+                        for st in obj.statements
+                    ),
+                    support_dispositions=tuple(
+                        d.model_copy(
+                            update={"source_refs": tuple(r for r in d.source_refs if permitted(r))}
+                        )
+                        for d in obj.support_dispositions
+                    ),
+                    checks=tuple(
+                        c.model_copy(
+                            update={"source_refs": tuple(r for r in c.source_refs if permitted(r))}
+                        )
+                        for c in obj.checks
+                    ),
+                )
+                if hasattr(obj.payload, "fields"):
+                    updates["payload"] = obj.payload.model_copy(
+                        update={
+                            "fields": tuple(
+                                f.model_copy(
+                                    update={
+                                        "source_refs": tuple(
+                                            r for r in f.source_refs if permitted(r)
+                                        )
+                                    }
+                                )
+                                for f in obj.payload.fields
+                            )
+                        }
+                    )
+                if any(not permitted(r) for r in obj.source_refs):
+                    exclusions.append(
+                        "Imported historical object references excluded: source passages unavailable"
+                    )
+            active_objects.append(obj.model_copy(update=updates))
         return ContextPacket(
-            project=self.repository.project(scope),
+            project=project.model_copy(update={"objects": tuple(active_objects)}),
             passages=tuple(passages),
             exclusions=tuple(exclusions),
         )
@@ -364,10 +416,23 @@ class Workbench:
     ) -> dict[str, Any]:
         scope = self.scope(project_id)
         project = self._current(project_id, expected)
+        if dimensions and project.route != "EXPLAIN":
+            dimensions = tuple(d for d in dimensions if d >= 8)
+            if not dimensions:
+                raise ValueError("NO_APPLICABLE_TARGETED_DIMENSIONS")
         context = self.context(project_id)
-        if context.project != project:
+        if (context.project.project_id, context.project.revision) != (
+            project.project_id,
+            project.revision,
+        ):
             raise Conflict("Working revision changed during context assembly")
-        versions = {(p.source.document_id, p.anchor.version) for p in context.passages}
+        passage_versions = {(p.source.document_id, p.anchor.version) for p in context.passages}
+        versions = set(passage_versions)
+        if any(o.imported for o in project.objects):
+            versions.update(
+                (v.document.document_id, v.document.version)
+                for v in self.bundle(project_id).versions
+            )
         documents = tuple(
             self.repository.version(scope, d, v).document for d, v in sorted(versions)
         )
@@ -425,9 +490,11 @@ class Workbench:
         except ProviderFailure:
             raise
         except (ValueError, TypeError) as exc:
-            raise InvalidModelOutput(
-                "Invalid model evaluation: " + str(exc).split("\n")[0]
-            ) from exc
+            error = InvalidModelOutput("Invalid model evaluation; no review was published")
+            error.provider_metadata = (
+                ledger.receipt().model_copy(update={"status": "FAILED"}) if ledger else None
+            )
+            raise error from exc
         with self.repository.db.transaction():
             # Recheck scoped sources and revision at publication, not merely at intake.
             try:
@@ -456,7 +523,9 @@ class Workbench:
                     version=v,
                     state=self.repository.version(scope, d, v).extraction_state,
                     anchors=anchors(self.repository.version(scope, d, v)),
-                    note="Supplied packet; focused support dispositions are interpretive, not independent data verification."
+                    note="Historical imported metadata only; source passage unavailable, not inspected."
+                    if (d, v) not in passage_versions
+                    else "Supplied packet; focused support dispositions are interpretive, not independent data verification."
                     if run_metadata
                     else "Provided to fake fixture; no semantic source inspection.",
                 )
@@ -475,8 +544,21 @@ class Workbench:
                     else "Source text unavailable or empty",
                 )
                 for source in bundle.sources
-                if (source.document_id, latest[source.document_id].document.version) not in versions
+                if (source.document_id, latest[source.document_id].document.version)
+                not in passage_versions
             )
+            if any(o.imported for o in project.objects):
+                exclusions += tuple(
+                    HistoricalExclusion(
+                        document_id=v.document.document_id,
+                        title=self.repository.source(scope, v.document.document_id).title,
+                        version=v.document.version,
+                        reason="Imported historical passage unavailable; metadata retained without inspection",
+                    )
+                    for v in bundle.versions
+                    if v.text is None
+                    and v.document.version != latest[v.document.document_id].document.version
+                )
             self.repository.save_snapshot(
                 scope,
                 StoredSnapshot(

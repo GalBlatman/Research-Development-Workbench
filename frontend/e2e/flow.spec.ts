@@ -189,3 +189,32 @@ test("run-handle UI polls a stored backend review and surfaces bounded failure",
   await expect(page.getByRole("alert")).toContainText("BUDGET_EXHAUSTED");
   await expect(page.getByLabel("Evaluation review")).toContainText("50");
 });
+
+for (const route of ["EXPLAIN", "ESTABLISH", "TEST"]) {
+  test(`${route} shows route assessment basis and provisional gates`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByLabel("Project title").fill(`Synthetic ${route} basis`);
+    await page
+      .getByLabel("Your idea or description")
+      .fill("Synthetic unresolved handoff premise; no inspected evidence.");
+    await page.getByLabel("Contribution route").selectOption(route);
+    await page.getByLabel("I authorize local processing").check();
+    await page
+      .getByRole("button", { name: "Create project", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Run fake evaluation" }).click();
+    const basis = page.getByLabel("Route assessment basis");
+    await expect(basis.locator("li")).toHaveCount(6);
+    await expect(basis).toContainText("knowledge_need");
+    await expect(basis).toContainText("next_use");
+    await expect(basis).toContainText("NOT INSPECTED");
+    await expect(basis).toContainText("checking: unresolved");
+    await expect(basis).toContainText("Fixed fake fixture");
+    await expect(page.getByLabel("Evaluation review")).toContainText(
+      "Account articulated:",
+    );
+    await expect(page.getByLabel("Readiness gates")).toContainText("UNKNOWN");
+  });
+}

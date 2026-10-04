@@ -135,8 +135,12 @@ def test_private_backup_restores_all_history_originals_and_benchmark(
     from benchmarks.variants import freeze
 
     projects, _ = synthetic()
-    AdminStore(tmp_path / "benchmarks").freeze(freeze(projects, "v1"))
-    AdminStore(tmp_path / "benchmarks/admin").freeze(freeze(projects, "cli-v1"))
+    for folder, version in (("benchmarks", "v1"), ("benchmarks/admin", "cli-v1")):
+        store = AdminStore(tmp_path / folder)
+        frozen = freeze(projects, version)
+        store.freeze(frozen)
+        for project in projects:
+            store.import_project(project, frozen)
     before = w.repository.export(w.scope(pid), True)
     artifact = tmp_path / "backup.json"
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-credential-not-in-data")
