@@ -181,7 +181,7 @@ DIMENSIONS: dict[str, tuple[int, ...]] = {
     "Argument": (4, 5),
     "Alternatives": (6,),
     "Study": (8, 9, 10),
-    "Usefulness": (7,),
+    "Usefulness": (1, 7),
 }
 
 

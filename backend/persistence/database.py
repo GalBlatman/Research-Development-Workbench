@@ -179,7 +179,7 @@ class Database:
                         "SELECT tablename FROM pg_tables WHERE schemaname=current_schema()"
                     ).fetchall()
                 }
-            if existing & {statement.split()[5] for statement in TABLES}:
+            if existing - {"sqlite_sequence"}:
                 raise ValueError("UNVERSIONED_EXISTING_DATABASE_SCHEMA")
         with self.transaction():
             if self.dialect == "postgres":

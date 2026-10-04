@@ -388,7 +388,7 @@ def test_v5_non_explain_criteria_are_explicitly_inapplicable(packet):
     context = task.context.model_copy(update={"project": project})
     task = task.model_copy(update={"context": context, "policy_version": "5"})
     contract = policy_contract(task)
-    assert all("Not applicable numerical" in contract["dimensions"][str(d)] for d in range(1, 8))
+    assert all(str(d) not in contract["dimensions"] for d in range(1, 8))
     assert not any(r["id"] == "NO-ADVANCE" for r in contract["semantic_rules"])
     assert "route_questions" not in policy_contract(task.model_copy(update={"dimensions": (4, 5)}))
 
@@ -440,8 +440,11 @@ def test_route_stage_contract_matrix(packet, route, stage):
     elif stage in ("EARLY IDEA", "DISCOVERY PROPOSAL"):
         assert set(payload["route_questions"]) == {
             "knowledge_need",
-            "increment",
+            "increment_over_existing_knowledge",
+            "scope_and_precision",
             "capacity_to_learn",
+            "evidence_strategy",
+            "next_use",
         }
     else:
         assert "route_questions" not in payload

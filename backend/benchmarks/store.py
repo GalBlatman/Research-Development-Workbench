@@ -3,12 +3,15 @@
 import json
 import os
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, TypeVar
 
-from benchmarks.variants import content_hash, package_identity, validate_import
+from benchmarks.variants import content_hash, normalized_identity, package_identity, validate_import
 from domain.benchmark import (
     BenchmarkExpectation,
+    BenchmarkPackage,
     BenchmarkProject,
     BenchmarkRun,
     BenchmarkVariant,
@@ -100,14 +103,36 @@ class AdminStore:
         for path in (self.root / "projects").glob("*.json"):
             previous = BenchmarkProject.model_validate_json(path.read_text(encoding="utf-8"))
             same_content = package_identity(previous) == identity
+            normalized_duplicate = normalized_identity(previous) == normalized_identity(project)
             same_id = previous.benchmark_id == project.benchmark_id
             same_package = previous.source_package.package_id == project.source_package.package_id
-            if same_content and not same_id:
+            if (same_content or normalized_duplicate) and not same_id:
                 raise ValueError("Duplicate package relabeled under another project")
             if (same_id or same_package) and not same_content:
                 raise ValueError("Permanent project/package content identity collision")
             if same_id and previous.split != project.split:
                 raise ValueError("Permanent project split cannot change")
+        if project.supersedes:
+            previous = self.read(
+                "projects", project.benchmark_id + ":" + project.supersedes, BenchmarkProject
+            )
+            if (
+                not project.paper_identity
+                or project.paper_identity != previous.paper_identity
+                or previous.split != project.split
+                or project.version == previous.version
+            ):
+                raise ValueError(
+                    "Correction/supersession requires permanent paper identity and split"
+                )
+        elif project.paper_identity:
+            for path in (self.root / "projects").glob("*.json"):
+                previous = BenchmarkProject.model_validate_json(path.read_text(encoding="utf-8"))
+                if (
+                    previous.benchmark_id == project.benchmark_id
+                    and previous.version != project.version
+                ):
+                    raise ValueError("New paper version must declare supersedes lineage")
         self.write("projects", project.benchmark_id + ":" + project.version, project)
 
     def save_variant(
@@ -130,6 +155,8 @@ class AdminStore:
     def freeze_expectations(
         self, variant: BenchmarkVariant, expectations: tuple[BenchmarkExpectation, ...]
     ) -> None:
+        for expectation in expectations:
+            expectation.validate_constraints()
         self.write(
             "expectations",
             variant.variant_id,
@@ -148,6 +175,17 @@ class AdminStore:
         expectations: tuple[BenchmarkExpectation, ...],
     ) -> None:
         self.require_manifest(manifest)
+        validate_import(project, manifest)
+        if project.retired:
+            raise ValueError("Retired package cannot execute")
+        if (
+            variant.package_hash != content_hash(project)
+            or variant.split_hash != content_hash(manifest)
+            or variant.benchmark_id != project.benchmark_id
+            or variant.split != project.split
+            or variant.version != project.version
+        ):
+            raise ValueError("Execution variant package/manifest lineage differs")
         if (
             self.read("projects", project.benchmark_id + ":" + project.version, BenchmarkProject)
             != project
@@ -158,6 +196,67 @@ class AdminStore:
         artifact = self.read("expectations", variant.variant_id, FrozenExpectations)
         if artifact.variant_hash != content_hash(variant) or artifact.expectations != expectations:
             raise ValueError("Frozen expectations differ")
+
+    def artifacts(self, category: str, contract: type[T]) -> tuple[T, ...]:
+        return tuple(
+            contract.model_validate_json(p.read_text(encoding="utf-8"))
+            for p in sorted((self.root / category).glob("*.json"))
+        )
+
+    def preflight_import(self, package: "BenchmarkPackage") -> None:
+        # Run the exact importer against an isolated copy; original store remains byte-identical.
+        import shutil
+
+        with tempfile.TemporaryDirectory() as temporary:
+            staging = Path(temporary) / "admin"
+            shutil.copytree(self.root, staging)
+            AdminStore(staging)._import(package)
+
+    def _import(self, package: "BenchmarkPackage", created: list[Path] | None = None) -> None:
+        operations: list[tuple[str, str, Frozen]] = [
+            ("splits", package.manifest.version, package.manifest)
+        ]
+        operations += [("projects", p.benchmark_id + ":" + p.version, p) for p in package.projects]
+        operations += [("variants", v.variant_id, v) for v in package.variants]
+        operations += [("expectations", e.variant_id, e) for e in package.expectations]
+        for category, identity, value in operations:
+            target = self._path(category, identity)
+            if target.exists():
+                if self.read(category, identity, type(value)) != value:
+                    raise ValueError("Frozen artifact differs; use a new version")
+                continue
+            if created is not None:
+                created.append(target)
+            if isinstance(value, FrozenSplit):
+                self.freeze(value)
+            elif isinstance(value, BenchmarkProject):
+                self.import_project(value, package.manifest)
+            elif isinstance(value, BenchmarkVariant):
+                project = next(p for p in package.projects if p.benchmark_id == value.benchmark_id)
+                self.save_variant(value, project, package.manifest)
+            else:
+                self.write(category, identity, value)
+
+    @contextmanager
+    def import_lock(self) -> Iterator[None]:
+        lock = self.root / ".import.lock"
+        with lock.open("x"):
+            pass
+        try:
+            yield
+        finally:
+            lock.unlink(missing_ok=True)
+
+    def import_package(self, package: "BenchmarkPackage") -> None:
+        with self.import_lock():
+            self.preflight_import(package)
+            created: list[Path] = []
+            try:
+                self._import(package, created)
+            except BaseException:
+                for path in reversed(created):
+                    path.unlink(missing_ok=True)
+                raise
 
     def cache_key(
         self, variant: BenchmarkVariant, manifest: FrozenSplit, configuration: RunConfiguration

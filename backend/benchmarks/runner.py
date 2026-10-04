@@ -99,14 +99,14 @@ class Runner:
                 or reference.benchmark_id != case.project.benchmark_id
                 or reference.split != case.project.split
                 or reference.split_hash != content_hash(self.splits)
+                or reference.package_hash != case.variant.package_hash
                 or reference.configuration != config
-                or reference.status != "SUCCEEDED"
-                or reference.observation is None
             ):
                 raise ValueError("Cross-split/configuration reference rejected")
             if self.store.read("runs", reference.run_id, BenchmarkRun) != reference:
                 raise ValueError("Stored reference run differs")
-            reference_observations[variant_id] = reference.observation
+            if reference.status == "SUCCEEDED" and reference.observation is not None:
+                reference_observations[variant_id] = reference.observation
         identifier = uuid4().hex
         key = self.store.cache_key(case.variant, self.splits, config)
         if not self.store.claim(key, identifier, rerun):
@@ -181,6 +181,10 @@ class Runner:
                 if isinstance(exc, ProviderFailure)
                 else (ledger.receipt() if ledger else receipt)
             )
+            if receipt and not isinstance(exc, ProviderFailure):
+                receipt = receipt.model_copy(
+                    update={"status": "FAILED", "failure_kind": "downstream"}
+                )
         finally:
             if evaluator:
                 evaluator.close()
@@ -189,7 +193,7 @@ class Runner:
         prompts = tuple(
             (name, hashlib.sha256((PROMPTS / name).read_bytes()).hexdigest())
             for name in (
-                "baseline-v2.md",
+                "baseline-v3.md",
                 "interpretation-v1.md",
                 "evaluation-v3.md",
                 "checking-v4.md",
@@ -211,6 +215,16 @@ class Runner:
             split_version=self.splits.version,
             expectations_hash=content_hash([e.model_dump(mode="json") for e in case.expectations]),
             reference_run_ids=tuple(r.run_id for _, r in sorted((references or {}).items())),
+            reference_unavailable=tuple(
+                sorted(
+                    {
+                        v
+                        for e in case.expectations
+                        for v in (e.reference_variant, e.degraded_reference)
+                        if v and v not in reference_observations
+                    }
+                )
+            ),
             packet_hash=case.variant.packet.packet_id,
             code_tree_hash=content_hash(
                 tuple(
@@ -321,6 +335,13 @@ class Runner:
                 k: r
                 for k, r in (references or {}).items()
                 if r.benchmark_id == case.project.benchmark_id
+                and k
+                in {
+                    v
+                    for e in case.expectations
+                    for v in (e.reference_variant, e.degraded_reference)
+                    if v
+                }
             }
             try:
                 run = self.execute(case, config, references=applicable_references, rerun=rerun)

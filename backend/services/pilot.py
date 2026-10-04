@@ -291,13 +291,16 @@ def main() -> None:
                     raise ValueError("FILE_ARGUMENT_REQUIRED")
             finally:
                 service.repository.db.close()
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, sqlite3.DatabaseError, psycopg.Error, KeyError) as exc:
         # Never echo exception messages that might contain manuscript input or a DSN.
         code = (
             str(exc)
             if str(exc)
             in {
                 "MISSING_PRIVATE_RUNTIME_ROOT",
+                "RUNTIME_MUST_BE_OUTSIDE_REPOSITORY",
+                "UNSUPPORTED_DATABASE_MODE",
+                "OPERATOR_STATE_COMMAND_REQUIRES_FAKE_MODE_NO_LIVE_CALLS",
                 "MISSING_POSTGRES_CONFIGURATION",
                 "BLOCKED_CREDENTIAL",
                 "INVALID_PROVIDER_CONFIGURATION",
@@ -315,11 +318,22 @@ def main() -> None:
                 "BACKUP_REFERENCED_ORIGINAL_MISSING",
                 "BACKUP_REFERENCED_ORIGINAL_CORRUPT",
                 "RESTORE_VALIDATION_FAILED_NO_MERGE",
+                "FILE_ARGUMENT_REQUIRED",
+                "PROJECT_SOURCE_REFERENCE_INTEGRITY_FAILED",
+                "SOURCE_ANCHOR_SET_INTEGRITY_FAILED",
+                "ADMIN_VARIANT_REFERENCE_INTEGRITY_FAILED",
+                "ADMIN_RUN_REFERENCE_INTEGRITY_FAILED",
+                "PRIVATE_ARTIFACT_MUST_BE_OUTSIDE_REPOSITORY",
+                "INVALID_OR_INCOMPATIBLE_PORTABLE_IMPORT",
                 "RESTORE_REQUIRES_EMPTY_TARGET",
                 "CORRUPT_OR_INCOMPATIBLE_BACKUP",
                 "SCENARIO_SEED_REQUIRES_EMPTY_PROJECT_STORE",
                 "RUN_MIGRATE_BEFORE_OPERATOR_COMMAND",
             }
+            else "DATABASE_OPERATION_FAILED"
+            if isinstance(exc, (sqlite3.DatabaseError, psycopg.Error))
+            else "STATE_REFERENCE_INTEGRITY_FAILED"
+            if isinstance(exc, KeyError)
             else "STORAGE_PERMISSION_DENIED"
             if isinstance(exc, PermissionError)
             else "STORAGE_FILE_MISSING"

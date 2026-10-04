@@ -15,12 +15,16 @@ from domain.benchmark import (
     Observation,
 )
 
-WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
-    "rating": frozenset(("pending", "unresolved", "not_inspected")),
-    "finding": frozenset(("UNKNOWN",)),
-    "route": frozenset(("NOT INSPECTED",)),
-    "statement": frozenset(("unresolved", "not_inspected")),
-}
+WITHHOLDING_STATES: frozenset[JudgmentState] = frozenset(
+    (
+        "unresolved",
+        "not_inspected",
+        "NOT INSPECTED",
+        "pending",
+        "UNKNOWN",
+    )
+)
+ROUTE_ORDER = {"BLOCKING": 0, "DEVELOPMENT NEEDED": 1, "ADEQUATE FOR STAGE": 2}
 
 
 def is_withholding(judgment: Judgment) -> bool:
@@ -32,7 +36,7 @@ def is_withholding(judgment: Judgment) -> bool:
             and judgment.verification == "unresolved"
         )
     state = judgment.scientific_state or judgment.state
-    return judgment.value is None and state in WITHHOLDING_STATES[judgment.key.split(":", 1)[0]]
+    return judgment.value is None and state in WITHHOLDING_STATES
 
 
 def count(value: bool | None) -> Metric:
@@ -62,7 +66,7 @@ def compare(
                 return (item.value, item.content, item.statement_kind)
             return (item.scientific_state or item.state, item.value, item.content)
 
-        changed = signature(j) != signature(old) if j is not None and old is not None else None
+        changed = signature(j) != signature(old) if reference is not None and (j or old) else None
         science = (j.scientific_state or j.state) if j else None
         allowed = bool(j) and (
             (science in e.acceptable_states if e.acceptable_states else True)
@@ -114,8 +118,8 @@ def compare(
         )
         invariant = []
         for key in e.invariant_judgments:
-            if key in previous and key in judgments:
-                same = signature(previous[key]) == signature(judgments[key])
+            if reference is not None and (key in previous or key in judgments):
+                same = signature(previous.get(key)) == signature(judgments.get(key))
                 invariant.append(same)
                 if not same:
                     violations.append(key)
@@ -131,26 +135,26 @@ def compare(
             and degraded_judgment is not None
             and signature(old) != signature(degraded_judgment)
         )
-        if e.behavior == "unchanged" and old is not None and j is not None:
+        if e.behavior == "unchanged" and changed is not None:
             invariant.append(signature(old) == signature(j))
             if signature(old) != signature(j):
                 violations.append(e.judgment)
-        downgrade = direction
-        if e.behavior == "downgrade" and downgrade is None and j and old:
-            if old.value is not None and j.value is not None:
+        downgrade = None
+        if e.behavior == "downgrade" and j and old and e.direction != "higher":
+            if j.key.startswith("rating:") and old.value is not None and j.value is not None:
                 downgrade = j.value < old.value
-            elif e.acceptable_states or e.acceptable_scientific_states:
-                accepted = e.acceptable_scientific_states or e.acceptable_states
-                downgrade = bool(
-                    changed and allowed and (old.scientific_state or old.state) not in accepted
+            elif j.key.startswith("route:"):
+                new_state, old_state = (
+                    j.scientific_state or j.state,
+                    old.scientific_state or old.state,
                 )
-            else:
-                downgrade = False
+                if new_state in ROUTE_ORDER and old_state in ROUTE_ORDER:
+                    downgrade = ROUTE_ORDER[new_state] < ROUTE_ORDER[old_state]
+            if downgrade is not None:
+                downgrade = bool(downgrade and allowed)
         withholding = None
         if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
-            withholding = bool(
-                j and allowed and verification_allowed is not False and is_withholding(j)
-            )
+            withholding = bool(j and allowed and is_withholding(j))
         metrics.append(
             FeatureMetrics(
                 feature=e.feature,
@@ -173,7 +177,11 @@ def compare(
                 withholding=count(withholding),
                 restoration=count(
                     (not changed and degraded_changed)
-                    if changed is not None and e.behavior == "restore"
+                    if changed is not None
+                    and old is not None
+                    and j is not None
+                    and degraded_judgment is not None
+                    and e.behavior == "restore"
                     else None
                 ),
                 direction=count(direction),
@@ -185,7 +193,9 @@ def compare(
                     denominator=len(j.source_refs) if j else 0,
                 ),
                 action=count(
-                    e.action_target in observed.action_targets if e.action_target else None
+                    e.action_target in observed.action_targets
+                    if e.action_target and observed.action_targets is not None
+                    else None
                 ),
             )
         )
@@ -205,7 +215,9 @@ def compare(
     )
 
 
-def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
+def aggregate(
+    runs: tuple[BenchmarkRun, ...], annotations: tuple[object, ...] = ()
+) -> dict[str, object]:
     """Paper is the aggregation unit; variants remain nested case observations."""
     groups: dict[str, list[BenchmarkRun]] = defaultdict(list)
     for run in runs:
@@ -273,6 +285,23 @@ def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
                     if content_hash((r.configuration.model_dump(mode="json"), r.prompt_hashes))
                     == configuration_id
                 ]
+                attempts = [
+                    r
+                    for r in raw_records
+                    if content_hash((r.configuration.model_dump(mode="json"), r.prompt_hashes))
+                    == configuration_id
+                ]
+                group["failed"] = sum(r.status == "FAILED" for r in attempts)
+                group["interrupted"] = sum(r.status == "INTERRUPTED" for r in attempts)
+                group["attempts"] = [
+                    {
+                        "run_id": r.run_id,
+                        "variant_id": r.variant_id,
+                        "status": r.status,
+                        "failure_type": r.failure_type,
+                    }
+                    for r in attempts
+                ]
                 group["metrics"] = {}
                 for name in names:
                     counts = [
@@ -295,11 +324,30 @@ def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
                 "metrics": values if len(configurations) == 1 else None,
                 "configurations": configurations,
                 "excluded_duplicate_reruns": len(raw_records) - len(records),
-                "failed": sum(r.status == "FAILED" for r in records),
-                "interrupted": sum(r.status == "INTERRUPTED" for r in records),
+                "successful_cases": sum(r.status == "SUCCEEDED" for r in records),
+                "final_successful_variants": len(
+                    {r.variant_id for r in records if r.status == "SUCCEEDED"}
+                ),
+                "attempts": [
+                    {
+                        "run_id": r.run_id,
+                        "variant_id": r.variant_id,
+                        "status": r.status,
+                        "failure_type": r.failure_type,
+                    }
+                    for r in raw_records
+                ],
+                "failed": sum(r.status == "FAILED" for r in raw_records),
+                "interrupted": sum(r.status == "INTERRUPTED" for r in raw_records),
+                "reference_unavailable": sum(bool(r.reference_unavailable) for r in records),
             }
         papers[paper] = modes
     return {
+        "invalid_cases": sum(getattr(a, "status", None) == "INVALID_CASE" for a in annotations),
+        "orphan_reservations": sum(
+            getattr(a, "status", None) == "INTERRUPTED_UNCERTAIN" for a in annotations
+        ),
+        "annotations": [a.model_dump(mode="json") for a in annotations if hasattr(a, "model_dump")],
         "paper_count": len(groups),
         "case_count": sum(mode["cases"] for paper in papers.values() for mode in paper.values()),
         "submitted_run_count": len(runs),

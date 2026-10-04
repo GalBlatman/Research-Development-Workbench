@@ -275,9 +275,8 @@ def test_new_checker_issue_is_retained_with_refs_but_never_verified(packet, monk
     model, checker, _ = adapter(monkeypatch, change)
     checked = checker.review(task, CandidateReview.model_validate(proposed(task)))
     issue = checked.statements[-1]
-    decision = checked.checks[-1]
     assert issue.statement_id == "synthetic-new-issue" and issue.source_refs
-    assert decision.disposition.value == "unresolved"
+    assert not any(d.target == "statement:" + issue.statement_id for d in checked.checks)
     assert issue.text not in checked.summary.obstacle
     assert any("Unresolved proposed objection" in item for item in checked.summary.limitations)
     model.close()

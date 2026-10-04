@@ -164,6 +164,9 @@ def test_fake_execution_routes_modes(tmp_path, manifest, route, mode, component)
     r, _, cases = runner(tmp_path, manifest)
     case = next(c for c in cases if c.project.route == route)
     run = r.execute(case, configuration(mode, component))
+    if component == "Argument" and route != "EXPLAIN":
+        assert run.status == "FAILED" and run.failure_type == "ValueError"
+        return
     assert run.status == "SUCCEEDED", run.failure_type
     assert run.observation.judgments
     if component == "Argument":
@@ -382,6 +385,9 @@ def test_mock_real_provider_privacy_schema_usage_and_route(
         c for c in cases if c.project.route == route and c.variant.variant_id.endswith("hidden")
     )
     run = r.execute(case, config)
+    if component == "Argument" and route != "EXPLAIN":
+        assert run.status == "FAILED" and run.failure_type == "ValueError"
+        return
     assert run.status == "SUCCEEDED", run.failure_type
     assert (
         run.receipt

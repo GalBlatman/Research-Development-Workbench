@@ -28,6 +28,8 @@ def execute(
     tmp_path, monkeypatch, manifest, mode, disposition="unresolved", kind="model_inference"
 ):
     def change(name, output):
+        if name == "rdw_evaluation":
+            output["statements"][0]["kind"] = kind
         if name == "rdw_checking":
             for d in output["decisions"]:
                 if d["target"] == "statement:principal-obstacle":
@@ -115,7 +117,7 @@ def metric(observation, e):
     ),
 )
 def test_workbench_unresolved_correct_axes_end_to_end(tmp_path, monkeypatch, manifest, constraints):
-    observed = execute(tmp_path, monkeypatch, manifest, "WORKBENCH")
+    observed = execute(tmp_path, monkeypatch, manifest, "WORKBENCH", kind="unresolved")
     m = metric(observed, expectation(**constraints))
     assert m.withholding.numerator == 1
     if (
@@ -175,11 +177,11 @@ def test_confident_or_needs_revision_is_not_abstention(
 
 
 def test_fair_withholding_and_separate_verification_only_change(tmp_path, monkeypatch, manifest):
-    uncertain = execute(tmp_path, monkeypatch, manifest, "WORKBENCH")
+    uncertain = execute(tmp_path, monkeypatch, manifest, "WORKBENCH", kind="unresolved")
     baseline = execute(tmp_path, monkeypatch, manifest, "BASELINE", kind="unresolved")
     e = expectation(acceptable_scientific_states=("unresolved",))
     assert metric(uncertain, e).withholding == metric(baseline, e).withholding
-    checked = execute(tmp_path, monkeypatch, manifest, "WORKBENCH", "supported")
+    checked = execute(tmp_path, monkeypatch, manifest, "WORKBENCH", "supported", kind="unresolved")
     change = e.model_copy(
         update={"behavior": "detect", "reference_variant": "old", "verification_change": "changed"}
     )
@@ -188,13 +190,13 @@ def test_fair_withholding_and_separate_verification_only_change(tmp_path, monkey
         m.detection.numerator == 0
         and m.verification_change.numerator == m.verification_expectation.numerator == 1
     )
-    assert checked.judgments[-1].scientific_state == "supported"
+    assert checked.judgments[-1].scientific_state == "unresolved"
 
 
 def test_forbidden_scientific_and_verification_axes_do_not_follow_adoption(
     tmp_path, monkeypatch, manifest
 ):
-    observed = execute(tmp_path, monkeypatch, manifest, "WORKBENCH")
+    observed = execute(tmp_path, monkeypatch, manifest, "WORKBENCH", kind="unresolved")
     assert (
         metric(observed, expectation(forbidden_scientific_states=("unresolved",))).state.numerator
         == 0
@@ -206,7 +208,11 @@ def test_forbidden_scientific_and_verification_axes_do_not_follow_adoption(
             forbidden_verification_states=("unresolved",),
         ),
     )
-    assert m.state.numerator == 1 and m.verification_state.numerator == m.withholding.numerator == 0
+    assert (
+        m.state.numerator == 1
+        and m.verification_state.numerator == 0
+        and m.withholding.numerator == 1
+    )
     assert (
         metric(
             observed, expectation(forbidden_adoption_states=("proposed",))

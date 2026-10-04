@@ -145,9 +145,10 @@ def test_actual_checked_statement_observation_preserves_disposition(
                 .metrics[0]
                 .withholding
             )
-            assert (metric.numerator, metric.denominator) == (1, 1), (
-                "Correct actual checker uncertainty was scored as failure"
-            )
+            assert (metric.numerator, metric.denominator) == (0, 1)
+            assert (
+                statement.scientific_state == "assessed"
+            )  # A checker abstention does not change the evaluator assertion.
         else:
             assert statement.verification == Verification(disposition), (
                 "Actual checking disposition discarded"

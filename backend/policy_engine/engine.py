@@ -513,6 +513,17 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
             adverse_clear("PREMISE-NO-BASIS"),
             adverse_clear("PREMISE-CONDITIONAL"),
         ]
+    route_stage = None
+    if manifest.version == "5" and route in (Route.ESTABLISH, Route.TEST):
+        route_stage = (
+            Truth.FALSE
+            if any(
+                i.status == "BLOCKING" and i.verification == Verification.SUPPORTED
+                for i in assessment.route_assessment
+            )
+            else route_readiness(assessment.route_assessment, manifest.route_items)
+        )
+        proposal_requirements.append(route_stage)
     proposal = GateState(conjunction(proposal_requirements))
     commitment = Commitment.ORDINARY if proposal == GateState.TRUE else Commitment.WITHHELD
     if route == Route.EXPLAIN and fact("PREMISE-NO-BASIS") == Truth.TRUE:
@@ -535,6 +546,8 @@ def evaluate(assessment: Assessment, manifest: Manifest) -> Evaluation:
     route_development = conjunction(
         [fact("KNOWLEDGE-NEED"), fact("IDENTIFIABLE-INCREMENT"), fact("CREDIBLE-BOUNDED-ACTION")]
     )
+    if route_stage is not None:
+        route_development = conjunction([route_development, route_stage])
     route_uninspected = len(assessment.route_assessment) != len(manifest.route_items) or any(
         r.status == "NOT INSPECTED" for r in assessment.route_assessment
     )

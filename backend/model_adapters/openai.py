@@ -47,7 +47,11 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
         )
     )
     criteria = json.loads((PROMPTS / "criteria-v1.json").read_text(encoding="utf-8"))
-    dimensions = task.dimensions or tuple(range(1, 11))
+    dimensions = tuple(
+        d
+        for d in (task.dimensions or tuple(range(1, 11)))
+        if task.context.project.route == "EXPLAIN" or d >= 8
+    )
     # Numerical arithmetic/caps/weights never enter model instructions.
     meanings = {
         "AUDIENCE-QUESTION": "Audience or question cannot be identified",
@@ -90,15 +94,34 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
     ):
         route_questions = {
             **route_questions,
-            "EXPLAIN": {
-                "knowledge_need": "Is there a consequential knowledge need?",
-                "increment": "Is there an identifiable prospective knowledge increment?",
-                "capacity_to_learn": "Is there a credible resource-bounded action to address the main uncertainty?",
-            },
+            "EXPLAIN": dict(
+                zip(
+                    (
+                        "knowledge_need",
+                        "increment_over_existing_knowledge",
+                        "scope_and_precision",
+                        "capacity_to_learn",
+                        "evidence_strategy",
+                        "next_use",
+                    ),
+                    route_questions["ESTABLISH"].values(),
+                    strict=True,
+                )
+            ),
         }
     return {
         **(
-            {"route_questions": route_questions[task.context.project.route]}
+            {
+                "route_questions": route_questions[task.context.project.route],
+                "route_assessment_key_map": {
+                    "knowledge_need": "knowledge_need",
+                    "increment_over_existing_knowledge": "increment",
+                    "scope_and_precision": "scope_precision",
+                    "capacity_to_learn": "capacity_to_learn",
+                    "evidence_strategy": "evidence_strategy",
+                    "next_use": "next_use",
+                },
+            }
             if task.context.project.route in route_questions and not task.dimensions
             else {}
         ),

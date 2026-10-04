@@ -65,6 +65,7 @@ def _portable_bundle(serialized: str) -> ProjectBundle:
         )
     source_versions = {(v.document.document_id, v.document.version) for v in bundle.versions}
     anchor_refs = {(a.document_id, a.version, a.anchor_id) for a in bundle.anchors}
+    generated_lineage: set[str] = set()
     for revision in bundle.revisions:
         for obj in revision.objects:
             fields = tuple(getattr(obj.payload, "fields", ()))
@@ -72,7 +73,15 @@ def _portable_bundle(serialized: str) -> ProjectBundle:
             entirely_generated = bool(fields) and all(
                 field.origin in (Origin.INFERENCE, Origin.SUGGESTION) for field in fields
             )
-            if (generated or entirely_generated) and obj.origin not in (
+            if (
+                obj.origin in (Origin.INFERENCE, Origin.SUGGESTION)
+                or generated
+                or entirely_generated
+            ):
+                generated_lineage.add(obj.object_id)
+            if (
+                generated or entirely_generated or obj.object_id in generated_lineage
+            ) and obj.origin not in (
                 Origin.INFERENCE,
                 Origin.SUGGESTION,
             ):

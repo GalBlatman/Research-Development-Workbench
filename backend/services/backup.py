@@ -10,6 +10,7 @@ from pathlib import Path
 
 from domain.application import RunHandle
 from domain.benchmark import (
+    BenchmarkPackage,
     BenchmarkProject,
     BenchmarkRun,
     BenchmarkVariant,
@@ -38,7 +39,7 @@ BENCHMARK_TYPES: dict[str, type[Frozen]] = {
 def admitted_path(relative: str) -> bool:
     return bool(
         re.fullmatch(
-            r"originals/[a-f0-9]{64}|(?:runs|provider-receipts)/[a-f0-9]{32}(?:\.call-[0-9]+)?\.json|benchmarks/(?:admin/)?(?:projects|variants|runs|splits|expectations|claims|batch_slots|annotations)/[a-f0-9]{64}\.json",
+            r"originals/[a-f0-9]{64}|(?:runs|provider-receipts)/[a-f0-9]{32}(?:\.call-[0-9]+|\.failed)?\.json|benchmarks/(?:admin/)?(?:projects|variants|runs|splits|expectations|claims|batch_slots|annotations)/[a-f0-9]{64}\.json",
             relative,
         )
     )
@@ -78,6 +79,7 @@ def private_path(path: Path) -> Path:
 
 def create_backup(database: Database, runtime: Path, destination: Path) -> None:
     destination = private_path(destination)
+    database.validate_schema()
     if database.schema_version() != SCHEMA_VERSION:
         raise ValueError("INCOMPATIBLE_DATABASE_SCHEMA")
     inspect_state(database, runtime)
@@ -160,6 +162,7 @@ def restore_backup(database: Database, runtime: Path, source: Path) -> None:
         validate_backup_references(backup)
     except (ValueError, KeyError, TypeError):
         raise ValueError("CORRUPT_OR_INCOMPATIBLE_BACKUP") from None
+    database.validate_schema()
     if database.schema_version() != SCHEMA_VERSION:
         raise ValueError("INCOMPATIBLE_DATABASE_SCHEMA")
     if database.execute("SELECT 1 FROM workspaces LIMIT 1").fetchone() or any(
@@ -203,6 +206,8 @@ def restore_backup(database: Database, runtime: Path, source: Path) -> None:
                 for version in project.versions:
                     if version.original.storage_key and version.original.sha256:
                         originals.read(version.original.storage_key, version.original.sha256)
+            database.validate_schema()
+            inspect_state(database, runtime)
     except Exception:
         for path in created:
             path.unlink(missing_ok=True)
@@ -212,11 +217,36 @@ def restore_backup(database: Database, runtime: Path, source: Path) -> None:
         raise ValueError("RESTORE_VALIDATION_FAILED_NO_MERGE") from None
 
 
+def validate_bundle_references(bundle: ProjectBundle) -> None:
+    authorized = {(a.document_id, a.version, a.anchor_id) for a in bundle.anchors}
+
+    def visit(value: object) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key == "imported_support_history":
+                    continue  # Historical imported assertion, not current evidence authority.
+                if key == "source_refs" and isinstance(item, list):
+                    for ref in item:
+                        if (
+                            not isinstance(ref, dict)
+                            or (ref.get("document_id"), ref.get("version"), ref.get("anchor_id"))
+                            not in authorized
+                        ):
+                            raise ValueError("PROJECT_SOURCE_REFERENCE_INTEGRITY_FAILED")
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+
+    visit(bundle.model_dump(mode="json"))
+
+
 def inspect_state(database: Database, runtime: Path) -> None:
     """Read-only integrity scan of persisted user state, not a synthetic self-test."""
     from domain.locations import validate_anchor
     from domain.sources import SourceAnchor
 
+    database.validate_schema()
     repo = Repository(database)
     owners = {}
     for row in database.execute("SELECT payload,digest FROM workspaces").fetchall():
@@ -230,6 +260,7 @@ def inspect_state(database: Database, runtime: Path) -> None:
         bundle = ProjectBundle.model_validate_json(repo.export(scope, True))
         if bundle.revisions[-1].revision != head:
             raise ValueError("PROJECT_HEAD_INTEGRITY_FAILED")
+        validate_bundle_references(bundle)
         versions = repo._all(scope, "source_versions", "document_id,version", SourceVersion)
         by_version = {(v.document.document_id, v.document.version): v for v in versions}
         for version in versions:
@@ -248,11 +279,21 @@ def inspect_state(database: Database, runtime: Path) -> None:
         anchors = repo._all(scope, "source_anchors", "document_id,version,anchor_id", SourceAnchor)
         for anchor in anchors:
             validate_anchor(anchor, by_version[(anchor.document_id, anchor.version)])
+        from domain.locations import anchors as expected_anchors
+
+        expected = {a for v in versions if v.text is not None for a in expected_anchors(v)}
+        actual = {a for a in anchors if by_version[(a.document_id, a.version)].text is not None}
+        if actual != expected:
+            raise ValueError("SOURCE_ANCHOR_SET_INTEGRITY_FAILED")
         anchor_ids = {(a.document_id, a.version, a.anchor_id) for a in anchors}
         for project in bundle.revisions:
             for obj in project.objects:
-                references = obj.source_refs + tuple(
-                    r for f in getattr(obj.payload, "fields", ()) for r in f.source_refs
+                references = (
+                    obj.source_refs
+                    + tuple(r for f in getattr(obj.payload, "fields", ()) for r in f.source_refs)
+                    + tuple(r for c in obj.checks for r in c.source_refs)
+                    + tuple(r for st in obj.statements for r in st.source_refs)
+                    + tuple(r for d in obj.support_dispositions for r in d.source_refs)
                 )
                 if any(
                     (r.document_id, r.version, r.anchor_id) not in anchor_ids for r in references
@@ -284,7 +325,17 @@ def inspect_state(database: Database, runtime: Path) -> None:
 
 def validate_backup_references(backup: PrivateBackup) -> None:
     files = {f.path: f for f in backup.files}
+    from domain.locations import anchors, validate_anchor
+
     for project in backup.projects:
+        validate_bundle_references(project)
+        by_version = {(v.document.document_id, v.document.version): v for v in project.versions}
+        for anchor in project.anchors:
+            validate_anchor(anchor, by_version[(anchor.document_id, anchor.version)])
+        if {
+            a for a in project.anchors if by_version[(a.document_id, a.version)].text is not None
+        } != {a for v in project.versions if v.text is not None for a in anchors(v)}:
+            raise ValueError("SOURCE_ANCHOR_SET_INTEGRITY_FAILED")
         for version in project.versions:
             original = version.original
             if original.storage_key:
@@ -294,6 +345,18 @@ def validate_backup_references(backup: PrivateBackup) -> None:
                 raw = base64.b64decode(artifact.content_base64, validate=True)
                 if digest(raw) != original.sha256 or len(raw) != original.byte_length:
                     raise ValueError("BACKUP_REFERENCED_ORIGINAL_CORRUPT")
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for artifact in backup.files:
+            if artifact.path.startswith("benchmarks/"):
+                target = root / artifact.path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(base64.b64decode(artifact.content_base64, validate=True))
+        for admin in (root / "benchmarks", root / "benchmarks" / "admin"):
+            if admin.exists():
+                inspect_admin_state(admin)
 
 
 def inspect_admin_state(root: Path) -> None:
@@ -324,9 +387,23 @@ def inspect_admin_state(root: Path) -> None:
                 raise ValueError("INCOMPATIBLE_ADMIN_ARTIFACT")
             if path.stem != content_hash(identity):
                 raise ValueError("ADMIN_ARTIFACT_IDENTITY_INTEGRITY_FAILED")
+    for manifest in splits.values():
+        for _, _, project_hash in manifest.assignments:
+            if project_hash not in projects:
+                raise ValueError("ADMIN_MANIFEST_REFERENCE_INTEGRITY_FAILED")
+    for manifest in splits.values():
+        selected = tuple(v for v in variants.values() if v.split_hash == content_hash(manifest))
+        BenchmarkPackage(
+            manifest=manifest,
+            projects=tuple(projects[h] for _, _, h in manifest.assignments),
+            variants=selected,
+            expectations=tuple(
+                expectations[v.variant_id] for v in selected if v.variant_id in expectations
+            ),
+        )
     for variant in variants.values():
         project, split = projects.get(variant.package_hash), splits.get(variant.split_hash)
-        if project is None or split is None:
+        if project is None or split is None or variant.variant_id not in expectations:
             raise ValueError("ADMIN_VARIANT_REFERENCE_INTEGRITY_FAILED")
         parent = variants.get(variant.mutation.parent_variant or "")
         if construct(project, variant.mutation, variant.variant_id, split, parent) != variant:
@@ -345,6 +422,8 @@ def inspect_admin_state(root: Path) -> None:
         if (
             run_variant is None
             or run_expectations is None
+            or run.package_hash != run_variant.package_hash
+            or run.split_hash != run_variant.split_hash
             or run.package_hash not in projects
             or run.split_hash not in splits
             or content_hash(run_variant) != run.variant_hash

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import unicodedata
 
 from domain.benchmark import (
     BenchmarkProject,
@@ -25,7 +26,22 @@ def content_hash(value: object) -> str:
 
 def package_identity(project: BenchmarkProject) -> str:
     # Exclude administrator labels, gold and split; relabeling cannot change source identity.
-    return content_hash(tuple((b.role, b.text) for b in project.source_package.blocks))
+    return (
+        content_hash(project.paper_identity)
+        if project.paper_identity
+        else content_hash(tuple((b.role, b.text) for b in project.source_package.blocks))
+    )
+
+
+def normalized_identity(project: BenchmarkProject) -> str:
+    # Duplicate diagnostic only: does not rewrite any evaluator text or infer science.
+    return content_hash(
+        sorted(
+            " ".join(unicodedata.normalize("NFC", b.text).split())
+            for b in project.source_package.blocks
+            if not b.metadata_only
+        )
+    )
 
 
 def freeze(projects: tuple[BenchmarkProject, ...], version: str) -> FrozenSplit:
@@ -59,6 +75,13 @@ def validate_import(project: BenchmarkProject, manifest: FrozenSplit) -> None:
         raise ValueError("Frozen permanent package identity mismatch")
     if entry is None or entry[1] != project.split or entry[2] != content_hash(project):
         raise ValueError("Frozen split/package mismatch")
+
+
+def scientific_text(text: str, project: BenchmarkProject, permit_metadata: bool) -> str:
+    if not permit_metadata:
+        for identity in sorted(project.source_package.identifying_metadata, key=len, reverse=True):
+            text = text.replace(identity, "[identifier removed]")
+    return text.strip()
 
 
 def construct(
@@ -148,6 +171,13 @@ def construct(
             for b in affected
         ):
             raise ValueError("In-place replacement must retain its target feature ownership")
+        if any(
+            replacements[b.block_id].metadata_only
+            or scientific_text(replacements[b.block_id].text, project, mutation.permit_metadata)
+            == scientific_text(b.text, project, mutation.permit_metadata)
+            for b in affected
+        ):
+            raise ValueError("Scientific degradation cannot be no-op or metadata-only")
         if any(replacements[b.block_id].role != b.role for b in affected):
             raise ValueError("Degradation cannot change source role")
         blocks = [replacements.get(b.block_id, b) for b in original]
@@ -212,4 +242,36 @@ def construct(
         packet=packet,
         package_hash=content_hash(project),
         split_hash=content_hash(manifest),
+    )
+
+
+def target_content(
+    variant: BenchmarkVariant, project: BenchmarkProject, feature: Feature
+) -> tuple[tuple[str, str], ...]:
+    mutation = variant.mutation
+    originals = project.source_package.blocks
+    if (
+        mutation.transformation in (Transformation.HIDE, Transformation.MULTIPLE)
+        and feature in mutation.targets
+    ):
+        return ()
+    if (
+        mutation.transformation == Transformation.REVEAL
+        and feature in mutation.reveal_order[mutation.reveal_count :]
+    ):
+        return ()
+    if mutation.transformation == Transformation.DEGRADE:
+        affected = [b for b in originals if set(b.features) & set(mutation.targets)]
+        replacements = dict(zip((b.block_id for b in affected), mutation.replacements, strict=True))
+    else:
+        replacements = {b.block_id: b for b in mutation.replacements}
+    return tuple(
+        (
+            replacements.get(b.block_id, b).role,
+            scientific_text(
+                replacements.get(b.block_id, b).text, project, mutation.permit_metadata
+            ),
+        )
+        for b in originals
+        if feature in b.features and not b.metadata_only
     )

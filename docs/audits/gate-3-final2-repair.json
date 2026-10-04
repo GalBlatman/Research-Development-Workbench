@@ -1,0 +1,149 @@
+{
+  "gate": "GATE-3",
+  "roadmap_step": "11/16 — GATE-3 repair",
+  "audited_baseline": "96b64b22303f258b020e1543bcf70b1b96d2b6af",
+  "contract": "docs/tasks/GATE-3-final2-repair.md",
+  "independent_rerun": "NOT_PERFORMED — implementation repair record, not independent gate acceptance",
+  "findings": [
+    {
+      "id": "G3-FINAL2-B1",
+      "status": "RESOLVED",
+      "resolution": "Scientific state comes only from evaluator kind/status/value; actual checker decisions populate verification only. Unchecked and checker-proposed objections have no fabricated check. Typed abstention is architecture-neutral across statements, ratings, findings and route items."
+    },
+    {
+      "id": "G3-FINAL2-B2",
+      "status": "RESOLVED",
+      "resolution": "Strict lower numeric rating or adequate > development > blocking route ordering; upgrade cannot satisfy downgrade, unordered comparisons are unavailable, contradictory/unorderable expectations fail preflight and freezing."
+    },
+    {
+      "id": "G3-FINAL2-B3",
+      "status": "RESOLVED",
+      "resolution": "Execution checks exact stored project/package, manifest, version, split, variant and expectation bindings before adapter construction. Scientific no-op/identifier-only/metadata degradation and identical targeted restoration references reject."
+    },
+    {
+      "id": "G3-FINAL2-B4",
+      "status": "RESOLVED",
+      "resolution": "Every portable SUPPORTED disposition is demoted. Original imported dispositions remain historical provenance and are excluded from active provider context; actual mocked request regression proves separation."
+    },
+    {
+      "id": "G3-FINAL2-N1",
+      "status": "RESOLVED",
+      "resolution": "Absent comparison references and action annotations have denominator zero/unavailable. One-sided judgment disappearance is a measurable scientific change."
+    },
+    {
+      "id": "G3-FINAL2-N2",
+      "status": "RESOLVED",
+      "resolution": "All raw attempts remain visible in paper/mode/configuration groups alongside final successes. Invalid, orphan and reference-unavailable cases are explicit; only named references affect a case."
+    },
+    {
+      "id": "G3-FINAL2-N3",
+      "status": "RESOLVED",
+      "resolution": "New package preflight and expectation freezing reject adoption values in scientific constraints, contradictory legacy/typed/axis constraints and impossible downgrade direction/terminals. Historical saved contracts remain readable."
+    },
+    {
+      "id": "G3-FINAL2-N4",
+      "status": "RESOLVED",
+      "resolution": "Versioned baseline-v3 is a self-contained one-pass prompt with schema, applicable dimensions, abstention, statement/anchor attribution and unchecked verification requirements; no hidden prompt dependency or checking stage."
+    },
+    {
+      "id": "G3-FINAL2-N5",
+      "status": "RESOLVED",
+      "resolution": "Optional opaque administrator-only paper identity binds versions/supersessions/retirement and split. NFC/whitespace/order/ID/role-independent content fingerprint diagnoses cosmetic duplicate relabeling without altering evaluation content."
+    },
+    {
+      "id": "G3-FINAL2-N6",
+      "status": "RESOLVED",
+      "resolution": "Validate-only preflights the current store with the exact importer. Exclusive atomic import rolls back even a failure after publishing a new file. Publication-repository package paths reject; all frozen administrative hashes are reported."
+    },
+    {
+      "id": "G3-FINAL2-N7",
+      "status": "RESOLVED",
+      "resolution": "Builder docs specify canonical defaults/hashes, sort/scrub/order/visibility/reveal/replacement/packet/lineage/expectation/layout rules. Standalone stdlib JSON builder uses public schema, validates/imports/executes without Workbench imports. Stored-artifact CLI orders named comparison references and needs no builder repository."
+    },
+    {
+      "id": "G3-FINAL2-N8",
+      "status": "RESOLVED",
+      "resolution": "Shared NFKC/casefold/alphanumeric placeholder normalization rejects equivalent placeholders in DiagnosticAction and generated Next Actions; concrete research tasks retain existing acceptance."
+    },
+    {
+      "id": "G3-FINAL2-N9",
+      "status": "RESOLVED",
+      "resolution": "Actual mocked provider requests include all six exact discovery questions with canonical keys. ESTABLISH/TEST requests filter theory dimensions; inapplicable non-null returns and targeted scope pollution reject."
+    },
+    {
+      "id": "G3-FINAL2-N10",
+      "status": "RESOLVED",
+      "resolution": "Verified non-EXPLAIN BLOCKING prevents positive proposal and bounded stage advancement; required unverified items yield UNKNOWN. Tests cover both routes and every stage."
+    },
+    {
+      "id": "G3-FINAL2-N11",
+      "status": "RESOLVED",
+      "resolution": "Usefulness maps to dimensions 1 and 7. Consequential Usefulness edits stale the overlapping Brief review while preserving unrelated Study review."
+    },
+    {
+      "id": "G3-FINAL2-N12",
+      "status": "RESOLVED",
+      "resolution": "Generated/provider-bearing object lineage cannot become pure user origin across imported revisions. Current imported-project evaluation preserves frozen full history and records unavailable historical passages as exclusions."
+    },
+    {
+      "id": "G3-FINAL2-N13",
+      "status": "RESOLVED",
+      "resolution": "Compact review displays route items, status/reason/checking, applicability flags, gate outcome, missed reasons and provisional marker. Browser tests cover pre-explanation EXPLAIN, ESTABLISH and TEST."
+    },
+    {
+      "id": "G3-FINAL2-N14",
+      "status": "RESOLVED",
+      "resolution": "Health/backup validate schema, complete canonical anchors, recursive references, originals and frozen admin bindings. Backup passes restore preflight; restore validates inside transaction and rolls back. Version-zero foreign tables reject, expected CLI errors are specific/redacted. Mandatory PostgreSQL subprocess operator smoke runs migrate/seed/health/backup/restore/health."
+    },
+    {
+      "id": "G3-FINAL2-N15",
+      "status": "RESOLVED",
+      "resolution": "Provider session preserves incurred calls/usage on all failures. Failed run metadata links FAILED usage with failure kind even after checking/validation/attachment errors. Downstream failure receipt is append-only beside completed call ledger, preserving history."
+    },
+    {
+      "id": "G3-FINAL2-N16",
+      "status": "RESOLVED",
+      "resolution": "Permanent requirement-derived tests cover all blocker/nonblocker contracts, actual adapter/checker transport, external JSON authoring/CLI, selective staleness, all route stages, provider usage failures and browser displays. PostgreSQL operator subprocess test is an explicit mandatory CI step."
+    }
+  ],
+  "regressions": [
+    "backend/tests/test_gate3_final2.py",
+    "backend/tests/external_json_builder.py",
+    "frontend/e2e/flow.spec.ts"
+  ],
+  "compatibility": {
+    "schema": "benchmark-package-v1 optional identity fields; absent-field project/expectation hashes preserved",
+    "historical_observations": "readable without rewriting saved observations, expectations, audits or evaluations; legacy scientific constraints strengthened only on new package registration",
+    "policy": "existing v5 BLOCKING meaning implemented; no governing rubric/spec/roadmap changes"
+  },
+  "local_validation": {
+    "backend_passed": 582,
+    "backend_failed": 0,
+    "postgres_only_skipped": 36,
+    "new_regressions": "76 passed, 5 PostgreSQL-only skipped",
+    "v5_golden": "16/16",
+    "historical_v4_golden": "16/16",
+    "fake_workbench": "27/27 SUCCEEDED",
+    "fake_baseline": "27/27 SUCCEEDED",
+    "browser": "14/14",
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS",
+    "contracts": "PASS",
+    "frontend_build": "PASS"
+  },
+  "required_merge_checks": [
+    "foundation",
+    "domain-policy: PostgreSQL 17 mandatory, RDW_REQUIRE_POSTGRES=1; no skips, explicit services.pilot subprocess CLI smoke",
+    "browser"
+  ],
+  "remote_evidence": "Exact pull-request head CI is authoritative. Integration prohibited until every required job passes; CI operator smoke runs through the actual Python CLI with fake-only synthetic intake.",
+  "review": "Same-session implementation review of every changed file against owner-authorized findings and governing sections: provider/schema boundaries, exact scientific/adoption/checking separation, no heuristic science, canonical package/hash and restoration binding, portable support demotion/history, scoped staleness, immutable usage receipts, restore transaction rollback and publication safety. Owner explicitly authorized integration after all checks; this is not the independent GATE-3 rerun.",
+  "scope_exclusions": [
+    "No Step 12",
+    "No corpus access or real benchmark package",
+    "No calibration",
+    "No live provider call",
+    "No new dependency/service/roadmap item"
+  ]
+}

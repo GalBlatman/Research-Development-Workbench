@@ -24,6 +24,7 @@ class Ledger:
     calls: list[ProviderCall] = field(default_factory=list)
     reserved: int = 0
     state: str = "RUNNING"
+    failure_kind: str | None = None
 
     def reserve(self, input_bound: int) -> int:
         amount = input_bound + self.config.max_output_tokens
@@ -40,6 +41,7 @@ class Ledger:
         return ProviderRun(
             run_id=self.run_id,
             status=self.state,
+            failure_kind=self.failure_kind,
             calls=tuple(self.calls),
             max_calls=self.config.max_calls,
             max_tokens=self.config.max_run_tokens,
@@ -72,11 +74,13 @@ def provider_session(adapter: Any) -> Iterator[Ledger | None]:
         ledger.state = "SUCCEEDED"
     except BaseException as exc:
         ledger.state = "FAILED"
+        ledger.failure_kind = "provider" if isinstance(exc, ProviderFailure) else "downstream"
         if isinstance(exc, ProviderFailure):
             exc.metadata = ledger.receipt()
         raise
     finally:
         active.reset(token)
+        adapter.last_receipt = ledger.receipt()
         record = getattr(adapter, "receipt_sink", None)
         if record is not None:
             record(ledger.receipt())

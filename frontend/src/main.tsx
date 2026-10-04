@@ -753,12 +753,32 @@ function App() {
                       </ul>
                     </details>
                   )}
+                  <h3>Route assessment basis</h3>
+                  <ul aria-label="Route assessment basis">
+                    {review.assessment.route_assessment.map((item) => (
+                      <li key={item.item}>
+                        {item.item}: {item.status} — {item.reason} · checking:{" "}
+                        {item.verification}
+                      </li>
+                    ))}
+                  </ul>
+                  <p>
+                    Account articulated:{" "}
+                    {String(review.assessment.account_articulated)} · checking:{" "}
+                    {review.assessment.account_articulated_verification}; study
+                    assessable: {String(review.assessment.study_assessable)} ·
+                    checking: {review.assessment.study_assessable_verification}
+                  </p>
                   <h3>Readiness and applicability</h3>
                   <ul aria-label="Readiness gates">
                     {review.policy.gates.map((gate) => (
                       <li key={gate.name}>
                         {gate.name}: {gate.state}
                         {gate.commitment ? ` · ${gate.commitment}` : ""}
+                        {gate.provisional ? " · provisional" : ""}
+                        {gate.missed.length
+                          ? ` — ${gate.missed.join("; ")}`
+                          : ""}
                       </li>
                     ))}
                   </ul>

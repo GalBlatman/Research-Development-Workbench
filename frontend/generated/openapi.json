@@ -1281,6 +1281,14 @@
             "title": "Imported",
             "type": "boolean"
           },
+          "imported_support_history": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SupportDisposition"
+            },
+            "title": "Imported Support History",
+            "type": "array"
+          },
           "object_id": {
             "minLength": 1,
             "title": "Object Id",
@@ -1607,6 +1615,19 @@
             },
             "title": "Calls",
             "type": "array"
+          },
+          "failure_kind": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Failure Kind"
           },
           "max_calls": {
             "title": "Max Calls",

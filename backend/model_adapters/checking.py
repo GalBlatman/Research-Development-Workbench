@@ -6,7 +6,6 @@ from domain.application import (
     AssessmentTask,
     AttributedStatement,
     CandidateReview,
-    CheckDecision,
     CheckedReview,
     CheckingTask,
     ContextPacket,
@@ -65,10 +64,22 @@ class AssessmentChecker:
     def validate_candidate(self, task: AssessmentTask, candidate: CandidateReview) -> None:
         packet_check(task.context)
         self.statements(task.context, candidate.statements)
-        dimensions = set(task.dimensions or range(1, 11))
-        if {r.dimension for r in candidate.assessment.ratings} != dimensions or len(
-            candidate.assessment.ratings
-        ) != len(dimensions):
+        dimensions = {
+            d
+            for d in (task.dimensions or range(1, 11))
+            if task.context.project.route == "EXPLAIN" or d >= 8
+        }
+        inapplicable = tuple(
+            r
+            for r in candidate.assessment.ratings
+            if task.context.project.route != "EXPLAIN" and r.dimension <= 7
+        )
+        if any(r.rating is not None or r.status != "not_applicable" for r in inapplicable):
+            raise ProviderFailure("INAPPLICABLE_RATING")
+        if task.dimensions and inapplicable:
+            raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
+        applicable = tuple(r for r in candidate.assessment.ratings if r not in inapplicable)
+        if {r.dimension for r in applicable} != dimensions or len(applicable) != len(dimensions):
             raise ProviderFailure("ASSESSMENT_SCOPE_MISMATCH")
         if task.dimensions and (
             candidate.assessment.findings or candidate.assessment.route_assessment
@@ -227,15 +238,6 @@ class AssessmentChecker:
             limitations.append(
                 "Unresolved proposed objection (not a settled blocker): " + objection.text
             )
-        proposal_checks = tuple(
-            CheckDecision(
-                target="statement:" + objection.statement_id,
-                disposition=Verification.UNRESOLVED,
-                reason="New checker proposal; no semantic support check has been performed.",
-                source_refs=objection.source_refs,
-            )
-            for objection in checked.proposed_objections
-        )
         limitations.append(
             "Principal-obstacle check: " + principal.disposition.value + " — " + principal.reason
         )
@@ -250,14 +252,14 @@ class AssessmentChecker:
             assessment=AssessmentFields.model_validate(fields),
             summary=summary,
             statements=candidate.statements + checked.proposed_objections,
-            checks=checked.decisions + proposal_checks,
+            checks=checked.decisions,
             structural_checks=tuple(
                 StructuralCheck(
                     target=decision.target,
                     status="SOURCE_REFS_RESOLVED",
                     source_refs=decision.source_refs,
                 )
-                for decision in checked.decisions + proposal_checks
+                for decision in checked.decisions
                 if decision.source_refs
             ),
         )
