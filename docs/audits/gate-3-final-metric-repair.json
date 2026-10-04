@@ -1,0 +1,62 @@
+{
+  "gate": "GATE-3",
+  "roadmap_step": "11/16 — GATE-3 repair",
+  "audited_baseline": "eaace9f13ab939b6b0f70cdee54eb933fb9668d4",
+  "contract": "docs/tasks/GATE-3-final-metric-repair.md",
+  "independent_rerun": "NOT_PERFORMED — implementation repair record, not independent gate acceptance",
+  "findings": [
+    {
+      "id": "G3-FINAL-B1",
+      "prior_failure": "Actual checked unresolved statement earned withholding without a state constraint but failed acceptable_states=[unresolved], because adoption proposed occupied state.",
+      "status": "RESOLVED",
+      "resolution": "Typed scientific state, adoption and verification axes; current legacy state aliases scientific state. Scientific and checker constraints compare their own axes. Checker uncertainty is preserved without adoption or evidence strengthening."
+    },
+    {
+      "id": "G3-FINAL-B2",
+      "prior_failure": "Schema-valid baseline unresolved statement received no abstention credit because withholding required a Workbench checking stage.",
+      "status": "RESOLVED",
+      "resolution": "Existing typed unresolved statement kind maps to scientific abstention in either mode. Baseline has null verification and no checking, earns equivalent scientific withholding credit, and has N/A checker metrics. Null/confident/proposed outputs alone receive no credit."
+    }
+  ],
+  "compatibility": {
+    "package_version": "benchmark-package-v1; optional additive axis constraints only",
+    "pre_repair_package_sha256": "9d72cf9d5f52c81c50f40bfe0261b8320dfb0960df95df8a4a753b07abda8d6d",
+    "pre_repair_package_roundtrip": "PASS — independently generated with unmodified baseline implementation; JSON and canonical hash unchanged under repaired validator",
+    "historical_records": "Not rewritten or recalculated; old literal state constraints and explicit-check withholding semantics retained for historical observations",
+    "scientific_change": "Attributed assertion content/value/kind signature distinct from verification-only change; other judgments retain scientific state/value/content signature"
+  },
+  "regressions": "backend/tests/test_gate3_final_metrics.py",
+  "local_validation": {
+    "new_regressions": "23 passed",
+    "backend_passed": 506,
+    "backend_failed": 0,
+    "postgres_only_skipped": 31,
+    "v5_golden": "16/16",
+    "prior_independent_probes": "63/63",
+    "exact_final_reproductions": "3/3",
+    "previous_permanent_second_repair_probes": "35/35",
+    "browser": "11/11",
+    "fake_workbench": "27/27 SUCCEEDED",
+    "fake_baseline": "27/27 SUCCEEDED",
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS",
+    "contracts": "PASS",
+    "frontend_build": "PASS"
+  },
+  "required_merge_checks": [
+    "foundation",
+    "domain-policy (PostgreSQL 17 mandatory; no skips)",
+    "browser"
+  ],
+  "remote_evidence": "Exact pull-request commit CI is authoritative; integration prohibited until all required jobs pass.",
+  "review": "Reviewed all changes against the owner-authorized two-finding scope, actual adapter/evaluator translation reproductions, typed axis contracts, frozen package hash compatibility, historical behavior and module boundaries. Integration explicitly authorized by owner after required checks. No rubric/product/roadmap/prompt/provider changes or new dependencies.",
+  "scope_exclusions": [
+    "No Step 12",
+    "No private/source papers",
+    "No corpus construction",
+    "No calibration",
+    "No live provider calls",
+    "No new roadmap item"
+  ]
+}

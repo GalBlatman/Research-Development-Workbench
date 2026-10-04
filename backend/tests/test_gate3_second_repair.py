@@ -496,9 +496,7 @@ def test_statement_verification_only_is_separate_and_baseline_not_self_verified(
     try:
         output, components = evaluator.run("BASELINE", "FULL")
         assert components == ("baseline",) and "checks" not in output
-        assert all(
-            j.verification == Verification.UNRESOLVED for j in evaluator.observe(output).judgments
-        )
+        assert all(j.verification is None for j in evaluator.observe(output).judgments)
     finally:
         evaluator.close()
         model.close()

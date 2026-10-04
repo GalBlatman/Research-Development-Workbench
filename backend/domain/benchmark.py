@@ -1,9 +1,15 @@
 """Versioned administrator contracts. No scientific judgments inferred by this module."""
 
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from domain.models import (
     Adoption,
@@ -210,6 +216,30 @@ JudgmentState = Literal[
     "BLOCKING",
     "NOT INSPECTED",
     "proposed",
+    "supported",
+    "needs_revision",
+]
+ScientificState = Literal[
+    "assessed",
+    "pending",
+    "not_applicable",
+    "conditional",
+    "contested",
+    "unresolved",
+    "documented_or_verified",
+    "specified_but_untested",
+    "missing",
+    "not_inspected",
+    "contradicted",
+    "TRUE",
+    "FALSE",
+    "UNKNOWN",
+    "ADEQUATE FOR STAGE",
+    "DEVELOPMENT NEEDED",
+    "BLOCKING",
+    "NOT INSPECTED",
+    "supported",
+    "needs_revision",
 ]
 STATE_ALIASES = {
     name.upper(): name
@@ -229,7 +259,9 @@ class Judgment(Frozen):
     key: JudgmentKey
     state: JudgmentState
     value: float | None = None
-    verification: Verification = Verification.UNRESOLVED
+    verification: Verification | None = Verification.UNRESOLVED
+    scientific_state: ScientificState | None = None
+    evaluator_mode: Literal["WORKBENCH", "BASELINE"] | None = None
     source_refs: tuple[Text, ...] = ()
     checking_performed: bool = False
     content: str | None = None
@@ -242,10 +274,20 @@ class Judgment(Frozen):
         | None
     ) = None
 
-    @field_validator("state", mode="before")
+    @field_validator("state", "scientific_state", mode="before")
     @classmethod
     def canonical_state(cls, value: object) -> object:
         return STATE_ALIASES.get(value, value) if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def coherent_axes(self) -> Self:
+        if self.scientific_state is not None and self.state != self.scientific_state:
+            raise ValueError("Current scientific state must match the legacy state alias")
+        if self.evaluator_mode == "BASELINE" and (
+            self.checking_performed or self.verification is not None
+        ):
+            raise ValueError("Baseline has no Workbench checking disposition")
+        return self
 
 
 class BenchmarkExpectation(Frozen):
@@ -268,8 +310,38 @@ class BenchmarkExpectation(Frozen):
     degraded_reference: str | None = None
     direction: Literal["lower", "higher"] | None = None
     action_target: str | None = None
+    acceptable_scientific_states: tuple[ScientificState, ...] = ()
+    forbidden_scientific_states: tuple[ScientificState, ...] = ()
+    acceptable_verification_states: tuple[Verification, ...] = ()
+    forbidden_verification_states: tuple[Verification, ...] = ()
+    acceptable_adoption_states: tuple[Adoption, ...] = ()
+    forbidden_adoption_states: tuple[Adoption, ...] = ()
+    verification_change: Literal["changed", "unchanged"] | None = None
 
-    @field_validator("acceptable_states", "forbidden_states", mode="before")
+    @model_serializer(mode="wrap")
+    def compatible_serialization(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Omit absent additive constraints so frozen v1 expectations retain their hashes.
+        data: dict[str, Any] = handler(self)
+        for name in (
+            "acceptable_scientific_states",
+            "forbidden_scientific_states",
+            "acceptable_verification_states",
+            "forbidden_verification_states",
+            "acceptable_adoption_states",
+            "forbidden_adoption_states",
+            "verification_change",
+        ):
+            if not data.get(name):
+                data.pop(name, None)
+        return data
+
+    @field_validator(
+        "acceptable_states",
+        "forbidden_states",
+        "acceptable_scientific_states",
+        "forbidden_scientific_states",
+        mode="before",
+    )
     @classmethod
     def canonical_states(cls, values: object) -> object:
         if isinstance(values, (tuple, list)):
@@ -281,6 +353,7 @@ class BenchmarkExpectation(Frozen):
 
 
 class Observation(Frozen):
+    evaluator_mode: Literal["WORKBENCH", "BASELINE"] | None = None
     judgments: tuple[Judgment, ...]
     authorized_anchors: tuple[Text, ...] = ()
     action_targets: tuple[Text, ...] = ()
@@ -310,6 +383,9 @@ class FeatureMetrics(Frozen):
     feature: Feature
     detection: Metric
     verification_change: Metric = Metric(numerator=0, denominator=0)
+    verification_state: Metric = Metric(numerator=0, denominator=0)
+    verification_expectation: Metric = Metric(numerator=0, denominator=0)
+    adoption_state: Metric = Metric(numerator=0, denominator=0)
     invariance: Metric
     withholding: Metric
     restoration: Metric
