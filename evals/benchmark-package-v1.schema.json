@@ -1,8 +1,56 @@
 {
   "$defs": {
+    "Adoption": {
+      "enum": [
+        "proposed",
+        "accepted",
+        "rejected",
+        "superseded"
+      ],
+      "title": "Adoption",
+      "type": "string"
+    },
     "BenchmarkExpectation": {
       "additionalProperties": false,
       "properties": {
+        "acceptable_adoption_states": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Adoption"
+          },
+          "title": "Acceptable Adoption States",
+          "type": "array"
+        },
+        "acceptable_scientific_states": {
+          "default": [],
+          "items": {
+            "enum": [
+              "assessed",
+              "pending",
+              "not_applicable",
+              "conditional",
+              "contested",
+              "unresolved",
+              "documented_or_verified",
+              "specified_but_untested",
+              "missing",
+              "not_inspected",
+              "contradicted",
+              "TRUE",
+              "FALSE",
+              "UNKNOWN",
+              "ADEQUATE FOR STAGE",
+              "DEVELOPMENT NEEDED",
+              "BLOCKING",
+              "NOT INSPECTED",
+              "supported",
+              "needs_revision"
+            ],
+            "type": "string"
+          },
+          "title": "Acceptable Scientific States",
+          "type": "array"
+        },
         "acceptable_states": {
           "default": [],
           "items": {
@@ -25,11 +73,21 @@
               "DEVELOPMENT NEEDED",
               "BLOCKING",
               "NOT INSPECTED",
-              "proposed"
+              "proposed",
+              "supported",
+              "needs_revision"
             ],
             "type": "string"
           },
           "title": "Acceptable States",
+          "type": "array"
+        },
+        "acceptable_verification_states": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Verification"
+          },
+          "title": "Acceptable Verification States",
           "type": "array"
         },
         "action_target": {
@@ -89,6 +147,44 @@
         "feature": {
           "$ref": "#/$defs/Feature"
         },
+        "forbidden_adoption_states": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Adoption"
+          },
+          "title": "Forbidden Adoption States",
+          "type": "array"
+        },
+        "forbidden_scientific_states": {
+          "default": [],
+          "items": {
+            "enum": [
+              "assessed",
+              "pending",
+              "not_applicable",
+              "conditional",
+              "contested",
+              "unresolved",
+              "documented_or_verified",
+              "specified_but_untested",
+              "missing",
+              "not_inspected",
+              "contradicted",
+              "TRUE",
+              "FALSE",
+              "UNKNOWN",
+              "ADEQUATE FOR STAGE",
+              "DEVELOPMENT NEEDED",
+              "BLOCKING",
+              "NOT INSPECTED",
+              "supported",
+              "needs_revision"
+            ],
+            "type": "string"
+          },
+          "title": "Forbidden Scientific States",
+          "type": "array"
+        },
         "forbidden_states": {
           "default": [],
           "items": {
@@ -111,11 +207,21 @@
               "DEVELOPMENT NEEDED",
               "BLOCKING",
               "NOT INSPECTED",
-              "proposed"
+              "proposed",
+              "supported",
+              "needs_revision"
             ],
             "type": "string"
           },
           "title": "Forbidden States",
+          "type": "array"
+        },
+        "forbidden_verification_states": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Verification"
+          },
+          "title": "Forbidden Verification States",
           "type": "array"
         },
         "invariant_judgments": {
@@ -143,6 +249,22 @@
           ],
           "default": null,
           "title": "Reference Variant"
+        },
+        "verification_change": {
+          "anyOf": [
+            {
+              "enum": [
+                "changed",
+                "unchanged"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verification Change"
         }
       },
       "required": [
@@ -678,6 +800,15 @@
         "METADATA_BLINDING"
       ],
       "title": "Transformation",
+      "type": "string"
+    },
+    "Verification": {
+      "enum": [
+        "supported",
+        "needs_revision",
+        "unresolved"
+      ],
+      "title": "Verification",
       "type": "string"
     },
     "VisibleBlock": {

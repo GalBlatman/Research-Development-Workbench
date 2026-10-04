@@ -6,10 +6,10 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from domain.application import AssessmentTask, CandidateReview, CheckDecision
-from domain.benchmark import BlindPacket, Judgment, Observation
+from domain.benchmark import BlindPacket, Judgment, Observation, ScientificState
 from domain.models import Adoption, AttributedStatement, EvidenceState, Project, Scope, Verification
 from domain.sources import SourceRecord
 from model_adapters.checking import AssessmentChecker
@@ -37,6 +37,7 @@ class BlindEvaluator:
     def __init__(
         self, packet: BlindPacket, adapter: ModelAdapter, manifest: Manifest, runtime: Path
     ):
+        self.mode: Literal["WORKBENCH", "BASELINE"] = "WORKBENCH"
         runtime.mkdir(parents=True, exist_ok=False)
         db = Database(sqlite3.connect(runtime / "packet.sqlite", isolation_level=None), "sqlite")
         db.execute("PRAGMA foreign_keys=ON")
@@ -93,6 +94,9 @@ class BlindEvaluator:
         )
 
     def run(self, mode: str, component: str) -> tuple[dict[str, Any], tuple[str, ...]]:
+        if mode not in ("WORKBENCH", "BASELINE"):
+            raise ValueError("Unknown evaluator mode")
+        self.mode = "BASELINE" if mode == "BASELINE" else "WORKBENCH"
         w = self.workbench
         if mode == "BASELINE":
             task = self.task(component)
@@ -136,6 +140,10 @@ class BlindEvaluator:
     def observe(self, output: dict[str, Any]) -> Observation:
         fields = output["assessment"]
         context = self.workbench.context(self.project_id)
+        checks = tuple(CheckDecision.model_validate(c) for c in output.get("checks", []))
+        if len({c.target for c in checks}) != len(checks):
+            raise ValueError("Duplicate statement checking target")
+        by_target = {c.target: c for c in checks}
         judgments = [
             Judgment(
                 key="rating:" + str(r["dimension"]),
@@ -159,28 +167,51 @@ class BlindEvaluator:
             )
             for f in fields.get("findings", [])
         )
-        checks = tuple(CheckDecision.model_validate(c) for c in output.get("checks", []))
-        if len({c.target for c in checks}) != len(checks):
-            raise ValueError("Duplicate statement checking target")
-        by_target = {c.target: c for c in checks}
         for raw in output.get("statements", output.get("checked_statements", [])):
             statement = AttributedStatement.model_validate(raw)
             decision = by_target.get("statement:" + statement.statement_id)
+            if self.mode == "BASELINE" and decision is not None:
+                raise ValueError("Baseline cannot acquire Workbench checker dispositions")
             refs = statement.source_refs + (decision.source_refs if decision else ())
+            disposition_states: dict[Verification, ScientificState] = {
+                Verification.SUPPORTED: "supported",
+                Verification.UNRESOLVED: "unresolved",
+                Verification.NEEDS_REVISION: "needs_revision",
+            }
+            scientific_state: ScientificState = (
+                disposition_states[decision.disposition]
+                if decision
+                else "unresolved"
+                if statement.kind == "unresolved"
+                else "assessed"
+            )
             judgments.append(
                 Judgment(
                     key="statement:" + statement.statement_id,
-                    state="proposed",
+                    state=scientific_state,
+                    scientific_state=scientific_state,
                     checking_performed=decision is not None,
                     content=statement.text,
                     adoption=Adoption.PROPOSED,
                     evidence_state=EvidenceState.UNINSPECTED,
                     statement_kind=statement.kind,
-                    verification=decision.disposition if decision else Verification.UNRESOLVED,
+                    verification=decision.disposition if decision else None,
                     source_refs=tuple(dict.fromkeys(r.anchor_id for r in refs)),
                 )
             )
+        judgments = [
+            j.model_copy(
+                update={
+                    "scientific_state": j.scientific_state or j.state,
+                    "evaluator_mode": self.mode,
+                    "checking_performed": self.mode == "WORKBENCH" and j.key in by_target,
+                    "verification": None if self.mode == "BASELINE" else j.verification,
+                }
+            )
+            for j in judgments
+        ]
         return Observation(
+            evaluator_mode=self.mode,
             judgments=tuple(judgments),
             authorized_anchors=tuple(p.anchor.anchor_id for p in context.passages),
             output_text=json.dumps(output, ensure_ascii=False),

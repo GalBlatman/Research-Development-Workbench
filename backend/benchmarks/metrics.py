@@ -14,7 +14,6 @@ from domain.benchmark import (
     Metric,
     Observation,
 )
-from domain.models import Verification
 
 WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
     "rating": frozenset(("pending", "unresolved", "not_inspected")),
@@ -25,17 +24,15 @@ WITHHOLDING_STATES: dict[str, frozenset[JudgmentState]] = {
 
 
 def is_withholding(judgment: Judgment) -> bool:
-    if judgment.key.startswith("statement:") and judgment.state == "proposed":
-        # Adoption/content state is independent of the checker support disposition.
+    if judgment.scientific_state is None and judgment.state == "proposed":
+        # Historical observations retain the prior explicit-check interpretation.
         return (
-            judgment.checking_performed
-            and judgment.value is None
-            and judgment.verification == Verification.UNRESOLVED
+            judgment.value is None
+            and judgment.checking_performed
+            and judgment.verification == "unresolved"
         )
-    return (
-        judgment.value is None
-        and judgment.state in WITHHOLDING_STATES[judgment.key.split(":", 1)[0]]
-    )
+    state = judgment.scientific_state or judgment.state
+    return judgment.value is None and state in WITHHOLDING_STATES[judgment.key.split(":", 1)[0]]
 
 
 def count(value: bool | None) -> Metric:
@@ -58,16 +55,63 @@ def compare(
         old = previous.get(e.judgment)
 
         def signature(item: Judgment | None) -> object:
-            return (item.state, item.value, item.content) if item else None
+            if item is None:
+                return None
+            if item.key.startswith("statement:") and item.content is not None:
+                # Checker-driven epistemic disposition does not rewrite the assertion.
+                return (item.value, item.content, item.statement_kind)
+            return (item.scientific_state or item.state, item.value, item.content)
 
         changed = signature(j) != signature(old) if j is not None and old is not None else None
-        allowed = (
-            (j.state in e.acceptable_states if e.acceptable_states else True)
-            and j.state not in e.forbidden_states
-            if j is not None
-            else False
+        science = (j.scientific_state or j.state) if j else None
+        allowed = bool(j) and (
+            (science in e.acceptable_states if e.acceptable_states else True)
+            and science not in e.forbidden_states
+            and (
+                science in e.acceptable_scientific_states
+                if e.acceptable_scientific_states
+                else True
+            )
+            and science not in e.forbidden_scientific_states
         )
-        state = allowed if e.acceptable_states or e.forbidden_states else None
+        science_constrained = bool(
+            e.acceptable_states
+            or e.forbidden_states
+            or e.acceptable_scientific_states
+            or e.forbidden_scientific_states
+        )
+        state = allowed if science_constrained else None
+        checker_applicable = bool(
+            j and j.evaluator_mode != "BASELINE" and j.verification is not None
+        )
+        verification_constrained = bool(
+            e.acceptable_verification_states or e.forbidden_verification_states
+        )
+        verification_allowed = (
+            (
+                j.verification in e.acceptable_verification_states
+                if e.acceptable_verification_states
+                else True
+            )
+            and j.verification not in e.forbidden_verification_states
+            if j and checker_applicable and verification_constrained
+            else None
+        )
+        adoption_allowed = (
+            (j.adoption in e.acceptable_adoption_states if e.acceptable_adoption_states else True)
+            and j.adoption not in e.forbidden_adoption_states
+            if j and (e.acceptable_adoption_states or e.forbidden_adoption_states)
+            else None
+        )
+        verification_changed = (
+            j.verification != old.verification
+            if j
+            and old
+            and checker_applicable
+            and old.evaluator_mode != "BASELINE"
+            and old.verification is not None
+            else None
+        )
         invariant = []
         for key in e.invariant_judgments:
             if key in previous and key in judgments:
@@ -95,18 +139,28 @@ def compare(
         if e.behavior == "downgrade" and downgrade is None and j and old:
             if old.value is not None and j.value is not None:
                 downgrade = j.value < old.value
-            elif e.acceptable_states:
-                downgrade = bool(changed and allowed and old.state not in e.acceptable_states)
+            elif e.acceptable_states or e.acceptable_scientific_states:
+                accepted = e.acceptable_scientific_states or e.acceptable_states
+                downgrade = bool(
+                    changed and allowed and (old.scientific_state or old.state) not in accepted
+                )
             else:
                 downgrade = False
         withholding = None
         if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
-            withholding = bool(j and allowed and is_withholding(j))
+            withholding = bool(
+                j and allowed and verification_allowed is not False and is_withholding(j)
+            )
         metrics.append(
             FeatureMetrics(
                 feature=e.feature,
-                verification_change=count(
-                    j.verification != old.verification if j and old else None
+                verification_change=count(verification_changed),
+                verification_state=count(verification_allowed),
+                adoption_state=count(adoption_allowed),
+                verification_expectation=count(
+                    verification_changed == (e.verification_change == "changed")
+                    if e.verification_change and verification_changed is not None
+                    else None
                 ),
                 detection=count(
                     downgrade
@@ -159,6 +213,10 @@ def aggregate(runs: tuple[BenchmarkRun, ...]) -> dict[str, object]:
     papers: dict[str, Any] = {}
     names = (
         "detection",
+        "verification_change",
+        "verification_state",
+        "verification_expectation",
+        "adoption_state",
         "invariance",
         "withholding",
         "restoration",
