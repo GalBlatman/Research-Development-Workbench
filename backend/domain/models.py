@@ -492,6 +492,22 @@ class Assessment(Frozen):
         return self
 
 
+def validate_diagnostic_fields(texts: tuple[str, ...]) -> None:
+    values = tuple(text.strip().rstrip(".!?;:,… ").casefold() for text in texts)
+    placeholders = {
+        "tbd",
+        "todo",
+        "n/a",
+        "na",
+        "unknown",
+        "unspecified",
+        "placeholder",
+        "do more research",
+    }
+    if any(not v or v in placeholders for v in values) or len(set(values[:4])) == 1:
+        raise ValueError("Diagnostic action requires distinct specified inputs and outputs")
+
+
 class DiagnosticAction(Frozen):
     issue: Text
     task: Text
@@ -501,28 +517,9 @@ class DiagnosticAction(Frozen):
 
     @model_validator(mode="after")
     def substantive_structure(self) -> Self:
-        values = tuple(
-            text.strip().rstrip(".!?;:,… ").casefold()
-            for text in (
-                self.issue,
-                self.task,
-                self.required_input,
-                self.deliverable,
-                *self.outcome_branches,
-            )
+        validate_diagnostic_fields(
+            (self.issue, self.task, self.required_input, self.deliverable, *self.outcome_branches)
         )
-        placeholders = {
-            "tbd",
-            "todo",
-            "n/a",
-            "na",
-            "unknown",
-            "unspecified",
-            "placeholder",
-            "do more research",
-        }
-        if any(not value or value in placeholders for value in values) or len(set(values[:4])) == 1:
-            raise ValueError("Diagnostic action requires distinct specified inputs and outputs")
         return self
 
 

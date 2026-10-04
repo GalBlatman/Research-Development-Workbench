@@ -78,6 +78,17 @@ def construct(
     }:
         raise ValueError("EXPLAIN-only target requires EXPLAIN route")
     kind = mutation.transformation
+    replacement_ids = [b.block_id for b in mutation.replacements]
+    if len(set(replacement_ids)) != len(replacement_ids):
+        raise ValueError("Duplicate replacement block identity")
+    if kind == Transformation.DEGRADE:
+        untouched = {
+            b.block_id
+            for b in project.source_package.blocks
+            if not set(b.features) & set(mutation.targets)
+        }
+        if untouched & set(replacement_ids):
+            raise ValueError("Replacement block identity collides with untouched block")
     if kind == Transformation.HIDE and len(mutation.targets) != 1:
         raise ValueError("HIDE_FEATURE requires one target")
     if kind == Transformation.MULTIPLE and len(mutation.targets) < 2:
@@ -173,7 +184,7 @@ def construct(
             f,
             any(
                 f in b.features
-                and b.block_id not in {r.block_id for r in mutation.replacements}
+                and not (kind == Transformation.DEGRADE and set(b.features) & removed)
                 and (not b.metadata_only or mutation.permit_metadata)
                 for b in blocks
             ),

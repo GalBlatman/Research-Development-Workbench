@@ -1,0 +1,21 @@
+{
+  "gate": "GATE-3",
+  "audited_commit": "ec20bc7d5d3fe744f2789601441e6a19aec68bc0",
+  "verdict": "FAIL",
+  "provenance": "Owner-supplied independent second rerun in preceding conversation",
+  "synthetic_probes": {
+    "run": 84,
+    "passed": 75,
+    "failed": 9
+  },
+  "blockers": [
+    "G3-SECOND-B1: equivalent replacement visibility",
+    "G3-SECOND-B2: replacement identity collision",
+    "G3-SECOND-B3: discarded checking dispositions"
+  ],
+  "important_nonblockers": [
+    "G3-SECOND-N1: generated workspace placeholders"
+  ],
+  "rubric_questions": [],
+  "step12_ready": false
+}

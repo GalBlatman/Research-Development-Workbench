@@ -1,0 +1,62 @@
+{
+  "gate": "GATE-3",
+  "roadmap_step": "11/16 — GATE-3 repair",
+  "audited_baseline": "ec20bc7d5d3fe744f2789601441e6a19aec68bc0",
+  "contract": "docs/tasks/GATE-3-second-rerun-repair.md",
+  "independent_rerun": "NOT_PERFORMED — implementation repair record, not independent gate acceptance",
+  "findings": [
+    {
+      "id": "G3-SECOND-B1",
+      "status": "RESOLVED",
+      "resolution": "Equivalent INTACT_BLIND/METADATA_BLINDING replacements preserve intact visibility. Explicit degradation retains distinct original-feature visibility and derived substitute observability. Equivalent intact restoration references validate."
+    },
+    {
+      "id": "G3-SECOND-B2",
+      "status": "RESOLVED",
+      "resolution": "Distinct replacement identities checked during mutation validation and runtime construction; collisions with untouched blocks rejected before package import; ordered feature-owned replacement targets preserve unrelated identity/visibility."
+    },
+    {
+      "id": "G3-SECOND-B3",
+      "status": "RESOLVED",
+      "resolution": "Typed statement/check translation preserves content, kind, adoption, evidence, actual disposition, checking presence and anchor attribution. Verification-only change is separate from content/state/value change; explicit unresolved withholding is credited without crediting unchecked proposed outputs."
+    },
+    {
+      "id": "G3-SECOND-N1",
+      "status": "RESOLVED",
+      "resolution": "Shared mechanical placeholder validation applies to generated Next Actions proposals and DiagnosticAction; concrete tasks with research/review language accepted; manual partial notes unchanged."
+    }
+  ],
+  "regressions": "backend/tests/test_gate3_second_repair.py",
+  "local_validation": {
+    "new_regressions": "35 passed",
+    "backend_passed": 482,
+    "backend_failed": 0,
+    "postgres_only_skipped": 31,
+    "v5_golden": "16/16",
+    "benchmark_package_policy": "139 passed",
+    "prior_independent_probes": "63/63",
+    "browser": "11/11",
+    "fake_workbench": "27/27 SUCCEEDED",
+    "fake_baseline": "27/27 SUCCEEDED",
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS",
+    "contracts": "PASS",
+    "frontend_build": "PASS"
+  },
+  "required_merge_checks": [
+    "foundation",
+    "domain-policy (PostgreSQL 17 mandatory; no skips)",
+    "browser"
+  ],
+  "remote_evidence": "Exact pull-request commit CI is authoritative; integration prohibited until all required jobs pass.",
+  "review": "Reviewed against owner-authorized four-finding scope, original and prior-rerun reproductions, strict typed contracts and module boundaries. No rubric, product specification, roadmap, provider prompt, new dependency or package-v1 wire-shape changes.",
+  "scope_exclusions": [
+    "No Step 12",
+    "No private/published papers",
+    "No corpus construction",
+    "No calibration",
+    "No live provider calls",
+    "No new roadmap item"
+  ]
+}

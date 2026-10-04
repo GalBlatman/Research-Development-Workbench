@@ -5,7 +5,17 @@ from typing import Annotated, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
-from domain.models import EvidenceState, Frozen, Hash, ProviderRun, Route, Stage, Text, Verification
+from domain.models import (
+    Adoption,
+    EvidenceState,
+    Frozen,
+    Hash,
+    ProviderRun,
+    Route,
+    Stage,
+    Text,
+    Verification,
+)
 from domain.sources import SourceRole
 
 
@@ -137,6 +147,19 @@ class BenchmarkVariant(Frozen):
     package_hash: Hash
     split_hash: Hash
 
+    @property
+    def observability(self) -> tuple[tuple[Feature, bool], ...]:
+        """Visible intact feature or visible degraded substitute; never evaluator metadata."""
+        degraded = {
+            f
+            for b in self.mutation.replacements
+            for f in b.features
+            if self.mutation.transformation == Transformation.DEGRADE
+            and (not b.metadata_only or self.mutation.permit_metadata)
+            and b.text.strip()
+        }
+        return tuple((f, visible or f in degraded) for f, visible in self.visibility)
+
 
 class FrozenSplit(Frozen):
     version: Text
@@ -208,6 +231,16 @@ class Judgment(Frozen):
     value: float | None = None
     verification: Verification = Verification.UNRESOLVED
     source_refs: tuple[Text, ...] = ()
+    checking_performed: bool = False
+    content: str | None = None
+    adoption: Adoption | None = None
+    evidence_state: EvidenceState | None = None
+    statement_kind: (
+        Literal[
+            "source_backed", "user_project", "model_inference", "proposed_improvement", "unresolved"
+        ]
+        | None
+    ) = None
 
     @field_validator("state", mode="before")
     @classmethod
