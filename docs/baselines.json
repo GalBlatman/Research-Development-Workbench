@@ -27,16 +27,16 @@
       "repository_sha256": "bf417e2d9a8d9d9da5b3a604b453153eaf07ab985689a0bd6da1fa44f2a1542f"
     },
     {
-      "source_filename": "Owner-authorized rubric v5 G3-R1",
+      "source_filename": "Owner-authorized rubric v5 G3-R1 and documentation cleanup",
       "repository_path": "policies/rubric-v5.md",
-      "source_sha256": "1ad609bad3d2625d9bfdc44afc512b90db7de4e374d96f84f60501aa27822204",
-      "repository_sha256": "1ad609bad3d2625d9bfdc44afc512b90db7de4e374d96f84f60501aa27822204"
+      "source_sha256": "d71a827c3ab1a0a74cbafe27a6907afaac11ae56b6568ab10f0d79d026166107",
+      "repository_sha256": "d71a827c3ab1a0a74cbafe27a6907afaac11ae56b6568ab10f0d79d026166107"
     }
   ],
   "active_rubric": {
     "version": "5",
     "repository_path": "policies/rubric-v5.md",
-    "sha256": "1ad609bad3d2625d9bfdc44afc512b90db7de4e374d96f84f60501aa27822204",
-    "authorization": "GATE-3 owner clarification G3-R1"
+    "sha256": "d71a827c3ab1a0a74cbafe27a6907afaac11ae56b6568ab10f0d79d026166107",
+    "authorization": "GATE-3 owner clarification G3-R1 and V5 documentation/versioning cleanup"
   }
 }

@@ -1,0 +1,131 @@
+{
+  "scope": "Owner-authorized V5 documentation/versioning cleanup within GATE-3; no V6 or scientific policy change",
+  "pre_cleanup_sha256": "1ad609bad3d2625d9bfdc44afc512b90db7de4e374d96f84f60501aa27822204",
+  "post_cleanup_sha256": "d71a827c3ab1a0a74cbafe27a6907afaac11ae56b6568ab10f0d79d026166107",
+  "classification_key": {
+    "A": "Current self-reference/version-history correction",
+    "B": "Historical provenance retained and clarified",
+    "C": "V5 clarification of V4 ambiguity G3-R1 wording retained exactly"
+  },
+  "retained_occurrences": [
+    {
+      "classification": "B",
+      "text": "**Replaces:** `Research_Idea_Rubric_v4.md`"
+    },
+    {
+      "classification": "C",
+      "text": "**V5 clarification of V4 ambiguity G3-R1 — route item status semantics:**"
+    },
+    {
+      "classification": "C",
+      "text": "**V5 clarification of V4 ambiguity G3-R1 — ESTABLISH/TEST route-assessment component of submission readiness:**"
+    }
+  ],
+  "edits": [
+    {
+      "classification": "A",
+      "before": "18. [Changes from Version 3](#18-changes-from-version-3)",
+      "after": "18. [Changes from Version 4](#18-changes-from-version-4)"
+    },
+    {
+      "classification": "B",
+      "before": "These are V4 contribution categories,",
+      "after": "These V5 contribution categories are retained unchanged from V4,"
+    },
+    {
+      "classification": "A",
+      "before": "| Target | Intended editorial meaning | Status in V4 |",
+      "after": "| Target | Intended editorial meaning | Status in V5 |"
+    },
+    {
+      "classification": "B",
+      "before": "Current V4 specifies no additional separate cap on `D_raw`;",
+      "after": "Current V5 retains V4's rule specifying no additional separate cap on `D_raw`;"
+    },
+    {
+      "classification": "B",
+      "before": "The explicit idea-side floors are new V4 conventions, not editorial estimates.",
+      "after": "The explicit idea-side floors are conventions introduced in V4 and retained unchanged in V5, not editorial estimates."
+    },
+    {
+      "classification": "B",
+      "before": "V4 uses those forms as prompts, not mandatory targets for every paper.",
+      "after": "V5 retains V4's use of those forms as prompts, not mandatory targets for every paper."
+    },
+    {
+      "classification": "B",
+      "before": "These distinctions are V4's operational adaptation of the impact readings.",
+      "after": "These distinctions were introduced as V4's operational adaptation of the impact readings and are retained unchanged in V5."
+    },
+    {
+      "classification": "B",
+      "before": "The table is a V4 repair aid, not a source-derived mapping from a tactic to a numerical gain.",
+      "after": "The table is a repair aid introduced in V4 and retained unchanged in V5, not a source-derived mapping from a tactic to a numerical gain."
+    },
+    {
+      "classification": "A",
+      "before": "RUBRIC VERSION: 4",
+      "after": "RUBRIC VERSION: 5"
+    },
+    {
+      "classification": "A",
+      "before": "### 17.1 How the readings enter V4",
+      "after": "### 17.1 How the readings enter V5"
+    },
+    {
+      "classification": "B",
+      "before": "The references below are the supplied source set, not a claim of an exhaustive literature review.",
+      "after": "The source synthesis for V5 is retained unchanged from V4. The references below are the supplied source set, not a claim of an exhaustive literature review."
+    },
+    {
+      "classification": "A",
+      "before": "| Source | Contribution to V4 | Boundary on its use |",
+      "after": "| Source | Contribution to V5 | Boundary on its use |"
+    },
+    {
+      "classification": "B",
+      "before": "V4 handles that tension through contribution routing,",
+      "after": "V5 retains V4's handling of that tension through contribution routing,"
+    },
+    {
+      "classification": "B",
+      "before": "V4 asks for the smallest argument that fully answers the question,",
+      "after": "V5 retains V4's requirement for the smallest argument that fully answers the question,"
+    },
+    {
+      "classification": "B",
+      "before": "V4 uses engagement to understand a problem,",
+      "after": "V5 retains V4's use of engagement to understand a problem,"
+    },
+    {
+      "classification": "B",
+      "before": "V4 does not equate attention with beneficial consequences.",
+      "after": "V5, unchanged from V4, does not equate attention with beneficial consequences."
+    },
+    {
+      "classification": "B",
+      "before": "The rules above state V4's synthesis.",
+      "after": "The rules above state V5's source synthesis, retained unchanged from V4."
+    },
+    {
+      "classification": "B",
+      "before": "The specific assessment rules are V4 adaptations unless identified as retained from V3.",
+      "after": "The specific assessment rules are adaptations introduced in V4 and retained unchanged in V5 unless identified as retained from V3; the sole substantive V5 clarification is G3-R1."
+    },
+    {
+      "classification": "B",
+      "before": "V4 does not adopt inconsistent page ranges appearing in another paper's bibliography.",
+      "after": "V5 retains V4's exclusion of inconsistent page ranges appearing in another paper's bibliography."
+    },
+    {
+      "classification": "B",
+      "before": "V4 retains the types and adapts them into a selective profile rather than mandatory impact targets.",
+      "after": "V5 retains unchanged the selective profile introduced in V4, which adapts the types rather than imposing mandatory impact targets."
+    },
+    {
+      "classification": "A",
+      "before": "## 18. Changes from Version 3\n\n| Component | V4 treatment |\n|---|---|\n| Ten core dimensions and relative weights | Retained for articulated explanatory contributions. |\n| Integer ratings and midpoint anchor of 5 | Retained; thresholds explicitly use unrounded totals. |\n| Idea, study, and 50/50 project scores | Retained; propagation of idea caps into project scores is explicit. |\n| Editorial anchors | Preserved with `UNCALIBRATED` status; no invented conversion. |\n| Contribution route | EXPLAIN, ESTABLISH, and TEST distinguished before scoring; discovery stage handled without an invented mechanism score. |\n| Grounding | Concrete basis, claimed scope, stakeholder perspectives, and specific knowledge need added to the shared record. |\n| Novelty | Closest-prior-work inspection and overlap categories replace vague absence-of-precedent claims. |\n| Explanatory logic | Process, conditions, and observations distinguished; timing, levels, and concept scope added to repair options. |\n| Contribution promise | Explicit check that the question, argument, evidence, and advertised contribution align. |\n| Submission readiness | Explicit minimum idea-side adequacy for EXPLAIN, separate from excellence profiles and target fit. |\n| Developmental evaluation | Core insight to preserve, reasoned objections, severity, and repair-versus-replacement distinction required. |\n| Development value | Formula retained where defensible; renamed expected strength after the next step; decision-changing checks and nonnumeric stop branches remain separate. |\n| Usefulness and impact | Selective five-form profile; potential, attention, use, and consequences distinguished without additional scoring dimensions. |\n| Candidate comparison | Semantic families, comparable inspection, separated generation and checking, and ranking sensitivity added. |\n| Calibration | Adds score-hidden before-and-after judgment; explicitly avoids validating selection only by its own metric. |\n| Source basis | All 16 supplied papers or essays integrated by role; builder exports treated as prompts; source disagreements and limits preserved. |\n| Practical use | Short screen, full card, worked examples, and a final assessment check provided. |\n\nPrevious scores are not automatically V4 scores. Preserve the old record, reassess under V4 when comparison matters, and distinguish an improved project from a changed rule or newly inspected evidence.\n\n**End of Version 4.**\n",
+      "after": "## 18. Changes from Version 4\n\nV5 is a narrow clarification of V4 resolving ambiguity G3-R1. All routes, dimensions, weights, formulas, caps, evidence states, premise rules, study criteria, development procedures, and calibration principles remain unchanged from V4. Documentation and version labels now identify the active protocol as V5 while preserving historical attribution.\n\nV5 explicitly defines the four qualitative route-item statuses: `ADEQUATE FOR STAGE`, `DEVELOPMENT NEEDED`, `BLOCKING`, and `NOT INSPECTED`. For the ESTABLISH/TEST route-assessment component of readiness:\n\n- A required `NOT INSPECTED` item yields `UNKNOWN`.\n- Otherwise, a required `BLOCKING` item yields `FALSE`.\n- Otherwise, the component yields `TRUE`, including when items are `DEVELOPMENT NEEDED`.\n\n`DEVELOPMENT NEEDED` items are not counted or summed. Other readiness requirements apply independently; this route component alone does not establish overall readiness. These statements summarize the G3-R1 clarification in Sections 2.2 and 8.5 rather than adding another rule.\n\nHistorical V4 assessments remain V4 assessments and retain their version identity. V5 does not change numerical EXPLAIN scoring and does not require wholesale rescoring of V4 numerical results. Reassess ESTABLISH/TEST readiness under V5 when a V5 comparison is required, distinguishing a changed policy basis from project improvement or newly inspected evidence.\n\n**End of Version 5.**\n"
+    }
+  ]
+}

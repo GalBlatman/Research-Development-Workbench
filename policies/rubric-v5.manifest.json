@@ -3,7 +3,7 @@
   "version": "5",
   "implementation_version": "5.0.0",
   "canonical_path": "policies/rubric-v5.md",
-  "canonical_sha256": "1ad609bad3d2625d9bfdc44afc512b90db7de4e374d96f84f60501aa27822204",
+  "canonical_sha256": "d71a827c3ab1a0a74cbafe27a6907afaac11ae56b6568ab10f0d79d026166107",
   "status": "implemented",
   "executable": true,
   "dimensions": [

@@ -30,7 +30,22 @@ def test_v4_bytes_and_v5_surgical_changes():
     )
     v4 = original.read_text(encoding="utf-8")
     v5 = (ROOT / "policies/rubric-v5.md").read_text(encoding="utf-8")
+    import json
     import re
+
+    # Reverse only the owner-authorized documentation wording allowlist. The
+    # original G3-R1-only policy proof below must still recover exact V4 text.
+    cleanup = json.loads(
+        (ROOT / "policies/rubric-v5.documentation-edits.json").read_text(encoding="utf-8")
+    )
+    assert (
+        hashlib.sha256((ROOT / "policies/rubric-v5.md").read_bytes()).hexdigest()
+        == cleanup["post_cleanup_sha256"]
+    )
+    for edit in reversed(cleanup["edits"]):
+        assert v5.count(edit["after"]) == 1
+        v5 = v5.replace(edit["after"], edit["before"], 1)
+    assert hashlib.sha256(v5.encode("utf-8")).hexdigest() == cleanup["pre_cleanup_sha256"]
 
     assert v5.count("**V5 clarification") == 2
     cleaned = re.sub(
@@ -123,3 +138,24 @@ def test_v5_submission_gate_uses_status_component_and_preserves_other_prerequisi
     assert (
         next(g for g in evaluate(inadequate, v5).gates if g.name == "submission").state == "FALSE"
     )
+
+
+def test_active_v5_documentation_references():
+    import re
+
+    text = (ROOT / "policies/rubric-v5.md").read_text(encoding="utf-8")
+    assert "RUBRIC VERSION: 5" in text and "RUBRIC VERSION: 4" not in text
+    assert text.rstrip().endswith("**End of Version 5.**")
+    assert "## 18. Changes from Version 4" in text
+    assert "Changes from Version 3" not in text
+    assert "| Target | Intended editorial meaning | Status in V5 |" in text
+    for line in text.splitlines():
+        if re.search(r"\bV4\b|Version 4|rubric version 4", line, flags=re.I):
+            assert re.search(r"\bV5\b|Version 5|Changes from Version 4", line), line
+    assert not re.search(
+        r"Current V4|These are V4 contribution categories|Status in V4|"
+        r"Contribution to V4|How the readings enter V4|"
+        r"\bV4 (?:uses|handles|asks|does not|retains)\b",
+        text,
+    )
+    assert text.count("**V5 clarification of V4 ambiguity G3-R1") == 2

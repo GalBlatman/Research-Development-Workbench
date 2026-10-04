@@ -34,7 +34,7 @@ This document is complete on its own. Version 3 and the preceding conversation a
 15. [Calibration and reliability](#15-calibration-and-reliability)
 16. [Reusable evaluation templates](#16-reusable-evaluation-templates)
 17. [Source basis and limits](#17-source-basis-and-limits)
-18. [Changes from Version 3](#18-changes-from-version-3)
+18. [Changes from Version 4](#18-changes-from-version-4)
 
 ---
 
@@ -82,7 +82,7 @@ Use a primary route. A project may have supporting contributions, but they must 
 | **ESTABLISH** | Establish, characterize, document, or make sense of a consequential phenomenon whose explanation is not yet the delivered contribution. | Evaluate what will become known, what is already documented, the scope of the observation, protection against artifacts, and the inquiries or decisions it enables. | Report a route assessment. Use study ratings when specified, but do not manufacture `I_raw` or `P_raw`. |
 | **TEST** | Test, replicate, or adjudicate an existing claim to resolve important uncertainty. | Specify the claim, its existing support, why uncertainty matters, what an informative test requires, and how different results would change confidence. | Report a route assessment. Use study ratings when specified. Do not require a new variable or theory to legitimate the test. |
 
-These are V4 contribution categories, informed by Hambrick's argument that explanation, fact-finding, and testing can each advance knowledge.[^hambrick] They are not a taxonomy supplied by that paper.
+These V5 contribution categories are retained unchanged from V4, informed by Hambrick's argument that explanation, fact-finding, and testing can each advance knowledge.[^hambrick] They are not a taxonomy supplied by that paper.
 
 An adjudication that genuinely changes the best explanation can qualify as EXPLAIN. The difference is its intellectual contribution, not whether its method is hypothesis testing. New terminology is not required. Equally, a replication does not become EXPLAIN simply because the introduction describes it as a theoretical extension.
 
@@ -183,7 +183,7 @@ The same evidence may inform several dimensions, but the reason must differ. Do 
 
 ### 3.3 Editorial anchors remain separate
 
-| Target | Intended editorial meaning | Status in V4 |
+| Target | Intended editorial meaning | Status in V5 |
 |---:|---|---|
 | 80 | Passes desk review | Uncalibrated target. |
 | 90 | Probably one round of revise and resubmit | Uncalibrated target requiring comparable-stage manuscripts and revision histories. |
@@ -497,7 +497,7 @@ P_before_project_caps = 0.50*I_raw + 0.50*D_raw
 P_raw = min(P_before_project_caps, applicable project caps)
 ```
 
-When no cap applies, retain the original value. Current V4 specifies no additional separate cap on `D_raw`; study defects are reflected in its ratings and in project hard stops. Display the uncapped and reported values when they differ, with the reasons. Do not subtract a cap as a penalty or apply repeated deductions for the same rule.
+When no cap applies, retain the original value. Current V5 retains V4's rule specifying no additional separate cap on `D_raw`; study defects are reflected in its ratings and in project hard stops. Display the uncapped and reported values when they differ, with the reasons. Do not subtract a cap as a penalty or apply repeated deductions for the same rule.
 
 If all dimensions equal 5, all three uncapped scores equal 50. If all equal 8, all equal 80. The 50/50 combination is a project-balance convention, not an acceptance model. Retain integer profiles and unrounded totals. Round displayed raw totals to the nearest whole point, with exact halves upward. Apply gates to unrounded values.
 
@@ -543,7 +543,7 @@ When a justified rating range crosses a gate, report the classification as borde
 
 **Proposal readiness for the next stage:** The intended contribution and study are sufficiently specified; indispensable prerequisites for the proposed commitment are established or included in the bounded pilot itself; no unresolved central mismatch defeats that stage. This is not submission readiness.
 
-**Basic submission readiness for an EXPLAIN empirical manuscript:** A completed study; `I_raw >= 50`; dimensions 3 and 4 each at least 5; a defensible consequential stake; dimensions 8 and 9 each at least 5; no remaining idea-side or study-side hard stop; no indispensable support check still unverified; and an aligned contribution promise. The explicit idea-side floors are new V4 conventions, not editorial estimates.
+**Basic submission readiness for an EXPLAIN empirical manuscript:** A completed study; `I_raw >= 50`; dimensions 3 and 4 each at least 5; a defensible consequential stake; dimensions 8 and 9 each at least 5; no remaining idea-side or study-side hard stop; no indispensable support check still unverified; and an aligned contribution promise. The explicit idea-side floors are conventions introduced in V4 and retained unchanged in V5, not editorial estimates.
 
 **Strong project:** A strong explanatory idea; `D_raw >= 60`; dimensions 8 and 9 each at least 6; and no blocking mismatch or indispensable unresolved prerequisite for the claimed stage.
 
@@ -595,7 +595,7 @@ This is a compact supporting record for dimensions 1 and 7 and for development p
 
 ### 10.1 Select the relevant forms
 
-Wickert and colleagues distinguish scholarly, practical, societal, policy, and educational impact. V4 uses those forms as prompts, not mandatory targets for every paper.[^impact]
+Wickert and colleagues distinguish scholarly, practical, societal, policy, and educational impact. V5 retains V4's use of those forms as prompts, not mandatory targets for every paper.[^impact]
 
 | Form | A concrete question |
 |---|---|
@@ -617,7 +617,7 @@ For each selected form record: **audience; proposed change; route to use; eviden
 | **Use** | Evidence the work informed understanding, a decision, a practice, teaching, or further inquiry. |
 | **Consequences of use** | Evidence of the resulting change, with attribution and uncertainty appropriate to the claim. |
 
-These distinctions are V4's operational adaptation of the impact readings. Aguinis and colleagues examine citations and web visibility among highly cited scholars; that does not validate an idea-level measure of societal benefit. Bansal and colleagues distinguish producing knowledge from translating and using it; Wickert and colleagues broaden the forms of influence.[^scholarlyimpact][^bridge][^impact]
+These distinctions were introduced as V4's operational adaptation of the impact readings and are retained unchanged in V5. Aguinis and colleagues examine citations and web visibility among highly cited scholars; that does not validate an idea-level measure of societal benefit. Bansal and colleagues distinguish producing knowledge from translating and using it; Wickert and colleagues broaden the forms of influence.[^scholarlyimpact][^bridge][^impact]
 
 At proposal stage, most claims concern potential and a proposed route. Do not call them demonstrated impact. At completed-study stage, publication alone still does not establish external use or beneficial consequences. Do not penalize a theoretical contribution simply because realized impact takes time to become observable.
 
@@ -674,7 +674,7 @@ Do not reopen settled wording or add preemptive limitations unless the choice ch
 | Unclear practical use | Examine the user's problem, create an appropriate translation, or work with an intermediary. | A credible use becomes specified or tested without overstating its evidence. |
 | Unfocused project | Remove unrelated claims or combine parts that serve the same central argument. | Enough scope remains to answer the question without multiplying separate contributions. |
 
-The timing, level, and conceptual options draw on Van de Ven's forum overview. The practical-use options draw on Bansal and colleagues. The table is a V4 repair aid, not a source-derived mapping from a tactic to a numerical gain.[^practicaltheory][^bridge]
+The timing, level, and conceptual options draw on Van de Ven's forum overview. The practical-use options draw on Bansal and colleagues. The table is a repair aid introduced in V4 and retained unchanged in V5, not a source-derived mapping from a tactic to a numerical gain.[^practicaltheory][^bridge]
 
 ### 11.4 Required repair record
 
@@ -934,7 +934,7 @@ This card supports screening, not a claim that all ten dimensions have been asse
 
 ```text
 PROJECT / VERSION / ASSESSMENT DATE:
-RUBRIC VERSION: 4
+RUBRIC VERSION: 5
 EVALUATOR / MATERIAL INSPECTED / LIMITS OF EXPERTISE:
 
 PRIMARY CONTRIBUTION ROUTE:
@@ -1044,11 +1044,11 @@ The final summary should identify the contribution, the insight worth preserving
 
 ## 17. Source basis and limits
 
-### 17.1 How the readings enter V4
+### 17.1 How the readings enter V5
 
-The references below are the supplied source set, not a claim of an exhaustive literature review. Each source is used for a specific purpose. Duplicate copies and empty builder exports are not independent corroborating studies. Numerical mechanics remain protocol conventions.
+The source synthesis for V5 is retained unchanged from V4. The references below are the supplied source set, not a claim of an exhaustive literature review. Each source is used for a specific purpose. Duplicate copies and empty builder exports are not independent corroborating studies. Numerical mechanics remain protocol conventions.
 
-| Source | Contribution to V4 | Boundary on its use |
+| Source | Contribution to V5 | Boundary on its use |
 |---|---|---|
 | Davis (1971) | Audience-relative expectations; recognizing an important departure; contested confirmation can be interesting. | Interestingness does not establish truth, importance, or a numerical quality scale. |
 | Tihanyi (2020) | Consequential problems; resistance to contrived reversals and unsupported causal claims. | Societal importance does not excuse weak evidence or impose a single practical agenda. |
@@ -1071,19 +1071,19 @@ The references below are the supplied source set, not a claim of an exhaustive l
 
 ### 17.2 Do not flatten disagreements between sources
 
-Van de Ven (1989) helps judge an explanation; Hambrick challenges making a new explanation compulsory for every valuable study. V4 handles that tension through contribution routing, not by reducing explanatory standards.
+Van de Ven (1989) helps judge an explanation; Hambrick challenges making a new explanation compulsory for every valuable study. V5 retains V4's handling of that tension through contribution routing, not by reducing explanatory standards.
 
-Zuckerman favors focus, while Colquitt and George warn against insufficient scope. V4 asks for the smallest argument that fully answers the question, including necessary competing explanations and evidence.
+Zuckerman favors focus, while Colquitt and George warn against insufficient scope. V5 retains V4's requirement for the smallest argument that fully answers the question, including necessary competing explanations and evidence.
 
-Van de Ven (2016) emphasizes stakeholder perspectives, while Bansal and colleagues defend critical distance. V4 uses engagement to understand a problem, not to grant users a veto over research value. The discussion of closed stakeholder minds in Van de Ven is not adopted as a scientific rejection rule.
+Van de Ven (2016) emphasizes stakeholder perspectives, while Bansal and colleagues defend critical distance. V5 retains V4's use of engagement to understand a problem, not to grant users a veto over research value. The discussion of closed stakeholder minds in Van de Ven is not adopted as a scientific rejection rule.
 
-Aguinis and colleagues operationalize external impact through online visibility; Wickert and colleagues discuss several forms of influence on understanding and action. V4 does not equate attention with beneficial consequences. Similarly, normative goals and recommendations in the impact essays are not treated as empirical findings that particular interventions work.
+Aguinis and colleagues operationalize external impact through online visibility; Wickert and colleagues discuss several forms of influence on understanding and action. V5, unchanged from V4, does not equate attention with beneficial consequences. Similarly, normative goals and recommendations in the impact essays are not treated as empirical findings that particular interventions work.
 
-The sources include specific perspectives, not a unanimous doctrine. The rules above state V4's synthesis. They should be tested in use rather than attributed wholesale to any one author.
+The sources include specific perspectives, not a unanimous doctrine. The rules above state V5's source synthesis, retained unchanged from V4. They should be tested in use rather than attributed wholesale to any one author.
 
 ### 17.3 References and source locators
 
-References below point to the supplied Markdown texts and their internal sections. Author-year citations in the protocol identify conceptual support. The specific assessment rules are V4 adaptations unless identified as retained from V3. No external verification or calibration study was conducted to produce this version.
+References below point to the supplied Markdown texts and their internal sections. Author-year citations in the protocol identify conceptual support. The specific assessment rules are adaptations introduced in V4 and retained unchanged in V5 unless identified as retained from V3; the sole substantive V5 clarification is G3-R1. No external verification or calibration study was conducted to produce this version.
 
 [^davis]: Davis, M. S. (1971). *That's Interesting! Towards a Phenomenology of Sociology and a Sociology of Phenomenology*. Philosophy of the Social Sciences, 1, 309–344. Supplied file: `Davis - 1971 - That's Interesting! Towards a Phenomenology of So.md`. Relevant passages: Part I, discussion of audience assumptions; Part III, audience differences; Notes, footnote 1 on confirmation of a contested assumption.
 
@@ -1111,9 +1111,9 @@ References below point to the supplied Markdown texts and their internal section
 
 [^scholarlyimpact]: Aguinis, H., Suárez-González, I., Lannelongue, G., and Joo, H. (2012). *Scholarly Impact Revisited*. Academy of Management Perspectives. Supplied file: `Aguinis et al. - 2012 - Scholarly Impact Revisited.md`. Relevant sections: definition and measurement of inside and outside impact; Method; Predicting Number of Citations Based on .edu and Non-.edu Entries; Discussion; Implications for Future Research, including web-measure and sample limits. The study's author-level indicators are not imported as idea-quality measures.
 
-[^hambrick]: Hambrick, D. C. (2007). *The Field of Management's Devotion to Theory: Too Much of a Good Thing?* Academy of Management Journal, 50(6), 1346–1352. Supplied file: `HAMBRICK - 2007 - THE FIELD OF MANAGEMENT'S DEVOTION TO THEORY TOO MUCH OF A GOOD THING.md`. Relevant sections: Facts Must Await Theories; Contorted, Ponderous Prose; Too Little Regard for Simple Tests; Hopes and Recommendations. The original article header supplies the page range; V4 does not adopt inconsistent page ranges appearing in another paper's bibliography.
+[^hambrick]: Hambrick, D. C. (2007). *The Field of Management's Devotion to Theory: Too Much of a Good Thing?* Academy of Management Journal, 50(6), 1346–1352. Supplied file: `HAMBRICK - 2007 - THE FIELD OF MANAGEMENT'S DEVOTION TO THEORY TOO MUCH OF A GOOD THING.md`. Relevant sections: Facts Must Await Theories; Contorted, Ponderous Prose; Too Little Regard for Simple Tests; Hopes and Recommendations. The original article header supplies the page range; V5 retains V4's exclusion of inconsistent page ranges appearing in another paper's bibliography.
 
-[^impact]: Wickert, C., Post, C., Doh, J. P., Prescott, J. E., and Prencipe, A. (2021). *Management Research that Makes a Difference: Broadening the Meaning of Impact*. Journal of Management Studies, 58(2), 297–320. Supplied file: `Wickert et al. - 2021 - Management Research that Makes a Difference Broad.md`. Relevant sections: five forms of impact; practical applications and responsibility; societal scope; advocacy, control, and ethics; educational research–teaching approaches. V4 retains the types and adapts them into a selective profile rather than mandatory impact targets.
+[^impact]: Wickert, C., Post, C., Doh, J. P., Prescott, J. E., and Prencipe, A. (2021). *Management Research that Makes a Difference: Broadening the Meaning of Impact*. Journal of Management Studies, 58(2), 297–320. Supplied file: `Wickert et al. - 2021 - Management Research that Makes a Difference Broad.md`. Relevant sections: five forms of impact; practical applications and responsibility; societal scope; advocacy, control, and ethics; educational research–teaching approaches. V5 retains unchanged the selective profile introduced in V4, which adapts the types rather than imposing mandatory impact targets.
 
 [^patel]: Patel, N., Rammal, A., Hayat, A., Munos, R., and Kempe, J. (2026). *Learning to Discover Interesting Mathematics*. Supplied manuscript: `Patel et al. - 2026 - Learning to Discover Interesting Mathematics.md`. Relevant sections: 3.1–3.2 on interestingness and utility; Discussion on metric limits and unresolved future usefulness; Appendix C.2 on containment and controlled repair; Appendix D on candidate families and policy-blinded evaluation. Only procedural analogies are adopted. Proof length, description length, and mathematical-library results do not validate this rubric. This reference identifies the supplied manuscript, not independently verified publication status.
 
@@ -1121,28 +1121,18 @@ References below point to the supplied Markdown texts and their internal section
 
 ---
 
-## 18. Changes from Version 3
+## 18. Changes from Version 4
 
-| Component | V4 treatment |
-|---|---|
-| Ten core dimensions and relative weights | Retained for articulated explanatory contributions. |
-| Integer ratings and midpoint anchor of 5 | Retained; thresholds explicitly use unrounded totals. |
-| Idea, study, and 50/50 project scores | Retained; propagation of idea caps into project scores is explicit. |
-| Editorial anchors | Preserved with `UNCALIBRATED` status; no invented conversion. |
-| Contribution route | EXPLAIN, ESTABLISH, and TEST distinguished before scoring; discovery stage handled without an invented mechanism score. |
-| Grounding | Concrete basis, claimed scope, stakeholder perspectives, and specific knowledge need added to the shared record. |
-| Novelty | Closest-prior-work inspection and overlap categories replace vague absence-of-precedent claims. |
-| Explanatory logic | Process, conditions, and observations distinguished; timing, levels, and concept scope added to repair options. |
-| Contribution promise | Explicit check that the question, argument, evidence, and advertised contribution align. |
-| Submission readiness | Explicit minimum idea-side adequacy for EXPLAIN, separate from excellence profiles and target fit. |
-| Developmental evaluation | Core insight to preserve, reasoned objections, severity, and repair-versus-replacement distinction required. |
-| Development value | Formula retained where defensible; renamed expected strength after the next step; decision-changing checks and nonnumeric stop branches remain separate. |
-| Usefulness and impact | Selective five-form profile; potential, attention, use, and consequences distinguished without additional scoring dimensions. |
-| Candidate comparison | Semantic families, comparable inspection, separated generation and checking, and ranking sensitivity added. |
-| Calibration | Adds score-hidden before-and-after judgment; explicitly avoids validating selection only by its own metric. |
-| Source basis | All 16 supplied papers or essays integrated by role; builder exports treated as prompts; source disagreements and limits preserved. |
-| Practical use | Short screen, full card, worked examples, and a final assessment check provided. |
+V5 is a narrow clarification of V4 resolving ambiguity G3-R1. All routes, dimensions, weights, formulas, caps, evidence states, premise rules, study criteria, development procedures, and calibration principles remain unchanged from V4. Documentation and version labels now identify the active protocol as V5 while preserving historical attribution.
 
-Previous scores are not automatically V4 scores. Preserve the old record, reassess under V4 when comparison matters, and distinguish an improved project from a changed rule or newly inspected evidence.
+V5 explicitly defines the four qualitative route-item statuses: `ADEQUATE FOR STAGE`, `DEVELOPMENT NEEDED`, `BLOCKING`, and `NOT INSPECTED`. For the ESTABLISH/TEST route-assessment component of readiness:
 
-**End of Version 4.**
+- A required `NOT INSPECTED` item yields `UNKNOWN`.
+- Otherwise, a required `BLOCKING` item yields `FALSE`.
+- Otherwise, the component yields `TRUE`, including when items are `DEVELOPMENT NEEDED`.
+
+`DEVELOPMENT NEEDED` items are not counted or summed. Other readiness requirements apply independently; this route component alone does not establish overall readiness. These statements summarize the G3-R1 clarification in Sections 2.2 and 8.5 rather than adding another rule.
+
+Historical V4 assessments remain V4 assessments and retain their version identity. V5 does not change numerical EXPLAIN scoring and does not require wholesale rescoring of V4 numerical results. Reassess ESTABLISH/TEST readiness under V5 when a V5 comparison is required, distinguishing a changed policy basis from project improvement or newly inspected evidence.
+
+**End of Version 5.**
