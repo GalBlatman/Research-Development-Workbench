@@ -2,7 +2,7 @@
 
 STATUS: BLOCKED — October 5, 2026. Step 14 is not started.
 
-Task branch: codex/step-13-calibration. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129.
+Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
 ## Closure changes
 
@@ -14,14 +14,28 @@ Task branch: codex/step-13-calibration. Base: 2fa9873bbf9171844c676fa8a09e441fa0
 
 ## Verification
 
-Local full backend: 607 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (49 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. PostgreSQL CI must pass before calibration. No live provider calls were made.
+Local full backend: 607 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (49 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. Required GitHub CI passed on closure commit 849f99b: foundation, domain-policy with PostgreSQL and browser. The mandatory PostgreSQL operator CLI smoke passed. CI evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37357677064. No live provider calls were made.
 
 ## Package and calibration
 
-The owner supplied an isolated DEVELOPMENT handoff location; filesystem inspection found the directory empty. No builder source directory or history was accessed. A sanitized versioned DEVELOPMENT export is required, including its frozen split manifest and authoritative case-to-component mapping. The existing stored CLI remains fake-only; the live development-only execution entry point, bounded configuration, batching and stratified analysis must be completed against the supplied export contract before execution.
+The owner supplied a read-only isolated DEVELOPMENT handoff. All four file hashes match the owner-supplied identities. The completed, early and proposal packages contain 400, 20 and 20 cases respectively, across the same 20 permanent paper identities. All project and variant splits are DEVELOPMENT. Canonical package/manifest lineage hashes and all three public validate-only CLI checks passed, without provider execution or runtime import. No builder source directory/history, original papers, validation or held-out package was accessed.
+
+The export schema has no case-to-component or explicit integrated-evaluation assignment, and no journal, CLOSE/ADJACENT/BREADTH, method/design or substantive-area annotations. An owner-supplied sanitized administrator sidecar is requested. This is an external input blocker: guessing integrated scope or the required scientific strata would not meet the execution/report contract. The existing stored CLI remains fake-only; the live development-only execution entry point, bounded configuration, batching and stratified analysis remain to be completed against that mapping before execution.
+
+Verified DEVELOPMENT export file identities:
+
+- Completed: 554ef5d7210d3ce0f2be20cfa15afb792ee21f75ee2ecb373410363f4d4311b9.
+- Early: 8a3c6fc8b12ada7c0d37710c39f9831e2472b7cdc9db312ef9b24a9b09198bf5.
+- Proposal: 94359b97e6031ce76aa1d315b25adab605745549a76a2d3db2e6164e8dc13ce6.
+- Handoff manifest: a5177e93099135e6ac0d2cdf695aae8f667b7c4548b2f8fded76d5f46316701d.
+
+Derived frozen split manifest identities:
+
+- Completed: daa054ba096fe548061396c8a8a777c28d5b20f468135344fd34ae942e175ffd.
+- Early and proposal: verified against their corresponding handoff lineage records.
 
 Development papers evaluated: 0/20. Final development cases: 0/440. Legitimate unavailable/failed calibration cases: none recorded, because calibration has not started. Validation executed: 0/150. Held-out executed: 0/75. No evaluator results from either blind split inspected.
 
-Final provider/model, package/split hashes, runtime budgets and validation freeze: not established. Workbench and baseline scientific metrics, paper-level comparisons, failure classification, tuning and leakage diagnostics: not available. Provider calls/tokens/cost: 0/0/0. No performance claims or final validation.
+Final provider/model, runtime budgets and validation freeze: not established. Initial package and split hashes are verified; they are not a final Step-14 freeze. Workbench and baseline scientific metrics, paper-level comparisons, failure classification, tuning and leakage diagnostics: not available. Provider calls/tokens/cost: 0/0/0. No performance claims or final validation.
 
 V5 and V4 unchanged. Product specification and frozen roadmap unchanged. No corpus correction or V6 candidate identified. No private source content, benchmark export or credential added to Git. Human review and passing CI precede main integration. Step 14 ready: NO.
