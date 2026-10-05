@@ -1,6 +1,6 @@
 # Step 13 calibration status
 
-STATUS: IN PROGRESS — October 5, 2026. Step 14 is not started.
+STATUS: BLOCKED — October 5, 2026. Step 14 is not started.
 
 Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
@@ -47,3 +47,23 @@ Development papers attempted: 2/20. Valid final scientific development cases: 0/
 Final provider/model, runtime budgets and validation freeze: not established. Initial package and split hashes are verified; they are not a final Step-14 freeze. Workbench and baseline scientific metrics, paper-level comparisons, failure classification, tuning and leakage diagnostics: not available. Provider calls: 2. Known input/output tokens: 10,078/2,729; one call has unknown usage. Known estimated cost: $0.049045; total cost remains unknown. No performance claims or final validation.
 
 V5 and V4 unchanged. Product specification and frozen roadmap unchanged. No corpus correction or V6 candidate identified. No private source content, benchmark export or credential added to Git. Human review and passing CI precede main integration. Step 14 ready: NO.
+
+## External blocker and continuation boundary
+
+Correction commit f12be21986df3812d434efc4ba00d61080117f1b passed foundation, browser and domain-policy CI with PostgreSQL. Evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37361798104. Its full local backend suite passed 652 tests with 36 service-dependent skips; lint, formatting, type, API-contract, foundation and staged publication checks passed.
+
+Automatic approval review rejected execution of the prepared bounded correction pilot before process creation. No additional request, token usage or provider cost resulted from this rejected action. Review reason: potentially sensitive unpublished DEVELOPMENT content would leave the machine, and authorization did not explicitly name both the sanitized payload and the OpenAI destination. Do not bypass this rejection. Continuation requires explicit owner authorization to send sanitized DEVELOPMENT evaluator packets to https://api.openai.com/v1/responses using gpt-6-sol for paid Step-13 calibration. Sidecar metadata, gold expectations, private sources and other splits remain excluded.
+
+### Required final-report fields while blocked
+
+- Roadmap: 13/16 — Calibration development set. Step 14 not started or ready.
+- DEVELOPMENT: 2/20 papers attempted; 0/20 evaluated under a valid final candidate; 0/440 valid final scientific cases. Two preliminary failed attempts are preserved, one uncertain timeout and one attribution rejection. No complete final coverage claim.
+- VALIDATION and HELD_OUT: zero execution and zero evaluator-result inspection.
+- Evaluator: latest checked candidate f12be21986df3812d434efc4ba00d61080117f1b; actual prior attempts used 36ea932a3038838f5c49a81ba296d6cedf626190. V5 and V4 remain unchanged. Verified package/split and all five handoff identities are recorded above; no corpus correction.
+- Provider/model: existing OpenAI/gpt-6-sol. Prior first timeout 30 seconds; distinct second attempt 120 seconds. Candidate pilot freezes 120 seconds, low reasoning, 6,000 output-token limit, four-call and 500,000-token per-run bounds. Provider parameters, task benchmark-v2, code, policy and handoff identities are preserved in private immutable runtime artifacts. Candidate pilot has not executed.
+- Workbench and baseline metrics: detection, invariance/isolation, withholding, state, restoration, direction, attribution and action relevance unavailable; there is no valid final observation. Preliminary Workbench attempt failure rate 2/2, which is not a final development estimate. Baseline has no attempts. No fair performance advantage, simplification or scientific comparison can be claimed.
+- Error analysis: one runtime timeout with uncertain usage, one proposed-output attribution failure. The checker correctly rejects inconsistent evidence roles. General shared task instructions now explicitly separate project-draft assertions from literature; reference selection requires complete runtime/configuration identity except component. No routing/policy defect or rubric V6 candidate established. Benchmark-derived-finding translation and semantic action annotations still require review before scientific metrics can be certified. Recognition leakage cannot yet be assessed.
+- Calibration: general attribution contract correction and configuration-reference isolation are implemented and checked. Affected-case and distinct-paper baseline-paired reruns are prepared but blocked. No case-specific scientific truth was changed; no checker constraint relaxed.
+- Freeze: preliminary configurations and attempts immutable; final evaluator, code and prompts for Step 14 NOT established. Rubric unchanged; validation and held-out packages untouched. No main integration.
+- Cost: two provider calls. Known input/output tokens 10,078/2,729 and estimated cost $0.049045; one uncertain call has unknown usage/cost, so totals are unknown. Known second-attempt latency 35.641 seconds; first timed out after about 30.281 seconds. These exclude administrative/check time.
+- Blocker: explicit sensitive-payload/destination authorization required by automatic approval review. Step 13 is incomplete; no automatic Step 14.
