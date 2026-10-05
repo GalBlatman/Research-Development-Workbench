@@ -132,7 +132,7 @@ def compare(
         )
         degraded_changed = (
             old is not None
-            and degraded_judgment is not None
+            and degraded is not None
             and signature(old) != signature(degraded_judgment)
         )
         if e.behavior == "unchanged" and changed is not None:
@@ -179,8 +179,7 @@ def compare(
                     (not changed and degraded_changed)
                     if changed is not None
                     and old is not None
-                    and j is not None
-                    and degraded_judgment is not None
+                    and degraded is not None
                     and e.behavior == "restore"
                     else None
                 ),

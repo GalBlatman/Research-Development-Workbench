@@ -79,7 +79,10 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
             and (task.context.project.route == "EXPLAIN" or r["id"] != "NO-ADVANCE")
         ]
     )
-    route_questions = json.loads((PROMPTS / "route-questions-v1.json").read_text(encoding="utf-8"))
+    route_file = (
+        "route-questions-v2.json" if task.policy_version == "5" else "route-questions-v1.json"
+    )
+    route_questions = json.loads((PROMPTS / route_file).read_text(encoding="utf-8"))
     if task.policy_version == "5" and task.context.project.route != "EXPLAIN":
         criteria = {
             key: "Not applicable numerical dimension for this route; use supplied qualitative route questions without theory-profile scoring."
@@ -120,7 +123,9 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
                     "capacity_to_learn": "capacity_to_learn",
                     "evidence_strategy": "evidence_strategy",
                     "next_use": "next_use",
-                },
+                }
+                if task.policy_version == "4" or task.context.project.route == "EXPLAIN"
+                else {key: key for key in route_questions[task.context.project.route]},
             }
             if task.context.project.route in route_questions and not task.dimensions
             else {}
@@ -205,9 +210,9 @@ class OpenAIAdapter:
             "-v4"
             if kind == "checking"
             else "-v3"
-            if kind == "evaluation"
+            if kind in ("evaluation", "baseline")
             else "-v2"
-            if kind in ("baseline", "workspace", "workspace-check")
+            if kind in ("workspace", "workspace-check")
             else "-v1"
         )
         prompt = (PROMPTS / (prompt_version + ".md")).read_text(encoding="utf-8")

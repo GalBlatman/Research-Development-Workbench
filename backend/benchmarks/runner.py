@@ -154,26 +154,26 @@ class Runner:
             with provider_session(adapter) as ledger:
                 output, components = evaluator.run(config.mode, config.component)
                 observation = evaluator.observe(output)
-            receipt = ledger.receipt() if ledger else None
-            # Diagnostics see only administrator-approved observability at this step.
-            observable = dict(case.variant.visibility)
-            project = case.project.model_copy(
-                update={
-                    "gold": tuple(
-                        g.model_copy(update={"observable": observable.get(g.feature, False)})
-                        for g in case.project.gold
-                    )
-                }
-            )
-            if case.variant.mutation.permit_metadata:
-                project = project.model_copy(
+                # Diagnostics see only administrator-approved observability at this step.
+                observable = dict(case.variant.visibility)
+                project = case.project.model_copy(
                     update={
-                        "source_package": project.source_package.model_copy(
-                            update={"identifying_metadata": ()}
+                        "gold": tuple(
+                            g.model_copy(update={"observable": observable.get(g.feature, False)})
+                            for g in case.project.gold
                         )
                     }
                 )
-            result = compare(observation, case.expectations, reference_observations, project)
+                if case.variant.mutation.permit_metadata:
+                    project = project.model_copy(
+                        update={
+                            "source_package": project.source_package.model_copy(
+                                update={"identifying_metadata": ()}
+                            )
+                        }
+                    )
+                result = compare(observation, case.expectations, reference_observations, project)
+            receipt = ledger.receipt() if ledger else None
         except Exception as exc:
             failure = exc.code if isinstance(exc, ProviderFailure) else type(exc).__name__
             receipt = (
@@ -201,6 +201,7 @@ class Runner:
                 "workspace-check-v2.md",
                 "criteria-v1.json",
                 "route-questions-v1.json",
+                "route-questions-v2.json",
             )
         )
         run = BenchmarkRun(

@@ -20,13 +20,14 @@ from services.workbench import Workbench
 
 
 def write_provider_receipt(root: Path, receipt: ProviderRun) -> None:
-    """Publish a complete immutable ledger receipt; never leave partial JSON."""
+    """Publish an atomic receipt; call ledgers are immutable, downstream failure supersedes success."""
     if len(receipt.run_id) != 32 or any(c not in "0123456789abcdef" for c in receipt.run_id):
         raise ValueError("INVALID_SERVER_RUN_ID")
     root.mkdir(parents=True, exist_ok=True)
     suffix = (
         ".json" if receipt.status != "RUNNING" else ".call-" + str(len(receipt.calls)) + ".json"
     )
+    replace_terminal = False
     if (
         receipt.status == "FAILED"
         and receipt.failure_kind == "downstream"
@@ -36,7 +37,12 @@ def write_provider_receipt(root: Path, receipt: ProviderRun) -> None:
             (root / (receipt.run_id + ".json")).read_text(encoding="utf-8")
         )
         if prior.status == "SUCCEEDED":
-            suffix = ".failed.json"  # Preserve completed call ledger; add downstream run outcome.
+            if (
+                prior.model_copy(update={"status": "FAILED", "failure_kind": "downstream"})
+                != receipt
+            ):
+                raise ValueError("Downstream receipt cannot rewrite completed provider calls")
+            replace_terminal = True
 
     target = root / (receipt.run_id + suffix)
     temporary = None
@@ -54,6 +60,9 @@ def write_provider_receipt(root: Path, receipt: ProviderRun) -> None:
             stream.write(receipt.model_dump_json() + "\n")
             stream.flush()
             os.fsync(stream.fileno())
+        if replace_terminal:
+            os.replace(temporary, target)
+            return
         try:
             os.link(temporary, target)
         except FileExistsError:
