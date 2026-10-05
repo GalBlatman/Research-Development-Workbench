@@ -100,7 +100,11 @@ class FakeModel:
                 inspected_material=("exact-synthetic-fixture",) if scored and dim <= 7 else (),
                 verification=Verification.UNRESOLVED,
             )
-            for dim in (task.dimensions or tuple(range(1, 11)))
+            for dim in (
+                task.dimensions
+                if task.targeted_component
+                else (task.dimensions or tuple(range(1, 11)))
+            )
         )
         return CandidateReview(
             assessment=ProposedAssessment(
@@ -116,20 +120,27 @@ class FakeModel:
                         verification=Verification.UNRESOLVED,
                     )
                     for k in (
-                        "knowledge_need",
-                        "increment",
-                        "scope_precision",
-                        "capacity_to_learn",
-                        "evidence_strategy",
-                        "next_use",
+                        task.route_items
+                        if task.targeted_component
+                        else (
+                            "knowledge_need",
+                            "increment",
+                            "scope_precision",
+                            "capacity_to_learn",
+                            "evidence_strategy",
+                            "next_use",
+                        )
                     )
                 )
-                if not task.dimensions
-                and (
-                    context.project.route != "EXPLAIN"
-                    or context.project.stage in ("EARLY IDEA", "DISCOVERY PROPOSAL")
+                if task.targeted_component
+                or (
+                    not task.dimensions
+                    and (
+                        context.project.route != "EXPLAIN"
+                        or context.project.stage in ("EARLY IDEA", "DISCOVERY PROPOSAL")
+                    )
+                    and not scored
                 )
-                and not scored
                 else (),
             ),
             summary=ReviewContent(

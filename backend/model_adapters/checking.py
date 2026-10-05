@@ -66,7 +66,9 @@ class AssessmentChecker:
         self.statements(task.context, candidate.statements)
         dimensions = {
             d
-            for d in (task.dimensions or range(1, 11))
+            for d in (
+                task.dimensions if task.targeted_component else (task.dimensions or range(1, 11))
+            )
             if task.context.project.route == "EXPLAIN" or d >= 8
         }
         inapplicable = tuple(
@@ -81,7 +83,14 @@ class AssessmentChecker:
         applicable = tuple(r for r in candidate.assessment.ratings if r not in inapplicable)
         if {r.dimension for r in applicable} != dimensions or len(applicable) != len(dimensions):
             raise ProviderFailure("ASSESSMENT_SCOPE_MISMATCH")
-        if task.dimensions and (
+        if task.targeted_component:
+            if {r.item for r in candidate.assessment.route_assessment} != set(
+                task.route_items
+            ) or len(candidate.assessment.route_assessment) != len(task.route_items):
+                raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
+            if any(f.rule_id not in task.semantic_rule_ids for f in candidate.assessment.findings):
+                raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
+        elif task.dimensions and (
             candidate.assessment.findings or candidate.assessment.route_assessment
         ):
             raise ProviderFailure("TARGETED_SCOPE_MISMATCH")

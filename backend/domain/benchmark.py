@@ -465,13 +465,15 @@ class RunBudget(Frozen):
 
 class RunConfiguration(Frozen):
     mode: Literal["WORKBENCH", "BASELINE"]
-    component: Literal["FULL", "Argument", "Study", "Literature", "Alternatives"] = "FULL"
+    component: Literal[
+        "FULL", "Argument", "Study", "Literature", "Alternatives", "Brief", "Usefulness"
+    ] = "FULL"
     provider: Literal["fake", "openai"]
     model: Text
     parameters: tuple[tuple[Text, str | int | float | None], ...] = ()
     budget: RunBudget
     code_commit: Text
-    task_version: Literal["benchmark-v1"] = "benchmark-v1"
+    task_version: Literal["benchmark-v1", "benchmark-v2"] = "benchmark-v1"
 
     @model_validator(mode="after")
     def no_credentials(self) -> Self:

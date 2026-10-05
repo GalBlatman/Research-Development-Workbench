@@ -112,7 +112,7 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
                 )
             ),
         }
-    return {
+    contract = {
         **(
             {
                 "route_questions": route_questions[task.context.project.route],
@@ -135,6 +135,39 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
         "rating_reference": "0 absent/inadequate; 5 solid accepted-paper reference; 8 exceptional with supplied published comparison; 10 decade-class element, not paper perfection. Uninspected is null, not zero.",
         "principal_obstacle_contract": "Include statement_id=principal-obstacle with text exactly matching summary.obstacle; attribute it honestly.",
     }
+    if task.targeted_component:
+        questions = json.loads((PROMPTS / "route-questions-v2.json").read_text(encoding="utf-8"))
+        route = (
+            "ESTABLISH" if task.context.project.route == "EXPLAIN" else task.context.project.route
+        )
+        contract["dimensions"] = {str(d): criteria[str(d)] for d in task.dimensions}
+        contract["route_questions"] = {k: questions[route][k] for k in task.route_items}
+        contract["route_assessment_key_map"] = {k: k for k in task.route_items}
+        contract["semantic_rules"] = [
+            {
+                "id": r["id"],
+                "source": r["source"],
+                "predicate": meanings.get(r["id"], r["consequence"]),
+            }
+            for r in manifest["rules"]
+            if r["id"] in task.semantic_rule_ids
+        ]
+        contract["targeted_scope_contract"] = (
+            "This explicit scoped contract governs targeted output: emit exactly supplied numerical dimensions and route item keys, "
+            "including empty numerical ratings for a qualitative-only task. Findings may name only supplied semantic rules. "
+            "Do not evaluate other components or emit global findings. The generic prohibition on targeted route items/findings "
+            "is replaced only for the exact supplied targets. These are current bounded scientific judgments, not scores for an integrated review."
+        )
+    contract["scientific_basis_statements"] = (
+        "Include statement_id=evidence_basis describing what the supplied material supports and cannot establish; "
+        "include statement_id=novelty_basis when assessing prior work/contribution. When an applicable component cannot be determined "
+        "from supplied material, use kind=unresolved and the corresponding stable statement ID unavailable_question, "
+        "unavailable_premise_basis, unavailable_closest_predecessor, unavailable_contribution, unavailable_mechanism_account, "
+        "unavailable_measures, unavailable_identification, unavailable_findings_evidence or unavailable_usefulness. "
+        "Use these only when applicable and actually unavailable; do not fabricate absence or recover hidden content. "
+        "Attribute assertions honestly. Never emit deterministic derived findings such as UNINSPECTED-BLOCK; the server owns those."
+    )
+    return contract
 
 
 def packet_check(context: Any) -> None:

@@ -1,6 +1,6 @@
 # Step 13 calibration status
 
-STATUS: BLOCKED — October 5, 2026. Step 14 is not started.
+STATUS: IN PROGRESS — October 5, 2026. Step 14 is not started.
 
 Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
@@ -14,13 +14,19 @@ Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634
 
 ## Verification
 
-Local full backend: 607 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (49 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. Required GitHub CI passed on closure commit 849f99b: foundation, domain-policy with PostgreSQL and browser. The mandatory PostgreSQL operator CLI smoke passed. CI evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37357677064. No live provider calls were made.
+Local full backend: 651 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (50 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. Required GitHub CI passed on closure commit 849f99b: foundation, domain-policy with PostgreSQL and browser. The mandatory PostgreSQL operator CLI smoke passed. CI evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37357677064. No live provider calls were made.
 
 ## Package and calibration
 
 The owner supplied a read-only isolated DEVELOPMENT handoff. All four file hashes match the owner-supplied identities. The completed, early and proposal packages contain 400, 20 and 20 cases respectively, across the same 20 permanent paper identities. All project and variant splits are DEVELOPMENT. Canonical package/manifest lineage hashes and all three public validate-only CLI checks passed, without provider execution or runtime import. No builder source directory/history, original papers, validation or held-out package was accessed.
 
-The export schema has no case-to-component or explicit integrated-evaluation assignment, and no journal, CLOSE/ADJACENT/BREADTH, method/design or substantive-area annotations. An owner-supplied sanitized administrator sidecar is requested. This is an external input blocker: guessing integrated scope or the required scientific strata would not meet the execution/report contract. The existing stored CLI remains fake-only; the live development-only execution entry point, bounded configuration, batching and stratified analysis remain to be completed against that mapping before execution.
+The administrator-only routing/stratification sidecar is now supplied and verified at file SHA-256 25389eff72ffc04b920af309547475e9a1f8c59a64196bcbbee9848147d59ce8. Exact joins cover 440/440 cases and 20/20 papers. Routing is 253 TARGETED_COMPONENT and 187 FULL_WORKBENCH. Targeted counts: Argument 9, Brief 35, Literature 52, Study 107, Usefulness 50, Alternatives 0. Paper metadata remains in the administrator/orchestration layer only.
+
+The DEVELOPMENT-only orchestration module verifies all five fixed file identities, canonical lineage and exact joins before execution. It rejects non-DEVELOPMENT splits, routes exactly as declared, freezes existing provider/model parameters and bounded budgets, uses deterministic four-paper batches with concurrency two, and preserves immutable case attempts and per-stage stores. The evaluator receives only the sanitized packet and its ordinary scoped task. It receives no sidecar object, journal, proximity, method, area, paper identity or execution-scope label.
+
+Targeted task contract extension: Brief and Usefulness use the existing workspace dimension mappings. Non-EXPLAIN targeted components use bounded qualitative route items instead of manufacturing theory scores; Study retains its study dimensions. Explicit applicable semantic-rule targets replace the former all-or-nothing targeted finding prohibition. The checker enforces exact scoped dimensions and route-item sets and rejects findings outside the whitelist. Baseline uses the same packet/task/validity constraints in one pass. Components cannot silently become FULL. Cross-component intact/degraded references retain the same mode/provider/model/runtime/code identity, with component-specific provenance recorded. This is a Step-13 implementation/task correction, not a rubric change.
+
+Existing configured real model availability passed a read-only models endpoint check. No inference request has been sent. New implementation must pass required local checks and PostgreSQL CI before calibration.
 
 Verified DEVELOPMENT export file identities:
 

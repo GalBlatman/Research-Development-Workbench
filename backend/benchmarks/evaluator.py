@@ -11,6 +11,7 @@ from typing import Any, Literal
 from domain.application import AssessmentTask, CandidateReview, CheckDecision
 from domain.benchmark import BlindPacket, Judgment, Observation, ScientificState
 from domain.models import Adoption, AttributedStatement, EvidenceState, Project, Scope
+from domain.research import DIMENSIONS as WORKSPACE_DIMENSIONS
 from domain.sources import SourceRecord
 from model_adapters.checking import AssessmentChecker
 from model_adapters.contracts import ModelAdapter
@@ -30,6 +31,30 @@ DIMENSIONS = {
     "Literature": (2, 3),
     "Alternatives": (6,),
     "FULL": (),
+    "Brief": WORKSPACE_DIMENSIONS["Brief"],
+    "Usefulness": WORKSPACE_DIMENSIONS["Usefulness"],
+}
+
+ROUTE_TARGETS = {
+    "Brief": ("knowledge_need", "scope_precision"),
+    "Literature": ("increment",),
+    "Argument": ("capacity_to_learn",),
+    "Alternatives": ("capacity_to_learn", "evidence_strategy"),
+    "Study": ("evidence_strategy", "capacity_to_learn"),
+    "Usefulness": ("knowledge_need", "next_use"),
+}
+RULE_TARGETS = {
+    "Brief": (
+        "AUDIENCE-QUESTION",
+        "PREMISE-NO-BASIS",
+        "PREMISE-CONDITIONAL",
+        "PREMISE-CONTRADICTED",
+    ),
+    "Literature": ("NO-ADVANCE", "PROMISE-OVERREACH"),
+    "Argument": ("PROMISE-OVERREACH",),
+    "Alternatives": ("INFERENCE-UNSUPPORTED",),
+    "Study": ("DESIGN-MISMATCH", "INFERENCE-UNSUPPORTED", "STAGE-MISMATCH"),
+    "Usefulness": ("NO-CONSEQUENTIAL-STAKE",),
 }
 
 
@@ -81,31 +106,51 @@ class BlindEvaluator:
             self.workbench.sources.paste(scope, source, block.text)
             repository.set_admission(scope, source.document_id, 1, True)
 
-    def task(self, component: str) -> AssessmentTask:
+    def task(self, component: str, extended: bool = False) -> AssessmentTask:
         m = self.workbench.manifest
         context = self.workbench.context(self.project_id)
         dimensions = tuple(
             d for d in DIMENSIONS[component] if context.project.route == "EXPLAIN" or d >= 8
         )
-        if component != "FULL" and not dimensions:
+        if component != "FULL" and not dimensions and not extended:
             raise ValueError("NO_APPLICABLE_TARGETED_DIMENSIONS")
-        return AssessmentTask(
-            context=context,
-            dimensions=dimensions,
-            scope=Scope.TARGETED_CHECK if component != "FULL" else Scope.FULL_EVALUATION,
-            policy_version=m.version,
-            policy_sha256=m.canonical_sha256,
-            policy_manifest_sha256=m.sha256,
-            policy_implementation_version=m.implementation_version,
+        return AssessmentTask.model_validate(
+            dict(
+                context=context,
+                dimensions=dimensions,
+                scope=Scope.TARGETED_CHECK if component != "FULL" else Scope.FULL_EVALUATION,
+                policy_version=m.version,
+                policy_sha256=m.canonical_sha256,
+                policy_manifest_sha256=m.sha256,
+                policy_implementation_version=m.implementation_version,
+                targeted_component=component if extended and component != "FULL" else None,
+                route_items=ROUTE_TARGETS[component]
+                if extended
+                and component != "FULL"
+                and (
+                    context.project.route != "EXPLAIN"
+                    or context.project.stage in ("EARLY IDEA", "DISCOVERY PROPOSAL")
+                )
+                else (),
+                semantic_rule_ids=tuple(
+                    r
+                    for r in RULE_TARGETS[component]
+                    if r != "NO-ADVANCE" or context.project.route == "EXPLAIN"
+                )
+                if extended and component != "FULL"
+                else (),
+            )
         )
 
-    def run(self, mode: str, component: str) -> tuple[dict[str, Any], tuple[str, ...]]:
+    def run(
+        self, mode: str, component: str, extended: bool = False
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
         if mode not in ("WORKBENCH", "BASELINE"):
             raise ValueError("Unknown evaluator mode")
         self.mode = "BASELINE" if mode == "BASELINE" else "WORKBENCH"
         w = self.workbench
         if mode == "BASELINE":
-            task = self.task(component)
+            task = self.task(component, extended)
             if isinstance(w.adapter, OpenAIAdapter):
                 with provider_session(w.adapter):
                     payload = task.model_dump(mode="json")
@@ -128,12 +173,14 @@ class BlindEvaluator:
             w.repository.save_project(w.scope(self.project_id), updated, 1)
             components.append("interpretation")
         revision = w.repository.project(w.scope(self.project_id)).revision
+        scoped_task = self.task(component, extended) if extended and component != "FULL" else None
         review_output = w.run(
             self.project_id,
             revision,
-            dimensions=DIMENSIONS[component],
+            dimensions=scoped_task.dimensions if scoped_task else DIMENSIONS[component],
             target_workspace=None if component == "FULL" else component,
             evaluation_scope=Scope.FULL_EVALUATION,
+            targeted_task=scoped_task,
         )
         components.extend(
             (

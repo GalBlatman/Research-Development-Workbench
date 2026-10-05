@@ -105,7 +105,7 @@ def transport(monkeypatch, change=None):
                     "source_refs": [reference(task.context)],
                 }
             ]
-        elif kind == "rdw_evaluation":
+        elif kind in ("rdw_evaluation", "rdw_baseline"):
             task = AssessmentTask.model_validate(
                 {k: v for k, v in payload.items() if k != "criteria"}
             )

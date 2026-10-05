@@ -100,7 +100,16 @@ class Runner:
                 or reference.split != case.project.split
                 or reference.split_hash != content_hash(self.splits)
                 or reference.package_hash != case.variant.package_hash
-                or reference.configuration != config
+                or not (
+                    reference.configuration == config
+                    or (
+                        config.task_version == "benchmark-v2"
+                        and reference.configuration.model_copy(
+                            update={"component": config.component}
+                        )
+                        == config
+                    )
+                )
             ):
                 raise ValueError("Cross-split/configuration reference rejected")
             if self.store.read("runs", reference.run_id, BenchmarkRun) != reference:
@@ -152,7 +161,11 @@ class Runner:
                 case.variant.packet, adapter, self.manifest, self.runtime / identifier
             )
             with provider_session(adapter) as ledger:
-                output, components = evaluator.run(config.mode, config.component)
+                output, components = (
+                    evaluator.run(config.mode, config.component, extended=True)
+                    if config.task_version == "benchmark-v2"
+                    else evaluator.run(config.mode, config.component)
+                )
                 observation = evaluator.observe(output)
                 # Diagnostics see only administrator-approved observability at this step.
                 observable = dict(case.variant.visibility)
