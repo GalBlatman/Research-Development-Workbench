@@ -140,6 +140,12 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
             "do not mix literature and project_draft references in one attributed statement. Split such statements or use "
             "kind=model_inference for your synthesis, kind=proposed_improvement for recommendations, and kind=unresolved for missing knowledge."
         ),
+        "numerical_applicability_contract": (
+            "The supplied dimensions mapping is the exhaustive numerical scope, even for FULL evaluation. "
+            "Emit ratings only for those dimension numbers. ESTABLISH and TEST never score dimensions 1 through 7; "
+            "use their supplied qualitative route questions instead. Missing evidence means a null pending or unresolved "
+            "rating, never a fabricated numerical rating. FULL does not override route applicability."
+        ),
     }
     if task.targeted_component:
         questions = json.loads((PROMPTS / "route-questions-v2.json").read_text(encoding="utf-8"))

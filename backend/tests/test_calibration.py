@@ -3,7 +3,7 @@ import json
 import pytest
 from test_gate3_final_metrics import manifest as manifest
 
-from benchmarks.calibration import configuration, freeze, summarize
+from benchmarks.calibration import configuration, freeze, summarize, uncertain_attempts
 from benchmarks.evaluator import DIMENSIONS, ROUTE_TARGETS, RULE_TARGETS, BlindEvaluator
 from benchmarks.fixtures import synthetic
 from domain.benchmark import RunConfiguration
@@ -26,6 +26,10 @@ def test_canonical_targeted_contract_exact_scope(tmp_path, manifest, route, comp
         )
         contract = policy_contract(task)
         assert "kind=user_project" in contract["attribution_kind_contract"]
+        assert (
+            "FULL does not override route applicability"
+            in contract["numerical_applicability_contract"]
+        )
         assert "project_draft" in contract["attribution_kind_contract"]
         assert (
             "kind=source_backed only for literature-role" in contract["attribution_kind_contract"]
@@ -145,3 +149,53 @@ def test_stage_variants_are_nested_in_one_paper(tmp_path, manifest):
     assert report["overall"]["paper_count"] == 1
     assert report["overall"]["case_count"] == 2
     assert len(report["strata"]) >= 8
+
+
+def test_uncertain_attempt_is_carried_without_rewriting_or_observation(tmp_path, manifest):
+    from types import SimpleNamespace
+
+    from test_benchmarks import configuration as fake_configuration
+    from test_benchmarks import runner
+
+    from benchmarks.store import AdminStore
+
+    r, _, cases = runner(tmp_path / "source", manifest)
+    original = r.execute(cases[0], fake_configuration())
+    failed = original.model_copy(
+        update={
+            "status": "FAILED",
+            "failure_type": "TIMEOUT_UNCERTAIN",
+            "observation": None,
+            "result": None,
+        }
+    )
+    package = SimpleNamespace(manifest=r.splits, variants=(cases[0].variant,))
+    previous = tmp_path / "prior"
+    store = AdminStore(previous / "admin" / r.splits.version)
+    store.save_run(failed)
+    before = tuple(p.read_bytes() for p in (store.root / "runs").glob("*.json"))
+    assert uncertain_attempts((previous,), (package,)) == (failed,)
+    assert before == tuple(p.read_bytes() for p in (store.root / "runs").glob("*.json"))
+    bad = failed.model_copy(update={"run_id": "bad", "variant_hash": "0" * 64})
+    store.save_run(bad)
+    with pytest.raises(ValueError, match="INVALID_UNCERTAIN_CARRY_FORWARD"):
+        uncertain_attempts((previous,), (package,))
+
+
+def test_observe_server_withholding_trace_without_giving_baseline_a_checker(tmp_path, manifest):
+    case = next(c for c in synthetic()[1] if c.project.route == "EXPLAIN")
+    evaluator = BlindEvaluator(case.variant.packet, FakeModel(), manifest, tmp_path / "blind")
+    try:
+        output, _ = evaluator.run("WORKBENCH", "FULL", extended=True)
+        trace = next(t for t in output["policy"]["trace"] if t["rule_id"] == "UNINSPECTED-BLOCK")
+        observation = evaluator.observe(output)
+        flag = next(j for j in observation.judgments if j.key == "finding:UNINSPECTED-BLOCK")
+        assert flag.state == trace["value"]
+        assert flag.verification is None
+        baseline, _ = evaluator.run("BASELINE", "FULL", extended=True)
+        baseline["policy"] = output["policy"]
+        assert not any(
+            j.key == "finding:UNINSPECTED-BLOCK" for j in evaluator.observe(baseline).judgments
+        )
+    finally:
+        evaluator.close()

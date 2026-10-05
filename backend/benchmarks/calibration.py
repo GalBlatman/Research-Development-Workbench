@@ -135,6 +135,33 @@ def freeze(path: Path, value: dict[str, Any]) -> None:
             stream.write(text)
 
 
+def uncertain_attempts(
+    previous_outputs: tuple[Path, ...], packages: tuple[BenchmarkPackage, ...]
+) -> tuple[BenchmarkRun, ...]:
+    """Carry immutable uncertain failures as unavailable, never as valid science."""
+    selected: dict[tuple[str, str], BenchmarkRun] = {}
+    for previous in previous_outputs:
+        for package in packages:
+            folder = previous / "admin" / package.manifest.version / "runs"
+            variants = {v.variant_id: v for v in package.variants}
+            for path in sorted(folder.glob("*.json")):
+                run = BenchmarkRun.model_validate_json(path.read_text(encoding="utf-8"))
+                if run.failure_type != "TIMEOUT_UNCERTAIN":
+                    continue
+                variant = variants.get(run.variant_id)
+                if (
+                    variant is None
+                    or run.split != Split.DEVELOPMENT
+                    or run.status != "FAILED"
+                    or run.observation is not None
+                    or run.variant_hash != content_hash(variant)
+                    or run.split_hash != content_hash(package.manifest)
+                ):
+                    raise ValueError("INVALID_UNCERTAIN_CARRY_FORWARD")
+                selected[(run.configuration.mode, run.variant_id)] = run
+    return tuple(selected.values())
+
+
 def run_development(
     handoff: Path,
     output: Path,
@@ -143,6 +170,7 @@ def run_development(
     concurrency: int = 2,
     paper_batch: int = 4,
     limit: int | None = None,
+    previous_outputs: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
     root = Path(__file__).resolve().parents[2]
     if (
@@ -165,6 +193,8 @@ def run_development(
             "provider_calls": 0,
         }
     pc = replace(ProviderConfig.environment(), provider="openai")
+    carried = uncertain_attempts(previous_outputs, packages)
+    excluded = {(r.configuration.mode, r.variant_id) for r in carried}
     policy = Manifest.model_validate_json(
         (root / "policies/rubric-v5.manifest.json").read_text(encoding="utf-8")
     )
@@ -182,6 +212,7 @@ def run_development(
             "paper_batch": paper_batch,
             "task_version": "benchmark-v2",
             "sidecar_admission": "ADMINISTRATOR_ONLY",
+            "uncertain_carried_runs": [r.model_dump(mode="json") for r in carried],
             "max_reserved_calls": 880 * pc.max_calls,
             "max_reserved_tokens": 880 * pc.max_run_tokens,
             "max_reserved_cost_usd": 880
@@ -203,7 +234,7 @@ def run_development(
         for package in packages
         for v in package.variants
     }
-    all_runs: list[BenchmarkRun] = []
+    all_runs: list[BenchmarkRun] = list(carried)
     remaining = limit
     for package in packages:
         store = AdminStore(output / "admin" / package.manifest.version)
@@ -235,7 +266,12 @@ def run_development(
                     == configuration(pc, "FULL", mode, commit).model_dump(exclude={"component"})
                 }
                 pending = sorted(
-                    (c for c in cases if c.project.paper_identity in selected_papers),
+                    (
+                        c
+                        for c in cases
+                        if c.project.paper_identity in selected_papers
+                        and (mode, c.variant.variant_id) not in excluded
+                    ),
                     key=lambda c: c.variant.variant_id,
                 )
                 while pending:
@@ -243,7 +279,7 @@ def run_development(
                         c
                         for c in pending
                         if all(
-                            v in references
+                            v in references or (mode, v) in excluded
                             for e in c.expectations
                             for v in (e.reference_variant, e.degraded_reference)
                             if v
@@ -407,6 +443,7 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=2)
     parser.add_argument("--paper-batch", type=int, default=4)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--previous-output", type=Path, action="append", default=[])
     args = parser.parse_args()
     try:
         result = run_development(
@@ -416,6 +453,7 @@ def main() -> None:
             concurrency=args.concurrency,
             paper_batch=args.paper_batch,
             limit=args.limit,
+            previous_outputs=tuple(args.previous_output),
         )
     except (ValueError, OSError, KeyError) as exc:
         print(

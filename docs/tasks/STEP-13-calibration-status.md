@@ -1,6 +1,6 @@
 # Step 13 calibration status
 
-STATUS: BLOCKED — October 5, 2026. Step 14 is not started.
+STATUS: IN PROGRESS — October 5, 2026. Step 14 is not started.
 
 Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
@@ -75,3 +75,13 @@ All five handoff hashes and exact 440-case/20-paper sidecar joins passed again. 
 Current branch documentation commit fb34f8383a7fed21b9f49885159b4937de346d63 did not complete CI: run 37362392612 attempt 1 had a successful browser job, but foundation and domain-policy jobs were cancelled with the GitHub check annotation: "The job was not acquired by Runner of type hosted even after multiple attempts". This is an external hosted-runner acquisition failure, not a reported test assertion failure. The full rerun was accepted (HTTP 201); attempt 2 remains queued at the latest observation. Evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37362392612.
 
 Provider calls remain gated on successful required CI. The prior evaluator correction commit f12be21986df3812d434efc4ba00d61080117f1b has passed all jobs, including PostgreSQL, but this resumption did not substitute that prior run for current-branch CI. Do not weaken CI, change runner infrastructure or bypass the gate merely to start calibration. Resume the prepared bounded pilot when the required CI passes; the owner's external-provider authorization persists.
+
+## Authorized live DEVELOPMENT pilot and general corrections
+
+The owner accepted exact-head CI prerequisite on run 66, commit 003bcdd1e30f70e226bbea853e331435655b9199: foundation and domain-policy passed, including PostgreSQL smoke/full pytest. Browser cancellation was hosted-runner availability; only task documentation differed from the prior passing browser commit. This prerequisite was verified before resumed paid calls. Standing authorization explicitly covers sanitized DEVELOPMENT packets to the OpenAI Responses endpoint with gpt-6-sol, both evaluator modes and justified bounded reruns.
+
+All historical attempts remain unchanged. Private runtime pilot records now total 11 attempts, six valid, with three ATTRIBUTION_ROLE_MISMATCH failures, one INAPPLICABLE_RATING failure and one TIMEOUT_UNCERTAIN. Total calls: 14. Known input/output tokens: 133,967/39,909; known estimated cost $0.6875855. One uncertain call has unknown usage/cost, so total cost remains unknown. These are pilot attempts, not final 440-case coverage or validation estimates. Later role diagnostic produced no mismatch and passed checking; retain strict source-role validation rather than weakening it to make failures pass. The integrated Workbench pilot failed by scoring an inapplicable theory dimension; its same-packet baseline passed. No scientific advantage is established by this small pilot.
+
+General corrections awaiting checked candidate execution: make supplied numerical dimensions exhaustive even in FULL mode, preserving route applicability; permit explicit administrator carry-forward of immutable TIMEOUT_UNCERTAIN records as unavailable without replay across runtime/code changes; expose the actual existing UNINSPECTED-BLOCK server trace in benchmark-v2 observation. This observation records a server consequence, never prompts the model to invent a derived finding and never gives baseline a policy/checker disposition. Historical benchmark-v1 observations retain their exact behavior. Baseline has no server flag, so derived-flag coverage is a product measurement and cannot by itself establish a fair scientific advantage. Semantic action annotation and prose invariance limitations remain to be analyzed.
+
+Carry-forward includes only prior DEVELOPMENT failures whose immutable variant/split identities match the admitted packages, with absent observations; the original record and its prior configuration remain preserved in the private administrative freeze. It is not rewritten as a valid case under the new candidate. Both modes retain identical scoped tasks and source packets. Budgets, provider/model, gold exclusion, sidecar exclusion and rubric V5 remain unchanged. No frontend change, original-source access, VALIDATION/HELD_OUT execution or main merge.

@@ -63,6 +63,7 @@ class BlindEvaluator:
         self, packet: BlindPacket, adapter: ModelAdapter, manifest: Manifest, runtime: Path
     ):
         self.mode: Literal["WORKBENCH", "BASELINE"] = "WORKBENCH"
+        self.extended = False
         runtime.mkdir(parents=True, exist_ok=False)
         db = Database(sqlite3.connect(runtime / "packet.sqlite", isolation_level=None), "sqlite")
         db.execute("PRAGMA foreign_keys=ON")
@@ -148,6 +149,7 @@ class BlindEvaluator:
         if mode not in ("WORKBENCH", "BASELINE"):
             raise ValueError("Unknown evaluator mode")
         self.mode = "BASELINE" if mode == "BASELINE" else "WORKBENCH"
+        self.extended = extended
         w = self.workbench
         if mode == "BASELINE":
             task = self.task(component, extended)
@@ -222,6 +224,15 @@ class BlindEvaluator:
             )
             for f in fields.get("findings", [])
         )
+        # Observe an actual server consequence; never ask a model to fabricate it.
+        # Baseline has no server policy trace and gains no checker disposition.
+        for trace in (
+            output.get("policy", {}).get("trace", [])
+            if self.mode == "WORKBENCH" and self.extended
+            else []
+        ):
+            if trace["rule_id"] == "UNINSPECTED-BLOCK":
+                judgments.append(Judgment(key="finding:UNINSPECTED-BLOCK", state=trace["value"]))
         for raw in output.get("statements", output.get("checked_statements", [])):
             statement = AttributedStatement.model_validate(raw)
             decision = by_target.get("statement:" + statement.statement_id)
