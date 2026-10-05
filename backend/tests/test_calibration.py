@@ -25,6 +25,11 @@ def test_canonical_targeted_contract_exact_scope(tmp_path, manifest, route, comp
             d for d in DIMENSIONS[component] if route == "EXPLAIN" or d >= 8
         )
         contract = policy_contract(task)
+        assert "kind=user_project" in contract["attribution_kind_contract"]
+        assert "project_draft" in contract["attribution_kind_contract"]
+        assert (
+            "kind=source_backed only for literature-role" in contract["attribution_kind_contract"]
+        )
         assert set(contract["dimensions"]) == {str(d) for d in task.dimensions}
         expected_items = ROUTE_TARGETS[component] if route != "EXPLAIN" else ()
         assert set(contract["route_questions"]) == set(expected_items)

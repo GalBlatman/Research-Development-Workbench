@@ -14,11 +14,11 @@ Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634
 
 ## Verification
 
-Local full backend: 651 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (50 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. Required GitHub CI passed on closure commit 849f99b: foundation, domain-policy with PostgreSQL and browser. The mandatory PostgreSQL operator CLI smoke passed. CI evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37357677064. No live provider calls were made.
+Local full backend: 651 passed, 36 skipped (including PostgreSQL-dependent tests); 16 V5 golden cases covered in the full suite. Browser: 14 passed. Ruff lint/format, mypy (50 source files), API contract check, frontend formatting/build, foundation check and tracked publication guard passed. Required GitHub CI passed on closure commit 849f99b: foundation, domain-policy with PostgreSQL and browser. The mandatory PostgreSQL operator CLI smoke passed. CI evidence: https://github.com/GalBlatman/Research-Development-Workbench/actions/runs/37357677064. No live provider calls were made before the closure checks passed.
 
 ## Package and calibration
 
-The owner supplied a read-only isolated DEVELOPMENT handoff. All four file hashes match the owner-supplied identities. The completed, early and proposal packages contain 400, 20 and 20 cases respectively, across the same 20 permanent paper identities. All project and variant splits are DEVELOPMENT. Canonical package/manifest lineage hashes and all three public validate-only CLI checks passed, without provider execution or runtime import. No builder source directory/history, original papers, validation or held-out package was accessed.
+The owner supplied a read-only isolated DEVELOPMENT handoff. All five file hashes match the owner-supplied identities. The completed, early and proposal packages contain 400, 20 and 20 cases respectively, across the same 20 permanent paper identities. All project and variant splits are DEVELOPMENT. Canonical package/manifest lineage hashes and all three public validate-only CLI checks passed, without provider execution or runtime import. No builder source directory/history, original papers, validation or held-out package was accessed.
 
 The administrator-only routing/stratification sidecar is now supplied and verified at file SHA-256 25389eff72ffc04b920af309547475e9a1f8c59a64196bcbbee9848147d59ce8. Exact joins cover 440/440 cases and 20/20 papers. Routing is 253 TARGETED_COMPONENT and 187 FULL_WORKBENCH. Targeted counts: Argument 9, Brief 35, Literature 52, Study 107, Usefulness 50, Alternatives 0. Paper metadata remains in the administrator/orchestration layer only.
 
@@ -26,7 +26,9 @@ The DEVELOPMENT-only orchestration module verifies all five fixed file identitie
 
 Targeted task contract extension: Brief and Usefulness use the existing workspace dimension mappings. Non-EXPLAIN targeted components use bounded qualitative route items instead of manufacturing theory scores; Study retains its study dimensions. Explicit applicable semantic-rule targets replace the former all-or-nothing targeted finding prohibition. The checker enforces exact scoped dimensions and route-item sets and rejects findings outside the whitelist. Baseline uses the same packet/task/validity constraints in one pass. Components cannot silently become FULL. Cross-component intact/degraded references retain the same mode/provider/model/runtime/code identity, with component-specific provenance recorded. This is a Step-13 implementation/task correction, not a rubric change.
 
-Existing configured real model availability passed a read-only models endpoint check. No inference request has been sent. New implementation must pass required local checks and PostgreSQL CI before calibration.
+Existing configured real model availability passed a read-only models endpoint check. Orchestration commit 36ea932a3038838f5c49a81ba296d6cedf626190 passed all required CI jobs, including PostgreSQL, before inference (run 37360659722).
+
+Two bounded WORKBENCH attempts on distinct DEVELOPMENT papers are preserved outside Git. The first timed out at 30 seconds (TIMEOUT_UNCERTAIN); usage and cost are unknown and the attempt has not been replayed. A distinct targeted Usefulness case returned in 35.641 seconds under a separately frozen 120-second timeout. Its single call used 10,078 input and 2,729 output tokens (estimated cost $0.049045), but failed ATTRIBUTION_ROLE_MISMATCH. No valid final scientific assessment resulted. The structural checker correctly rejected project-draft evidence typed as published literature. The general correction makes source-role attribution explicit in the shared task contract for both modes; it does not relax validation or change the rubric. Runtime-mismatched reference runs are excluded from subsequent comparisons. Required checks and PostgreSQL CI must pass on this correction before further calls.
 
 Verified DEVELOPMENT export file identities:
 
@@ -40,8 +42,8 @@ Derived frozen split manifest identities:
 - Completed: daa054ba096fe548061396c8a8a777c28d5b20f468135344fd34ae942e175ffd.
 - Early and proposal: verified against their corresponding handoff lineage records.
 
-Development papers evaluated: 0/20. Final development cases: 0/440. Legitimate unavailable/failed calibration cases: none recorded, because calibration has not started. Validation executed: 0/150. Held-out executed: 0/75. No evaluator results from either blind split inspected.
+Development papers attempted: 2/20. Valid final scientific development cases: 0/440. Preserved failed attempts: 2; one uncertain timeout and one attribution rejection. These preliminary attempts do not establish complete final coverage. Validation executed: 0/150. Held-out executed: 0/75. No evaluator results from either blind split inspected.
 
-Final provider/model, runtime budgets and validation freeze: not established. Initial package and split hashes are verified; they are not a final Step-14 freeze. Workbench and baseline scientific metrics, paper-level comparisons, failure classification, tuning and leakage diagnostics: not available. Provider calls/tokens/cost: 0/0/0. No performance claims or final validation.
+Final provider/model, runtime budgets and validation freeze: not established. Initial package and split hashes are verified; they are not a final Step-14 freeze. Workbench and baseline scientific metrics, paper-level comparisons, failure classification, tuning and leakage diagnostics: not available. Provider calls: 2. Known input/output tokens: 10,078/2,729; one call has unknown usage. Known estimated cost: $0.049045; total cost remains unknown. No performance claims or final validation.
 
 V5 and V4 unchanged. Product specification and frozen roadmap unchanged. No corpus correction or V6 candidate identified. No private source content, benchmark export or credential added to Git. Human review and passing CI precede main integration. Step 14 ready: NO.

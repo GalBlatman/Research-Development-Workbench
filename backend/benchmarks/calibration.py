@@ -231,7 +231,8 @@ def run_development(
                     for r in sorted(
                         store.artifacts("runs", BenchmarkRun), key=lambda r: r.timestamp
                     )
-                    if r.configuration.mode == mode and r.configuration.code_commit == commit
+                    if r.configuration.model_dump(exclude={"component"})
+                    == configuration(pc, "FULL", mode, commit).model_dump(exclude={"component"})
                 }
                 pending = sorted(
                     (c for c in cases if c.project.paper_identity in selected_papers),
