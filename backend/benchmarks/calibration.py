@@ -29,6 +29,14 @@ FILES = {
 COMPONENTS = {"Argument", "Brief", "Literature", "Study", "Usefulness", "Alternatives"}
 
 
+def provider_identity(pc: ProviderConfig) -> dict[str, Any]:
+    """Equivalent constructor/environment numerics have one frozen identity."""
+    values = asdict(pc)
+    for key in ("timeout", "input_rate", "cached_rate", "cache_write_rate", "output_rate"):
+        values[key] = float(values[key])
+    return values
+
+
 def preflight(handoff: Path) -> tuple[tuple[BenchmarkPackage, ...], dict[str, Any]]:
     data = {}
     for name, digest in FILES.items():
@@ -113,7 +121,7 @@ def configuration(pc: ProviderConfig, component: str, mode: str, commit: str) ->
             provider="openai",
             model=pc.model,
             parameters=tuple(
-                (k, v) for k, v in asdict(pc).items() if k not in ("provider", "model")
+                (k, v) for k, v in provider_identity(pc).items() if k not in ("provider", "model")
             ),
             budget=RunBudget(
                 max_calls=pc.max_calls, max_tokens=pc.max_run_tokens, max_cost_usd=worst
@@ -162,6 +170,87 @@ def uncertain_attempts(
     return tuple(selected.values())
 
 
+def interrupted_reservations(
+    previous_outputs: tuple[Path, ...],
+    packages: tuple[BenchmarkPackage, ...],
+    sidecar: dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    """Bind unfinished claims to admitted cases; never invent usage or replay them."""
+    mappings = {c["case_id"]: c for c in sidecar["cases"]}
+    selected = []
+    for previous in previous_outputs:
+        frozen = []
+        for name in ("configuration.json", "pilot-configuration.json"):
+            path = previous / "admin" / name
+            if path.exists():
+                frozen.append(json.loads(path.read_text(encoding="utf-8")))
+        for package in packages:
+            directory = previous / "admin" / package.manifest.version
+            if not directory.exists():
+                continue
+            store = AdminStore(directory)
+            runs = store.artifacts("runs", BenchmarkRun)
+            completed = {r.run_id for r in runs}
+            pending = {}
+            for path in (directory / "claims").glob("*.json"):
+                claim = json.loads(path.read_text(encoding="utf-8"))
+                if claim["run_id"] not in completed:
+                    pending[path.name] = claim
+            if not pending:
+                continue
+            configs = {content_hash(r.configuration): r.configuration for r in runs}
+            for record in frozen:
+                pc = ProviderConfig(**record["provider"])
+                for mode in ("WORKBENCH", "BASELINE"):
+                    cfg = configuration(pc, "FULL", mode, record["commit"])
+                    # Preserve pre-normalization claim bytes as well as the canonical form.
+                    # Frozen JSON sorts object keys; original parameter order is dataclass order.
+                    raw = cfg.model_copy(
+                        update={
+                            "parameters": tuple(
+                                (k, record["provider"][k])
+                                for k in asdict(pc)
+                                if k not in ("provider", "model")
+                            )
+                        }
+                    )
+                    configs[content_hash(cfg)] = cfg
+                    configs[content_hash(raw)] = raw
+            matched = set()
+            for variant in package.variants:
+                mapping = mappings[variant.variant_id]
+                component = (
+                    "FULL"
+                    if mapping["execution_scope"] == "FULL_WORKBENCH"
+                    else mapping["target_component"]
+                )
+                for config in configs.values():
+                    config = config.model_copy(update={"component": component})
+                    key = store.cache_key(variant, package.manifest, config)
+                    name = content_hash(key) + ".json"
+                    if name not in pending or name in matched:
+                        continue
+                    report = store.reservation_report(key)
+                    selected.append(
+                        {
+                            "mode": config.mode,
+                            "variant_id": variant.variant_id,
+                            "variant_hash": content_hash(variant),
+                            "split_hash": content_hash(package.manifest),
+                            "configuration": config.model_dump(mode="json"),
+                            "reservation": report.model_dump(mode="json"),
+                            "source": str(directory),
+                            "calls": None,
+                            "usage": None,
+                            "cost": None,
+                        }
+                    )
+                    matched.add(name)
+            if matched != set(pending):
+                raise ValueError("UNBOUND_INTERRUPTED_RESERVATION")
+    return tuple(selected)
+
+
 def run_development(
     handoff: Path,
     output: Path,
@@ -194,7 +283,9 @@ def run_development(
         }
     pc = replace(ProviderConfig.environment(), provider="openai")
     carried = uncertain_attempts(previous_outputs, packages)
+    interrupted = interrupted_reservations(previous_outputs, packages, sidecar)
     excluded = {(r.configuration.mode, r.variant_id) for r in carried}
+    excluded.update((r["mode"], r["variant_id"]) for r in interrupted)
     policy = Manifest.model_validate_json(
         (root / "policies/rubric-v5.manifest.json").read_text(encoding="utf-8")
     )
@@ -207,12 +298,13 @@ def run_development(
             "commit": commit,
             "policy": policy.model_dump(mode="json"),
             "handoff_hashes": FILES,
-            "provider": asdict(pc),
+            "provider": provider_identity(pc),
             "concurrency": concurrency,
             "paper_batch": paper_batch,
             "task_version": "benchmark-v2",
             "sidecar_admission": "ADMINISTRATOR_ONLY",
             "uncertain_carried_runs": [r.model_dump(mode="json") for r in carried],
+            "interrupted_uncertain_reservations": interrupted,
             "max_reserved_calls": 880 * pc.max_calls,
             "max_reserved_tokens": 880 * pc.max_run_tokens,
             "max_reserved_cost_usd": 880
@@ -292,7 +384,9 @@ def run_development(
                         ready = ready[:remaining]
                     if not ready:
                         return summarize(
-                            tuple(all_runs) + store.artifacts("runs", BenchmarkRun), sidecar
+                            tuple(all_runs) + store.artifacts("runs", BenchmarkRun),
+                            sidecar,
+                            interrupted=interrupted,
                         )
 
                     def perform(case: Case) -> BenchmarkRun | None:
@@ -342,7 +436,7 @@ def run_development(
                     if remaining is not None:
                         remaining -= len(ready)
         all_runs.extend(store.artifacts("runs", BenchmarkRun))
-    result = summarize(tuple(all_runs), sidecar, case_metadata)
+    result = summarize(tuple(all_runs), sidecar, case_metadata, interrupted=interrupted)
     freeze(output / "admin" / "initial-results.json", result)
     return result
 
@@ -351,6 +445,8 @@ def summarize(
     runs: tuple[BenchmarkRun, ...],
     sidecar: dict[str, Any],
     case_metadata: dict[str, dict[str, str]] | None = None,
+    *,
+    interrupted: tuple[dict[str, Any], ...] = (),
 ) -> dict[str, Any]:
     cases = {c["case_id"]: c for c in sidecar["cases"]}
     runs = tuple(
@@ -412,8 +508,10 @@ def summarize(
                 "paper_macro_rate": sum(paper_rates) / len(paper_rates) if paper_rates else None,
                 "papers_with_available_metric": len(paper_rates),
             }
+        uncertain = len({r["variant_id"] for r in interrupted if r["mode"] == mode})
+        total = len(selected) + uncertain
         totals[mode]["failure_rate"] = (
-            sum(r.status != "SUCCEEDED" for r in selected) / len(selected) if selected else None
+            (sum(r.status != "SUCCEEDED" for r in selected) + uncertain) / total if total else None
         )
 
     return {
@@ -429,6 +527,8 @@ def summarize(
             r.calls > 0 and (r.input_tokens is None or r.output_tokens is None) for r in runs
         ),
         "unknown_cost_runs": sum(r.calls > 0 and r.estimated_cost_usd is None for r in runs),
+        "interrupted_uncertain_reservations": interrupted,
+        "unknown_call_reservations": len(interrupted),
         "independence_unit": "paper; variants are nested observations",
         "validation_cases_executed": 0,
         "held_out_cases_executed": 0,
@@ -468,7 +568,17 @@ def main() -> None:
         raise SystemExit(1) from None
     print(
         json.dumps(
-            {k: v for k, v in result.items() if k not in ("overall", "strata", "metric_totals")},
+            {
+                k: v
+                for k, v in result.items()
+                if k
+                not in (
+                    "overall",
+                    "strata",
+                    "metric_totals",
+                    "interrupted_uncertain_reservations",
+                )
+            },
             sort_keys=True,
         )
     )

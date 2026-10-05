@@ -3,13 +3,102 @@ import json
 import pytest
 from test_gate3_final_metrics import manifest as manifest
 
-from benchmarks.calibration import configuration, freeze, summarize, uncertain_attempts
+from benchmarks.calibration import (
+    configuration,
+    freeze,
+    interrupted_reservations,
+    provider_identity,
+    summarize,
+    uncertain_attempts,
+)
 from benchmarks.evaluator import DIMENSIONS, ROUTE_TARGETS, RULE_TARGETS, BlindEvaluator
 from benchmarks.fixtures import synthetic
 from domain.benchmark import RunConfiguration
 from model_adapters.config import ProviderConfig
 from model_adapters.fake import FakeModel
 from model_adapters.openai import policy_contract
+
+
+@pytest.mark.parametrize("field,value", [("timeout", 120), ("input_rate", 2), ("output_rate", 10)])
+def test_equivalent_numeric_configuration_has_one_reservation_identity(tmp_path, field, value):
+    from dataclasses import replace
+
+    from benchmarks.store import AdminStore
+    from benchmarks.variants import content_hash
+    from benchmarks.variants import freeze as split_freeze
+
+    projects, cases = synthetic()
+    splits = split_freeze(projects, "synthetic-splits-v1")
+    integer = replace(ProviderConfig(), **{field: value})
+    floating = replace(integer, **{field: float(value)})
+    first = configuration(integer, "FULL", "WORKBENCH", "same-commit")
+    second = configuration(floating, "FULL", "WORKBENCH", "same-commit")
+    assert content_hash(first) == content_hash(second)
+    assert content_hash(provider_identity(integer)) == content_hash(provider_identity(floating))
+    store = AdminStore(tmp_path)
+    key = store.cache_key(cases[0].variant, splits, first)
+    assert key == store.cache_key(cases[0].variant, splits, second)
+    assert store.claim(key, "first")
+    assert not store.claim(key, "accidental-replay")
+
+
+def test_interrupted_claim_is_bound_and_carried_without_fabricating_a_run(tmp_path):
+    from dataclasses import asdict
+    from types import SimpleNamespace
+
+    from benchmarks.store import AdminStore
+    from benchmarks.variants import freeze as split_freeze
+    from domain.benchmark import BenchmarkRun
+
+    projects, cases = synthetic()
+    splits = split_freeze(projects, "synthetic-splits-v1")
+    variant = cases[0].variant
+    previous = tmp_path / "previous"
+    pc = ProviderConfig(timeout=120)
+    config = configuration(pc, "FULL", "WORKBENCH", "historical-commit")
+    # Simulate the historical int-valued, pre-normalization identity.
+    config = config.model_copy(
+        update={
+            "parameters": tuple(
+                (k, v) for k, v in asdict(pc).items() if k not in ("provider", "model")
+            )
+        }
+    )
+    freeze(
+        previous / "admin" / "configuration.json",
+        {"provider": asdict(pc), "commit": "historical-commit"},
+    )
+    store = AdminStore(previous / "admin" / splits.version)
+    key = store.cache_key(variant, splits, config)
+    assert store.claim(key, "interrupted-run")
+    before = tuple(p.read_bytes() for p in (store.root / "claims").glob("*.json"))
+    package = SimpleNamespace(manifest=splits, variants=(variant,))
+    sidecar = {"cases": [{"case_id": variant.variant_id, "execution_scope": "FULL_WORKBENCH"}]}
+    records = interrupted_reservations((previous,), (package,), sidecar)
+    assert len(records) == 1
+    assert records[0]["variant_id"] == variant.variant_id
+    assert records[0]["configuration"] == config.model_dump(mode="json")
+    assert records[0]["reservation"]["status"] == "INTERRUPTED_UNCERTAIN"
+    assert records[0]["calls"] is records[0]["usage"] is records[0]["cost"] is None
+    assert before == tuple(p.read_bytes() for p in (store.root / "claims").glob("*.json"))
+    assert not store.artifacts("runs", BenchmarkRun)
+    assert interrupted_reservations((previous,), (package,), sidecar) == records
+    with pytest.raises(ValueError, match="UNBOUND_INTERRUPTED_RESERVATION"):
+        interrupted_reservations(
+            (previous,), (SimpleNamespace(manifest=splits, variants=()),), sidecar
+        )
+
+
+def test_interrupted_reservation_is_a_failure_not_a_zero_cost_success():
+    report = summarize(
+        (),
+        {"cases": [], "papers": []},
+        interrupted=({"mode": "WORKBENCH", "variant_id": "synthetic", "calls": None},),
+    )
+    assert report["metric_totals"]["WORKBENCH"]["failure_rate"] == 1
+    assert report["metric_totals"]["BASELINE"]["failure_rate"] is None
+    assert report["unknown_call_reservations"] == 1
+    assert report["metric_totals"]["WORKBENCH"]["state"]["denominator"] == 0
 
 
 @pytest.mark.parametrize("route", ("EXPLAIN", "ESTABLISH", "TEST"))
