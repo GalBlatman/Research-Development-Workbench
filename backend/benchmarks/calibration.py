@@ -10,13 +10,13 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
+from benchmarks.calibration_adapter import CalibrationAdapter
 from benchmarks.metrics import aggregate
 from benchmarks.runner import Case, Runner
 from benchmarks.store import AdminStore
 from benchmarks.variants import content_hash
 from domain.benchmark import BenchmarkPackage, BenchmarkRun, RunBudget, RunConfiguration, Split
 from model_adapters.config import ProviderConfig
-from model_adapters.openai import OpenAIAdapter
 from policy_engine.manifest import Manifest
 
 FILES = {
@@ -146,7 +146,7 @@ def uncertain_attempts(
             variants = {v.variant_id: v for v in package.variants}
             for path in sorted(folder.glob("*.json")):
                 run = BenchmarkRun.model_validate_json(path.read_text(encoding="utf-8"))
-                if run.failure_type != "TIMEOUT_UNCERTAIN":
+                if run.failure_type not in {"TIMEOUT_UNCERTAIN", "TRANSPORT_ERROR_UNCERTAIN"}:
                     continue
                 variant = variants.get(run.variant_id)
                 if (
@@ -244,7 +244,7 @@ def run_development(
             output / "evaluator" / package.manifest.version,
             policy,
             package.manifest,
-            lambda: OpenAIAdapter(pc),
+            lambda: CalibrationAdapter(pc),
         )
         projects = {p.benchmark_id: p for p in package.projects}
         expectations = {e.variant_id: e.expectations for e in package.expectations}

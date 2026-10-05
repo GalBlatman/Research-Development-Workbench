@@ -135,8 +135,9 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
         "rating_reference": "0 absent/inadequate; 5 solid accepted-paper reference; 8 exceptional with supplied published comparison; 10 decade-class element, not paper perfection. Uninspected is null, not zero.",
         "principal_obstacle_contract": "Include statement_id=principal-obstacle with text exactly matching summary.obstacle; attribute it honestly.",
         "attribution_kind_contract": (
-            "Use kind=user_project for assertions grounded in project_draft passages, even when the draft describes a completed published study. "
-            "Use kind=source_backed only for literature-role passages. Every cited passage must match the kind's role; "
+            "Use kind=user_project for assertions grounded in project_draft or author_note passages, even when the draft describes a completed published study. "
+            "Use kind=source_backed for admitted literature, closest_predecessor, alternative_account, method_or_measure or context source passages. "
+            "A source role alone establishes neither publication status nor scientific truth. Every cited passage must match the kind's role family; "
             "do not mix literature and project_draft references in one attributed statement. Split such statements or use "
             "kind=model_inference for your synthesis, kind=proposed_improvement for recommendations, and kind=unresolved for missing knowledge."
         ),

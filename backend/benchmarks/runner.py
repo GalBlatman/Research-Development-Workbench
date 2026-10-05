@@ -188,6 +188,9 @@ class Runner:
                 result = compare(observation, case.expectations, reference_observations, project)
             receipt = ledger.receipt() if ledger else None
         except Exception as exc:
+            proposed = getattr(adapter, "proposed_review", None)
+            if output is None and proposed is not None:
+                output = proposed.model_dump(mode="json")
             failure = exc.code if isinstance(exc, ProviderFailure) else type(exc).__name__
             receipt = (
                 exc.metadata
@@ -210,6 +213,7 @@ class Runner:
                 "interpretation-v1.md",
                 "evaluation-v3.md",
                 "checking-v4.md",
+                "checking-compact-v1.md",
                 "workspace-v2.md",
                 "workspace-check-v2.md",
                 "criteria-v1.json",

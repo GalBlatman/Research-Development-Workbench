@@ -31,9 +31,8 @@ def test_canonical_targeted_contract_exact_scope(tmp_path, manifest, route, comp
             in contract["numerical_applicability_contract"]
         )
         assert "project_draft" in contract["attribution_kind_contract"]
-        assert (
-            "kind=source_backed only for literature-role" in contract["attribution_kind_contract"]
-        )
+        assert "closest_predecessor" in contract["attribution_kind_contract"]
+        assert "author_note" in contract["attribution_kind_contract"]
         assert set(contract["dimensions"]) == {str(d) for d in task.dimensions}
         expected_items = ROUTE_TARGETS[component] if route != "EXPLAIN" else ()
         assert set(contract["route_questions"]) == set(expected_items)
@@ -198,7 +197,8 @@ def test_stage_variants_are_nested_in_one_paper(tmp_path, manifest):
     assert len(report["strata"]) >= 8
 
 
-def test_uncertain_attempt_is_carried_without_rewriting_or_observation(tmp_path, manifest):
+@pytest.mark.parametrize("failure", ["TIMEOUT_UNCERTAIN", "TRANSPORT_ERROR_UNCERTAIN"])
+def test_uncertain_attempt_is_carried_without_rewriting_or_observation(tmp_path, manifest, failure):
     from types import SimpleNamespace
 
     from test_benchmarks import configuration as fake_configuration
@@ -211,7 +211,7 @@ def test_uncertain_attempt_is_carried_without_rewriting_or_observation(tmp_path,
     failed = original.model_copy(
         update={
             "status": "FAILED",
-            "failure_type": "TIMEOUT_UNCERTAIN",
+            "failure_type": failure,
             "observation": None,
             "result": None,
         }

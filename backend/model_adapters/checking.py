@@ -19,6 +19,7 @@ from domain.research import (
     WorkspaceProposal,
     WorkspaceTask,
 )
+from domain.sources import SourceRole
 from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check
 from model_adapters.runtime import ProviderFailure
 
@@ -42,16 +43,30 @@ class AssessmentChecker:
         ids = [s.statement_id for s in items]
         if len(ids) != len(set(ids)):
             raise ProviderFailure("DUPLICATE_STATEMENT")
-        roles = {p.anchor.anchor_id: p.source.role for p in context.passages}
+        roles = {
+            (p.source.document_id, p.anchor.version, p.anchor.anchor_id): p.source.role
+            for p in context.passages
+        }
         for statement in items:
             self.references(context, statement.source_refs)
             if statement.kind in ("source_backed", "user_project"):
                 if not statement.source_refs:
                     raise ProviderFailure("MISSING_SOURCE_SUPPORT")
-                expected_role = (
-                    "literature" if statement.kind == "source_backed" else "project_draft"
+                expected_roles = (
+                    {
+                        SourceRole.LITERATURE,
+                        SourceRole.PREDECESSOR,
+                        SourceRole.ALTERNATIVE,
+                        SourceRole.METHOD,
+                        SourceRole.CONTEXT,
+                    }
+                    if statement.kind == "source_backed"
+                    else {SourceRole.DRAFT, SourceRole.AUTHOR_NOTE}
                 )
-                if any(roles[r.anchor_id] != expected_role for r in statement.source_refs):
+                if any(
+                    roles[(r.document_id, r.version, r.anchor_id)] not in expected_roles
+                    for r in statement.source_refs
+                ):
                     raise ProviderFailure("ATTRIBUTION_ROLE_MISMATCH")
 
     def interpretation(self, task: InterpretationTask, candidate: Interpretation) -> None:
