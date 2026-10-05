@@ -406,6 +406,7 @@ class BenchmarkExpectation(Frozen):
 
 
 class Observation(Frozen):
+    numerical_scope: tuple[Annotated[int, Field(ge=1, le=10)], ...] | None = None
     evaluator_mode: Literal["WORKBENCH", "BASELINE"] | None = None
     judgments: tuple[Judgment, ...]
     authorized_anchors: tuple[Text, ...] = ()
@@ -416,6 +417,10 @@ class Observation(Frozen):
 
     @model_validator(mode="after")
     def distinct(self) -> Self:
+        if self.numerical_scope is not None and len(set(self.numerical_scope)) != len(
+            self.numerical_scope
+        ):
+            raise ValueError("Duplicate numerical scope dimension")
         if len({j.key for j in self.judgments}) != len(self.judgments):
             raise ValueError("Duplicate observed judgment")
         return self

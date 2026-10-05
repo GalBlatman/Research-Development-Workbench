@@ -52,6 +52,14 @@ def compare(
     judgments = {j.key: j for j in observed.judgments}
     metrics = []
     violations = []
+
+    def in_scope(packet: Observation | None, key: str) -> bool:
+        return packet is not None and (
+            not key.startswith("rating:")
+            or packet.numerical_scope is None
+            or int(key.split(":", 1)[1]) in packet.numerical_scope
+        )
+
     for e in expectations:
         j = judgments.get(e.judgment)
         reference = references.get(e.reference_variant or "")
@@ -66,7 +74,8 @@ def compare(
                 return (item.value, item.content, item.statement_kind)
             return (item.scientific_state or item.state, item.value, item.content)
 
-        changed = signature(j) != signature(old) if reference is not None and (j or old) else None
+        comparable = in_scope(observed, e.judgment) and in_scope(reference, e.judgment)
+        changed = signature(j) != signature(old) if comparable and (j or old) else None
         science = (j.scientific_state or j.state) if j else None
         allowed = bool(j) and (
             (science in e.acceptable_states if e.acceptable_states else True)
@@ -84,7 +93,7 @@ def compare(
             or e.acceptable_scientific_states
             or e.forbidden_scientific_states
         )
-        state = allowed if science_constrained else None
+        state = allowed if science_constrained and in_scope(observed, e.judgment) else None
         checker_applicable = bool(
             j and j.evaluator_mode != "BASELINE" and j.verification is not None
         )
@@ -118,13 +127,24 @@ def compare(
         )
         invariant = []
         for key in e.invariant_judgments:
-            if reference is not None and (key in previous or key in judgments):
+            if (
+                in_scope(observed, key)
+                and in_scope(reference, key)
+                and (key in previous or key in judgments)
+            ):
                 same = signature(previous.get(key)) == signature(judgments.get(key))
                 invariant.append(same)
                 if not same:
                     violations.append(key)
         direction = None
-        if e.direction and old and j and old.value is not None and j.value is not None:
+        if (
+            e.direction
+            and comparable
+            and old
+            and j
+            and old.value is not None
+            and j.value is not None
+        ):
             direction = j.value < old.value if e.direction == "lower" else j.value > old.value
         degraded = references.get(e.degraded_reference or "")
         degraded_judgment = (
@@ -133,6 +153,7 @@ def compare(
         degraded_changed = (
             old is not None
             and degraded is not None
+            and in_scope(degraded, e.judgment)
             and signature(old) != signature(degraded_judgment)
         )
         if e.behavior == "unchanged" and changed is not None:
@@ -140,7 +161,7 @@ def compare(
             if signature(old) != signature(j):
                 violations.append(e.judgment)
         downgrade = None
-        if e.behavior == "downgrade" and j and old and e.direction != "higher":
+        if e.behavior == "downgrade" and comparable and j and old and e.direction != "higher":
             if j.key.startswith("rating:") and old.value is not None and j.value is not None:
                 downgrade = j.value < old.value
             elif j.key.startswith("route:"):
@@ -153,7 +174,9 @@ def compare(
             if downgrade is not None:
                 downgrade = bool(downgrade and allowed)
         withholding = None
-        if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
+        if e.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer") and in_scope(
+            observed, e.judgment
+        ):
             withholding = bool(j and allowed and is_withholding(j))
         metrics.append(
             FeatureMetrics(

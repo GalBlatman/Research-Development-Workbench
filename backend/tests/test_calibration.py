@@ -58,6 +58,53 @@ def test_canonical_targeted_contract_exact_scope(tmp_path, manifest, route, comp
         evaluator.close()
 
 
+@pytest.mark.parametrize("reference_scope,current_scope", [((1, 7), (8,)), ((8,), (1, 7))])
+def test_outside_scope_rating_is_unavailable_not_isolation_failure(reference_scope, current_scope):
+    from benchmarks.metrics import compare
+    from domain.benchmark import BenchmarkExpectation, Feature, Judgment, Observation
+
+    rating = Judgment(key="rating:8", state="assessed", value=5)
+    old = Observation(
+        numerical_scope=reference_scope,
+        judgments=(rating,) if 8 in reference_scope else (),
+    )
+    current = Observation(
+        numerical_scope=current_scope,
+        judgments=(rating,) if 8 in current_scope else (),
+    )
+    expectation = BenchmarkExpectation(
+        feature=Feature.QUESTION,
+        behavior="unchanged",
+        judgment="rating:8",
+        invariant_judgments=("rating:8",),
+        reference_variant="intact",
+    )
+    result = compare(current, (expectation,), {"intact": old}, synthetic()[0][0])
+    assert result.metrics[0].invariance.denominator == 0
+    assert result.invariant_violations == ()
+
+
+def test_in_scope_disappearance_still_measures_restoration():
+    from benchmarks.metrics import compare
+    from domain.benchmark import BenchmarkExpectation, Feature, Judgment, Observation
+
+    intact = Observation(
+        numerical_scope=(8,), judgments=(Judgment(key="rating:8", state="assessed", value=5),)
+    )
+    degraded = Observation(numerical_scope=(8,), judgments=())
+    expectation = BenchmarkExpectation(
+        feature=Feature.QUESTION,
+        behavior="restore",
+        judgment="rating:8",
+        reference_variant="intact",
+        degraded_reference="degraded",
+    )
+    result = compare(
+        intact, (expectation,), {"intact": intact, "degraded": degraded}, synthetic()[0][0]
+    )
+    assert result.metrics[0].restoration.model_dump() == {"numerator": 1, "denominator": 1}
+
+
 def test_frozen_configuration_cannot_change(tmp_path):
     path = tmp_path / "config.json"
     freeze(path, {"model": "configured-model", "paper_batch": 4})

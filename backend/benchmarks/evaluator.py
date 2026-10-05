@@ -64,6 +64,7 @@ class BlindEvaluator:
     ):
         self.mode: Literal["WORKBENCH", "BASELINE"] = "WORKBENCH"
         self.extended = False
+        self.component = "FULL"
         runtime.mkdir(parents=True, exist_ok=False)
         db = Database(sqlite3.connect(runtime / "packet.sqlite", isolation_level=None), "sqlite")
         db.execute("PRAGMA foreign_keys=ON")
@@ -150,6 +151,7 @@ class BlindEvaluator:
             raise ValueError("Unknown evaluator mode")
         self.mode = "BASELINE" if mode == "BASELINE" else "WORKBENCH"
         self.extended = extended
+        self.component = component
         w = self.workbench
         if mode == "BASELINE":
             task = self.task(component, extended)
@@ -272,6 +274,15 @@ class BlindEvaluator:
             for j in judgments
         ]
         return Observation(
+            numerical_scope=(
+                tuple(
+                    d
+                    for d in (DIMENSIONS[self.component] or tuple(range(1, 11)))
+                    if context.project.route == "EXPLAIN" or d >= 8
+                )
+                if self.extended
+                else None
+            ),
             evaluator_mode=self.mode,
             judgments=tuple(judgments),
             authorized_anchors=tuple(p.anchor.anchor_id for p in context.passages),
