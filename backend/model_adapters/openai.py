@@ -247,6 +247,9 @@ class OpenAIAdapter:
         with provider_session(self):
             return self.call("workspace-check", task.model_dump(mode="json"), WorkspaceCheckResult)
 
+    def response_schema(self, payload: dict[str, Any], model: type[T]) -> dict[str, Any]:
+        return strict_schema(model)
+
     def call(self, kind: str, payload: dict[str, Any], model: type[T]) -> T:
         config = self.provider_config
         packet = payload.get("context") or payload.get("assessment_task", {}).get("context")
@@ -279,7 +282,7 @@ class OpenAIAdapter:
                     "type": "json_schema",
                     "name": "rdw_" + kind,
                     "strict": True,
-                    "schema": strict_schema(model),
+                    "schema": self.response_schema(payload, model),
                 }
             },
         }

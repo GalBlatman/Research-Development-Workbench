@@ -69,14 +69,59 @@ def expand_checked(raw: CompactCheckResult, task: CheckingTask) -> CheckResult:
 
 
 class CalibrationAdapter(OpenAIAdapter):
-    prompt_configuration = "evaluation-v3/checking-compact-v1/workspace-v2/workspace-check-v2"
+    prompt_configuration = (
+        "evaluation-v3/checking-compact-v1/workspace-v2/workspace-check-v2/"
+        "packet-citations-v1/bounded-output-v1"
+    )
     proposed_review: CandidateReview | None = None
 
     def call(self, kind: str, payload: dict[str, Any], model: type[T]) -> T:
+        payload = {
+            **payload,
+            "criteria": {
+                **payload.get("criteria", {}),
+                "output_contract_version": "bounded-output-v1",
+                "output_contract": (
+                    "Keep narrative fields concise within the supplied output limit. "
+                    "Use one or two short sentences per rationale, statement, limitation or action field; "
+                    "do not repeat the packet or rubric. Preserve every required judgment, "
+                    "checking target, evidence distinction, citation and diagnostic-action field. "
+                    "Do not omit scientific support to save space. inspected_material and source_refs "
+                    "may select only identifiers from the supplied passages. Missing material is "
+                    "unavailable, never a new citation identifier."
+                ),
+            },
+        }
         result = super().call(kind, payload, model)
         if isinstance(result, CandidateReview):
             self.proposed_review = result
         return result
+
+    def response_schema(self, payload: dict[str, Any], model: type[T]) -> dict[str, Any]:
+        schema = super().response_schema(payload, model)
+        context = payload.get("context") or payload.get("assessment_task", {}).get("context")
+        passages = context.get("passages", []) if context else []
+        if not passages:
+            return schema
+        documents = sorted({p["source"]["document_id"] for p in passages})
+        anchors = sorted({p["anchor"]["anchor_id"] for p in passages})
+        versions = sorted({p["anchor"]["version"] for p in passages})
+        definitions = schema.get("$defs", {})
+        reference = definitions.get("SourceReference", {}).get("properties", {})
+        for key, values in (
+            ("document_id", documents),
+            ("anchor_id", anchors),
+            ("version", versions),
+        ):
+            if key in reference:
+                reference[key]["enum"] = values
+        for definition in definitions.values():
+            inspected = definition.get("properties", {}).get("inspected_material")
+            if inspected:
+                inspected["items"]["enum"] = anchors
+        # Enums reduce invented identifiers; ordinary checking still resolves exact triples,
+        # source roles and semantic support. Membership alone never verifies a claim.
+        return schema
 
     def check(self, task: CheckingTask) -> CheckResult:
         packet_check(task.assessment_task.context)
