@@ -1,5 +1,6 @@
 """Step-13 wire projection: one checker pass, canonical references resolved locally."""
 
+from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field, StrictInt
@@ -9,6 +10,7 @@ from domain.application import (
     CheckDecision,
     CheckingTask,
     CheckResult,
+    Interpretation,
 )
 from domain.models import (
     AttributedStatement,
@@ -18,6 +20,7 @@ from domain.models import (
     Text,
     Verification,
 )
+from model_adapters.checking import ATTRIBUTION_ROLES
 from model_adapters.openai import OpenAIAdapter, packet_check, policy_contract
 from model_adapters.runtime import ProviderFailure, provider_session
 
@@ -71,9 +74,10 @@ def expand_checked(raw: CompactCheckResult, task: CheckingTask) -> CheckResult:
 class CalibrationAdapter(OpenAIAdapter):
     prompt_configuration = (
         "evaluation-v3/checking-compact-v1/workspace-v2/workspace-check-v2/"
-        "packet-citations-v1/bounded-output-v1"
+        "packet-citations-v2/role-bound-statements-v1/bounded-output-v1"
     )
     proposed_review: CandidateReview | None = None
+    proposed_interpretation: Interpretation | None = None
 
     def call(self, kind: str, payload: dict[str, Any], model: type[T]) -> T:
         payload = {
@@ -81,6 +85,7 @@ class CalibrationAdapter(OpenAIAdapter):
             "criteria": {
                 **payload.get("criteria", {}),
                 "output_contract_version": "bounded-output-v1",
+                "citation_contract_version": "packet-citations-v2/role-bound-statements-v1",
                 "output_contract": (
                     "Keep narrative fields concise within the supplied output limit. "
                     "Use one or two short sentences per rationale, statement, limitation or action field; "
@@ -95,6 +100,8 @@ class CalibrationAdapter(OpenAIAdapter):
         result = super().call(kind, payload, model)
         if isinstance(result, CandidateReview):
             self.proposed_review = result
+        elif isinstance(result, Interpretation):
+            self.proposed_interpretation = result
         return result
 
     def response_schema(self, payload: dict[str, Any], model: type[T]) -> dict[str, Any]:
@@ -119,6 +126,37 @@ class CalibrationAdapter(OpenAIAdapter):
             inspected = definition.get("properties", {}).get("inspected_material")
             if inspected:
                 inspected["items"]["enum"] = anchors
+        reference_definition = definitions.get("SourceReference")
+        if reference_definition:
+
+            def exact_reference(passage: dict[str, Any]) -> dict[str, Any]:
+                result: dict[str, Any] = deepcopy(reference_definition)
+                for key, value in (
+                    ("document_id", passage["source"]["document_id"]),
+                    ("version", passage["anchor"]["version"]),
+                    ("anchor_id", passage["anchor"]["anchor_id"]),
+                ):
+                    result["properties"][key]["enum"] = [value]
+                return result
+
+            definitions["SourceReference"] = {"anyOf": [exact_reference(p) for p in passages]}
+            statement = definitions.get("AttributedStatement")
+            if statement:
+                options = []
+                for kind in statement["properties"]["kind"]["enum"]:
+                    option = deepcopy(statement)
+                    option["properties"]["kind"]["enum"] = [kind]
+                    if kind in ATTRIBUTION_ROLES:
+                        admitted = [
+                            p for p in passages if p["source"]["role"] in ATTRIBUTION_ROLES[kind]
+                        ]
+                        if not admitted:
+                            continue
+                        refs = option["properties"]["source_refs"]
+                        refs["minItems"] = 1
+                        refs["items"] = {"anyOf": [exact_reference(p) for p in admitted]}
+                    options.append(option)
+                definitions["AttributedStatement"] = {"anyOf": options}
         # Enums reduce invented identifiers; ordinary checking still resolves exact triples,
         # source roles and semantic support. Membership alone never verifies a claim.
         return schema

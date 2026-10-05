@@ -188,7 +188,9 @@ class Runner:
                 result = compare(observation, case.expectations, reference_observations, project)
             receipt = ledger.receipt() if ledger else None
         except Exception as exc:
-            proposed = getattr(adapter, "proposed_review", None)
+            proposed = getattr(adapter, "proposed_review", None) or getattr(
+                adapter, "proposed_interpretation", None
+            )
             if output is None and proposed is not None:
                 output = proposed.model_dump(mode="json")
             failure = exc.code if isinstance(exc, ProviderFailure) else type(exc).__name__

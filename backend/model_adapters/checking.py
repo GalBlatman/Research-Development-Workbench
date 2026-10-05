@@ -23,6 +23,19 @@ from domain.sources import SourceRole
 from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check
 from model_adapters.runtime import ProviderFailure
 
+ATTRIBUTION_ROLES = {
+    "source_backed": frozenset(
+        (
+            SourceRole.LITERATURE,
+            SourceRole.PREDECESSOR,
+            SourceRole.ALTERNATIVE,
+            SourceRole.METHOD,
+            SourceRole.CONTEXT,
+        )
+    ),
+    "user_project": frozenset((SourceRole.DRAFT, SourceRole.AUTHOR_NOTE)),
+}
+
 
 class AssessmentChecker:
     """Structural source resolution plus one explicitly limited semantic model check."""
@@ -52,17 +65,7 @@ class AssessmentChecker:
             if statement.kind in ("source_backed", "user_project"):
                 if not statement.source_refs:
                     raise ProviderFailure("MISSING_SOURCE_SUPPORT")
-                expected_roles = (
-                    {
-                        SourceRole.LITERATURE,
-                        SourceRole.PREDECESSOR,
-                        SourceRole.ALTERNATIVE,
-                        SourceRole.METHOD,
-                        SourceRole.CONTEXT,
-                    }
-                    if statement.kind == "source_backed"
-                    else {SourceRole.DRAFT, SourceRole.AUTHOR_NOTE}
-                )
+                expected_roles = ATTRIBUTION_ROLES[statement.kind]
                 if any(
                     roles[(r.document_id, r.version, r.anchor_id)] not in expected_roles
                     for r in statement.source_refs

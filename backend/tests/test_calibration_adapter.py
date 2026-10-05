@@ -9,7 +9,7 @@ from benchmarks.evaluator import BlindEvaluator
 from benchmarks.fixtures import synthetic
 from domain.models import AttributedStatement, SourceReference
 from domain.sources import SourceRole
-from model_adapters.checking import AssessmentChecker
+from model_adapters.checking import ATTRIBUTION_ROLES, AssessmentChecker
 from model_adapters.config import ProviderConfig
 from model_adapters.fake import FakeModel
 from model_adapters.runtime import ProviderFailure
@@ -42,22 +42,40 @@ def test_packet_citation_enums_and_brevity_are_shared_without_changing_baseline(
         payload = json.loads(body["input"])
         context = payload["context"]
         definitions = body["text"]["format"]["schema"]["$defs"]
-        reference = definitions["SourceReference"]["properties"]
-        assert set(reference["document_id"]["enum"]) == {
-            p["source"]["document_id"] for p in context["passages"]
+
+        def triples(options):
+            return {
+                tuple(
+                    o["properties"][key]["enum"][0]
+                    for key in ("document_id", "version", "anchor_id")
+                )
+                for o in options
+            }
+
+        reference = definitions["SourceReference"]["anyOf"]
+        assert triples(reference) == {
+            (p["source"]["document_id"], p["anchor"]["version"], p["anchor"]["anchor_id"])
+            for p in context["passages"]
         }
-        assert set(reference["anchor_id"]["enum"]) == {
-            p["anchor"]["anchor_id"] for p in context["passages"]
-        }
-        assert set(reference["version"]["enum"]) == {
-            p["anchor"]["version"] for p in context["passages"]
-        }
+        for option in definitions["AttributedStatement"]["anyOf"]:
+            kind = option["properties"]["kind"]["enum"][0]
+            if kind not in ATTRIBUTION_ROLES:
+                continue
+            refs = option["properties"]["source_refs"]
+            assert refs["minItems"] == 1
+            assert triples(refs["items"]["anyOf"]) == {
+                (p["source"]["document_id"], p["anchor"]["version"], p["anchor"]["anchor_id"])
+                for p in context["passages"]
+                if p["source"]["role"] in ATTRIBUTION_ROLES[kind]
+            }
         inspected = next(
             d["properties"]["inspected_material"]
             for d in definitions.values()
             if "inspected_material" in d.get("properties", {})
         )
-        assert inspected["items"]["enum"] == reference["anchor_id"]["enum"]
+        assert set(inspected["items"]["enum"]) == {
+            p["anchor"]["anchor_id"] for p in context["passages"]
+        }
         assert payload["criteria"]["output_contract_version"] == "bounded-output-v1"
         call = model.last_receipt.calls[0]
         prompt = (PROMPTS / (call.prompt_version + ".md")).read_text(encoding="utf-8")
@@ -140,6 +158,29 @@ def test_failed_candidate_is_preserved_as_unchecked_diagnostic(
     assert json.loads(run.output_json)["statements"][0]["kind"] == "source_backed"
     assert run.receipt.status == "FAILED"
     assert len(requests) == 1
+
+
+def test_failed_interpretation_is_preserved_without_becoming_a_scientific_result(
+    tmp_path, manifest, monkeypatch
+):
+    from test_benchmarks import runner
+    from test_provider import transport
+
+    from benchmarks.calibration import configuration
+
+    def change(kind, output):
+        if kind == "rdw_interpretation":
+            output["statements"][0]["kind"] = "source_backed"
+        return output
+
+    client, _ = transport(monkeypatch, change)
+    pc = ProviderConfig(provider="openai")
+    r, _, cases = runner(tmp_path, manifest, lambda: CalibrationAdapter(pc, client))
+    run = r.execute(cases[0], configuration(pc, "FULL", "WORKBENCH", "synthetic-commit"))
+    assert run.status == "FAILED" and run.failure_type == "ATTRIBUTION_ROLE_MISMATCH"
+    assert run.observation is None and run.result is None
+    assert json.loads(run.output_json)["statements"][0]["kind"] == "source_backed"
+    assert run.receipt.status == "FAILED" and run.calls == 1
 
 
 @pytest.mark.parametrize("bad_index", [-1, True, "0"])
