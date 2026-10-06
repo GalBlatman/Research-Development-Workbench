@@ -347,6 +347,12 @@ class BenchmarkExpectation(Frozen):
         forbidden = set(self.forbidden_states + self.forbidden_scientific_states)
         if allowed and allowed <= forbidden:
             raise ValueError("No permitted scientific terminal state")
+        if self.behavior in ("withhold", "unresolved", "not_inspected", "refuse_infer"):
+            withholding = {"unresolved", "not_inspected", "NOT INSPECTED", "pending", "UNKNOWN"}
+            if not ((allowed or withholding) & withholding) - forbidden:
+                raise ValueError(
+                    "Withholding expectation admits no legitimate scientific abstention"
+                )
         for acceptable, denied in (
             (self.acceptable_verification_states, self.forbidden_verification_states),
             (self.acceptable_adoption_states, self.forbidden_adoption_states),
@@ -400,6 +406,7 @@ class BenchmarkExpectation(Frozen):
 
 
 class Observation(Frozen):
+    numerical_scope: tuple[Annotated[int, Field(ge=1, le=10)], ...] | None = None
     evaluator_mode: Literal["WORKBENCH", "BASELINE"] | None = None
     judgments: tuple[Judgment, ...]
     authorized_anchors: tuple[Text, ...] = ()
@@ -410,6 +417,10 @@ class Observation(Frozen):
 
     @model_validator(mode="after")
     def distinct(self) -> Self:
+        if self.numerical_scope is not None and len(set(self.numerical_scope)) != len(
+            self.numerical_scope
+        ):
+            raise ValueError("Duplicate numerical scope dimension")
         if len({j.key for j in self.judgments}) != len(self.judgments):
             raise ValueError("Duplicate observed judgment")
         return self
@@ -459,13 +470,15 @@ class RunBudget(Frozen):
 
 class RunConfiguration(Frozen):
     mode: Literal["WORKBENCH", "BASELINE"]
-    component: Literal["FULL", "Argument", "Study", "Literature", "Alternatives"] = "FULL"
+    component: Literal[
+        "FULL", "Argument", "Study", "Literature", "Alternatives", "Brief", "Usefulness"
+    ] = "FULL"
     provider: Literal["fake", "openai"]
     model: Text
     parameters: tuple[tuple[Text, str | int | float | None], ...] = ()
     budget: RunBudget
     code_commit: Text
-    task_version: Literal["benchmark-v1"] = "benchmark-v1"
+    task_version: Literal["benchmark-v1", "benchmark-v2"] = "benchmark-v1"
 
     @model_validator(mode="after")
     def no_credentials(self) -> Self:

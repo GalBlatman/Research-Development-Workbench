@@ -178,11 +178,32 @@ class AssessmentTask(Frozen):
     policy_manifest_sha256: Hash
     policy_implementation_version: Text
     dimensions: tuple[Annotated[int, Field(ge=1, le=10)], ...] = ()
+    targeted_component: (
+        Literal["Brief", "Literature", "Argument", "Alternatives", "Study", "Usefulness"] | None
+    ) = None
+    route_items: tuple[
+        Literal[
+            "knowledge_need",
+            "increment",
+            "scope_precision",
+            "capacity_to_learn",
+            "evidence_strategy",
+            "next_use",
+        ],
+        ...,
+    ] = ()
+    semantic_rule_ids: tuple[Text, ...] = ()
 
     @model_validator(mode="after")
     def unique_targets(self) -> Self:
         if len(set(self.dimensions)) != len(self.dimensions):
             raise ValueError("Duplicate targeted dimensions")
+        if len(set(self.route_items)) != len(self.route_items) or len(
+            set(self.semantic_rule_ids)
+        ) != len(self.semantic_rule_ids):
+            raise ValueError("Duplicate targeted qualitative item")
+        if (self.route_items or self.semantic_rule_ids) and self.targeted_component is None:
+            raise ValueError("Qualitative targets require an explicit component")
         return self
 
 

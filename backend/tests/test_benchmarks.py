@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -395,6 +396,24 @@ def test_mock_real_provider_privacy_schema_usage_and_route(
         and run.output_tokens == 150 * len(requests)
     )
     assert run.estimated_cost_usd > 0 and run.calls == len(requests)
+    if mode == "BASELINE":
+        prompt = (Path(__file__).resolve().parents[1] / "prompts/baseline-v3.md").read_text(
+            encoding="utf-8"
+        )
+        assert requests[0]["instructions"] == prompt
+        assert (
+            dict(run.prompt_hashes)["baseline-v3.md"] == hashlib.sha256(prompt.encode()).hexdigest()
+        )
+        call = run.receipt.calls[0]
+        assert call.prompt_version == "baseline-v3"
+        criteria = json.loads(requests[0]["input"])["criteria"]
+        assert (
+            call.prompt_sha256
+            == hashlib.sha256(
+                (prompt + json.dumps(criteria, sort_keys=True, ensure_ascii=False)).encode()
+            ).hexdigest()
+        )
+
     assert len(requests) == (1 if mode == "BASELINE" else 3 if component == "FULL" else 2)
     for body in requests:
         assert (

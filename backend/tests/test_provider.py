@@ -95,7 +95,9 @@ def transport(monkeypatch, change=None):
         payload = json.loads(body["input"])
         kind = body["text"]["format"]["name"]
         if kind == "rdw_interpretation":
-            task = InterpretationTask.model_validate(payload)
+            task = InterpretationTask.model_validate(
+                {k: v for k, v in payload.items() if k != "criteria"}
+            )
             output = FakeModel().interpret(task).model_dump(mode="json")
             output["statements"] = [
                 {
@@ -105,7 +107,7 @@ def transport(monkeypatch, change=None):
                     "source_refs": [reference(task.context)],
                 }
             ]
-        elif kind == "rdw_evaluation":
+        elif kind in ("rdw_evaluation", "rdw_baseline"):
             task = AssessmentTask.model_validate(
                 {k: v for k, v in payload.items() if k != "criteria"}
             )

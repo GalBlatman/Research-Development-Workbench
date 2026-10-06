@@ -702,6 +702,10 @@ def test_usage_attached_to_failed_downstream_run(store, tmp_path, manifest, monk
         assert any(
             r["status"] == "FAILED" and r["run_id"] == current.provider_run.run_id for r in terminal
         )
+        assert not any(
+            r["status"] == "SUCCEEDED" and r["run_id"] == current.provider_run.run_id
+            for r in terminal
+        )
     finally:
         manager.close()
 

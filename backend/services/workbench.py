@@ -413,10 +413,11 @@ class Workbench:
         target_workspace: str | None = None,
         evaluation_scope: Scope = Scope.INITIAL_SCREEN,
         operation_id: str | None = None,
+        targeted_task: AssessmentTask | None = None,
     ) -> dict[str, Any]:
         scope = self.scope(project_id)
         project = self._current(project_id, expected)
-        if dimensions and project.route != "EXPLAIN":
+        if dimensions and project.route != "EXPLAIN" and targeted_task is None:
             dimensions = tuple(d for d in dimensions if d >= 8)
             if not dimensions:
                 raise ValueError("NO_APPLICABLE_TARGETED_DIMENSIONS")
@@ -445,7 +446,9 @@ class Workbench:
             policy_sha256=self.manifest.canonical_sha256,
             policy_manifest_sha256=self.manifest.sha256,
             policy_implementation_version=self.manifest.implementation_version,
-            scope=Scope.TARGETED_CHECK if dimensions else evaluation_scope,
+            scope=Scope.TARGETED_CHECK
+            if dimensions or targeted_task is not None
+            else evaluation_scope,
             prompt_version=getattr(self.adapter, "prompt_configuration", None),
             model_configuration=self.adapter.configuration,
         )
@@ -458,6 +461,18 @@ class Workbench:
             policy_manifest_sha256=snapshot.policy_manifest_sha256,
             policy_implementation_version=snapshot.policy_implementation_version,
         )
+        if targeted_task is not None:
+            if (
+                targeted_task.context != context
+                or targeted_task.dimensions != dimensions
+                or targeted_task.policy_sha256 != self.manifest.canonical_sha256
+                or targeted_task.policy_version != self.manifest.version
+                or targeted_task.policy_manifest_sha256 != self.manifest.sha256
+                or targeted_task.targeted_component != target_workspace
+                or targeted_task.scope != Scope.TARGETED_CHECK
+            ):
+                raise ValueError("Targeted task differs from frozen server context")
+            task = targeted_task
         try:
             with provider_session(self.adapter) as ledger:
                 candidate = CandidateReview.model_validate(self.adapter.assess(task))

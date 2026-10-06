@@ -37,6 +37,15 @@ DERIVED = {
     "EDITORIAL-UNCALIBRATED",
 }
 
+# Projection of the existing executable V5 §8.3 mapping, not an additional penalty.
+PROMISE_BASIS_RULES = (
+    "PREMISE-NO-BASIS",
+    "NO-ADVANCE",
+    "NO-CONSEQUENTIAL-STAKE",
+    "DESIGN-MISMATCH",
+    "INFERENCE-UNSUPPORTED",
+)
+
 
 def policy_contract(task: AssessmentTask) -> dict[str, Any]:
     if task.policy_version not in ("4", "5"):
@@ -79,7 +88,10 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
             and (task.context.project.route == "EXPLAIN" or r["id"] != "NO-ADVANCE")
         ]
     )
-    route_questions = json.loads((PROMPTS / "route-questions-v1.json").read_text(encoding="utf-8"))
+    route_file = (
+        "route-questions-v2.json" if task.policy_version == "5" else "route-questions-v1.json"
+    )
+    route_questions = json.loads((PROMPTS / route_file).read_text(encoding="utf-8"))
     if task.policy_version == "5" and task.context.project.route != "EXPLAIN":
         criteria = {
             key: "Not applicable numerical dimension for this route; use supplied qualitative route questions without theory-profile scoring."
@@ -109,7 +121,7 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
                 )
             ),
         }
-    return {
+    contract = {
         **(
             {
                 "route_questions": route_questions[task.context.project.route],
@@ -120,7 +132,9 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
                     "capacity_to_learn": "capacity_to_learn",
                     "evidence_strategy": "evidence_strategy",
                     "next_use": "next_use",
-                },
+                }
+                if task.policy_version == "4" or task.context.project.route == "EXPLAIN"
+                else {key: key for key in route_questions[task.context.project.route]},
             }
             if task.context.project.route in route_questions and not task.dimensions
             else {}
@@ -129,7 +143,69 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
         "semantic_rules": rules,
         "rating_reference": "0 absent/inadequate; 5 solid accepted-paper reference; 8 exceptional with supplied published comparison; 10 decade-class element, not paper perfection. Uninspected is null, not zero.",
         "principal_obstacle_contract": "Include statement_id=principal-obstacle with text exactly matching summary.obstacle; attribute it honestly.",
+        "attribution_kind_contract": (
+            "Use kind=user_project for assertions grounded in project_draft or author_note passages, even when the draft describes a completed published study. "
+            "Use kind=source_backed for admitted literature, closest_predecessor, alternative_account, method_or_measure or context source passages. "
+            "A source role alone establishes neither publication status nor scientific truth. Every cited passage must match the kind's role family; "
+            "do not mix literature and project_draft references in one attributed statement. Split such statements or use "
+            "kind=model_inference for your synthesis, kind=proposed_improvement for recommendations, and kind=unresolved for missing knowledge."
+        ),
+        "numerical_applicability_contract": (
+            "The supplied dimensions mapping is the exhaustive numerical scope, even for FULL evaluation. "
+            "Emit ratings only for those dimension numbers. ESTABLISH and TEST never score dimensions 1 through 7; "
+            "use their supplied qualitative route questions instead. Missing evidence means a null pending or unresolved "
+            "rating, never a fabricated numerical rating. FULL does not override route applicability."
+        ),
     }
+    if task.targeted_component:
+        questions = json.loads((PROMPTS / "route-questions-v2.json").read_text(encoding="utf-8"))
+        route = (
+            "ESTABLISH" if task.context.project.route == "EXPLAIN" else task.context.project.route
+        )
+        contract["dimensions"] = {str(d): criteria[str(d)] for d in task.dimensions}
+        contract["route_questions"] = {k: questions[route][k] for k in task.route_items}
+        contract["route_assessment_key_map"] = {k: k for k in task.route_items}
+        contract["semantic_rules"] = [
+            {
+                "id": r["id"],
+                "source": r["source"],
+                "predicate": meanings.get(r["id"], r["consequence"]),
+            }
+            for r in manifest["rules"]
+            if r["id"] in task.semantic_rule_ids
+        ]
+        contract["targeted_scope_contract"] = (
+            "This explicit scoped contract governs targeted output: emit exactly supplied numerical dimensions and route item keys, "
+            "including empty numerical ratings for a qualitative-only task. Findings may name only supplied semantic rules. "
+            "Do not evaluate other components or emit global findings. The generic prohibition on targeted route items/findings "
+            "is replaced only for the exact supplied targets. These are current bounded scientific judgments, not scores for an integrated review."
+        )
+    contract["scientific_basis_statements"] = (
+        "Include statement_id=evidence_basis describing what the supplied material supports and cannot establish; "
+        "include statement_id=novelty_basis when assessing prior work/contribution. When an applicable component cannot be determined "
+        "from supplied material, use kind=unresolved and the corresponding stable statement ID unavailable_question, "
+        "unavailable_premise_basis, unavailable_closest_predecessor, unavailable_contribution, unavailable_mechanism_account, "
+        "unavailable_measures, unavailable_identification, unavailable_findings_evidence or unavailable_usefulness. "
+        "Use these only when applicable and actually unavailable; do not fabricate absence or recover hidden content. "
+        "Attribute assertions honestly. Never emit deterministic derived findings such as UNINSPECTED-BLOCK; the server owns those."
+    )
+    admitted_rules = {r["id"] for r in contract["semantic_rules"]}
+    if task.policy_version == "5" and "PROMISE-OVERREACH" in admitted_rules:
+        contract["promise_mapping"] = {
+            "version": "v5-promise-mapping-v1",
+            "basis_rules": tuple(r for r in PROMISE_BASIS_RULES if r in admitted_rules),
+            "instructions": (
+                "V5 section 8.3 maps contribution overreach to an existing idea or project rule, "
+                "never an extra penalty. A TRUE PROMISE-OVERREACH finding requires at least one "
+                "supplied basis rule also judged TRUE in the same assessment. Do not invent a basis "
+                "or emit rules outside this task. If no supplied basis can be established, leave "
+                "PROMISE-OVERREACH UNKNOWN and explain the unresolved concern in attributed prose. "
+                "During checking, do not mark a TRUE PROMISE-OVERREACH finding supported unless "
+                "at least one TRUE supplied basis finding is also supported in that check. If the "
+                "basis is unresolved, the corresponding overreach check must remain unresolved."
+            ),
+        }
+    return contract
 
 
 def packet_check(context: Any) -> None:
@@ -196,6 +272,9 @@ class OpenAIAdapter:
         with provider_session(self):
             return self.call("workspace-check", task.model_dump(mode="json"), WorkspaceCheckResult)
 
+    def response_schema(self, payload: dict[str, Any], model: type[T]) -> dict[str, Any]:
+        return strict_schema(model)
+
     def call(self, kind: str, payload: dict[str, Any], model: type[T]) -> T:
         config = self.provider_config
         packet = payload.get("context") or payload.get("assessment_task", {}).get("context")
@@ -205,9 +284,9 @@ class OpenAIAdapter:
             "-v4"
             if kind == "checking"
             else "-v3"
-            if kind == "evaluation"
+            if kind in ("evaluation", "baseline")
             else "-v2"
-            if kind in ("baseline", "workspace", "workspace-check")
+            if kind in ("workspace", "workspace-check")
             else "-v1"
         )
         prompt = (PROMPTS / (prompt_version + ".md")).read_text(encoding="utf-8")
@@ -228,7 +307,7 @@ class OpenAIAdapter:
                     "type": "json_schema",
                     "name": "rdw_" + kind,
                     "strict": True,
-                    "schema": strict_schema(model),
+                    "schema": self.response_schema(payload, model),
                 }
             },
         }

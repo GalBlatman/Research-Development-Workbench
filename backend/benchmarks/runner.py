@@ -100,7 +100,16 @@ class Runner:
                 or reference.split != case.project.split
                 or reference.split_hash != content_hash(self.splits)
                 or reference.package_hash != case.variant.package_hash
-                or reference.configuration != config
+                or not (
+                    reference.configuration == config
+                    or (
+                        config.task_version == "benchmark-v2"
+                        and reference.configuration.model_copy(
+                            update={"component": config.component}
+                        )
+                        == config
+                    )
+                )
             ):
                 raise ValueError("Cross-split/configuration reference rejected")
             if self.store.read("runs", reference.run_id, BenchmarkRun) != reference:
@@ -152,29 +161,38 @@ class Runner:
                 case.variant.packet, adapter, self.manifest, self.runtime / identifier
             )
             with provider_session(adapter) as ledger:
-                output, components = evaluator.run(config.mode, config.component)
+                output, components = (
+                    evaluator.run(config.mode, config.component, extended=True)
+                    if config.task_version == "benchmark-v2"
+                    else evaluator.run(config.mode, config.component)
+                )
                 observation = evaluator.observe(output)
-            receipt = ledger.receipt() if ledger else None
-            # Diagnostics see only administrator-approved observability at this step.
-            observable = dict(case.variant.visibility)
-            project = case.project.model_copy(
-                update={
-                    "gold": tuple(
-                        g.model_copy(update={"observable": observable.get(g.feature, False)})
-                        for g in case.project.gold
-                    )
-                }
-            )
-            if case.variant.mutation.permit_metadata:
-                project = project.model_copy(
+                # Diagnostics see only administrator-approved observability at this step.
+                observable = dict(case.variant.visibility)
+                project = case.project.model_copy(
                     update={
-                        "source_package": project.source_package.model_copy(
-                            update={"identifying_metadata": ()}
+                        "gold": tuple(
+                            g.model_copy(update={"observable": observable.get(g.feature, False)})
+                            for g in case.project.gold
                         )
                     }
                 )
-            result = compare(observation, case.expectations, reference_observations, project)
+                if case.variant.mutation.permit_metadata:
+                    project = project.model_copy(
+                        update={
+                            "source_package": project.source_package.model_copy(
+                                update={"identifying_metadata": ()}
+                            )
+                        }
+                    )
+                result = compare(observation, case.expectations, reference_observations, project)
+            receipt = ledger.receipt() if ledger else None
         except Exception as exc:
+            proposed = getattr(adapter, "proposed_review", None) or getattr(
+                adapter, "proposed_interpretation", None
+            )
+            if output is None and proposed is not None:
+                output = proposed.model_dump(mode="json")
             failure = exc.code if isinstance(exc, ProviderFailure) else type(exc).__name__
             receipt = (
                 exc.metadata
@@ -197,10 +215,12 @@ class Runner:
                 "interpretation-v1.md",
                 "evaluation-v3.md",
                 "checking-v4.md",
+                "checking-compact-v1.md",
                 "workspace-v2.md",
                 "workspace-check-v2.md",
                 "criteria-v1.json",
                 "route-questions-v1.json",
+                "route-questions-v2.json",
             )
         )
         run = BenchmarkRun(

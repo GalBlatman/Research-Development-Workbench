@@ -12,15 +12,29 @@ from domain.application import (
     Interpretation,
     InterpretationTask,
 )
-from domain.models import SourceReference, StructuralCheck, Verification
+from domain.models import SourceReference, StructuralCheck, Truth, Verification
 from domain.research import (
     WorkspaceCheckingTask,
     WorkspaceCheckResult,
     WorkspaceProposal,
     WorkspaceTask,
 )
-from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check
+from domain.sources import SourceRole
+from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check, policy_contract
 from model_adapters.runtime import ProviderFailure
+
+ATTRIBUTION_ROLES = {
+    "source_backed": frozenset(
+        (
+            SourceRole.LITERATURE,
+            SourceRole.PREDECESSOR,
+            SourceRole.ALTERNATIVE,
+            SourceRole.METHOD,
+            SourceRole.CONTEXT,
+        )
+    ),
+    "user_project": frozenset((SourceRole.DRAFT, SourceRole.AUTHOR_NOTE)),
+}
 
 
 class AssessmentChecker:
@@ -28,6 +42,33 @@ class AssessmentChecker:
 
     def __init__(self, adapter: OpenAIAdapter):
         self.adapter = adapter
+
+    def promise_mapping(
+        self,
+        task: AssessmentTask,
+        candidate: CandidateReview,
+        supported_targets: set[str] | None = None,
+    ) -> None:
+        if task.policy_version != "5":
+            return
+        findings = {f.rule_id: f for f in candidate.assessment.findings}
+        promise = findings.get("PROMISE-OVERREACH")
+        if promise is None or promise.value != Truth.TRUE:
+            return
+        if supported_targets is not None and "finding:PROMISE-OVERREACH" not in supported_targets:
+            return
+        eligible = policy_contract(task).get("promise_mapping", {}).get("basis_rules", ())
+        if not any(
+            (basis := findings.get(rule)) is not None
+            and basis.value == Truth.TRUE
+            and (supported_targets is None or "finding:" + rule in supported_targets)
+            for rule in eligible
+        ):
+            raise ProviderFailure(
+                "UNMAPPED_PROMISE_OVERREACH"
+                if supported_targets is None
+                else "UNSUPPORTED_PROMISE_MAPPING"
+            )
 
     def references(self, context: ContextPacket, refs: Iterable[SourceReference]) -> None:
         allowed = {
@@ -42,16 +83,20 @@ class AssessmentChecker:
         ids = [s.statement_id for s in items]
         if len(ids) != len(set(ids)):
             raise ProviderFailure("DUPLICATE_STATEMENT")
-        roles = {p.anchor.anchor_id: p.source.role for p in context.passages}
+        roles = {
+            (p.source.document_id, p.anchor.version, p.anchor.anchor_id): p.source.role
+            for p in context.passages
+        }
         for statement in items:
             self.references(context, statement.source_refs)
             if statement.kind in ("source_backed", "user_project"):
                 if not statement.source_refs:
                     raise ProviderFailure("MISSING_SOURCE_SUPPORT")
-                expected_role = (
-                    "literature" if statement.kind == "source_backed" else "project_draft"
-                )
-                if any(roles[r.anchor_id] != expected_role for r in statement.source_refs):
+                expected_roles = ATTRIBUTION_ROLES[statement.kind]
+                if any(
+                    roles[(r.document_id, r.version, r.anchor_id)] not in expected_roles
+                    for r in statement.source_refs
+                ):
                     raise ProviderFailure("ATTRIBUTION_ROLE_MISMATCH")
 
     def interpretation(self, task: InterpretationTask, candidate: Interpretation) -> None:
@@ -66,7 +111,9 @@ class AssessmentChecker:
         self.statements(task.context, candidate.statements)
         dimensions = {
             d
-            for d in (task.dimensions or range(1, 11))
+            for d in (
+                task.dimensions if task.targeted_component else (task.dimensions or range(1, 11))
+            )
             if task.context.project.route == "EXPLAIN" or d >= 8
         }
         inapplicable = tuple(
@@ -81,7 +128,14 @@ class AssessmentChecker:
         applicable = tuple(r for r in candidate.assessment.ratings if r not in inapplicable)
         if {r.dimension for r in applicable} != dimensions or len(applicable) != len(dimensions):
             raise ProviderFailure("ASSESSMENT_SCOPE_MISMATCH")
-        if task.dimensions and (
+        if task.targeted_component:
+            if {r.item for r in candidate.assessment.route_assessment} != set(
+                task.route_items
+            ) or len(candidate.assessment.route_assessment) != len(task.route_items):
+                raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
+            if any(f.rule_id not in task.semantic_rule_ids for f in candidate.assessment.findings):
+                raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
+        elif task.dimensions and (
             candidate.assessment.findings or candidate.assessment.route_assessment
         ):
             raise ProviderFailure("TARGETED_SCOPE_MISMATCH")
@@ -106,6 +160,7 @@ class AssessmentChecker:
             if finding.rule_id not in known - DERIVED:
                 raise ProviderFailure("UNKNOWN_OR_DERIVED_FINDING")
             self.references(task.context, finding.source_refs)
+        self.promise_mapping(task, candidate)
         for rating in candidate.assessment.ratings:
             if rating.rating is not None and rating.rating >= 8:
                 benchmark = rating.benchmark
@@ -159,6 +214,11 @@ class AssessmentChecker:
                 and not check_decision.source_refs
             ):
                 raise ProviderFailure("MISSING_SOURCE_SUPPORT")
+        self.promise_mapping(
+            task,
+            candidate,
+            {d.target for d in checked.decisions if d.disposition == Verification.SUPPORTED},
+        )
         fields = candidate.assessment.model_dump()
         for rating in fields["ratings"]:
             decision = decisions.get("rating:" + str(rating["dimension"]))
