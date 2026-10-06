@@ -37,6 +37,15 @@ DERIVED = {
     "EDITORIAL-UNCALIBRATED",
 }
 
+# Projection of the existing executable V5 §8.3 mapping, not an additional penalty.
+PROMISE_BASIS_RULES = (
+    "PREMISE-NO-BASIS",
+    "NO-ADVANCE",
+    "NO-CONSEQUENTIAL-STAKE",
+    "DESIGN-MISMATCH",
+    "INFERENCE-UNSUPPORTED",
+)
+
 
 def policy_contract(task: AssessmentTask) -> dict[str, Any]:
     if task.policy_version not in ("4", "5"):
@@ -180,6 +189,22 @@ def policy_contract(task: AssessmentTask) -> dict[str, Any]:
         "Use these only when applicable and actually unavailable; do not fabricate absence or recover hidden content. "
         "Attribute assertions honestly. Never emit deterministic derived findings such as UNINSPECTED-BLOCK; the server owns those."
     )
+    admitted_rules = {r["id"] for r in contract["semantic_rules"]}
+    if task.policy_version == "5" and "PROMISE-OVERREACH" in admitted_rules:
+        contract["promise_mapping"] = {
+            "version": "v5-promise-mapping-v1",
+            "basis_rules": tuple(r for r in PROMISE_BASIS_RULES if r in admitted_rules),
+            "instructions": (
+                "V5 section 8.3 maps contribution overreach to an existing idea or project rule, "
+                "never an extra penalty. A TRUE PROMISE-OVERREACH finding requires at least one "
+                "supplied basis rule also judged TRUE in the same assessment. Do not invent a basis "
+                "or emit rules outside this task. If no supplied basis can be established, leave "
+                "PROMISE-OVERREACH UNKNOWN and explain the unresolved concern in attributed prose. "
+                "During checking, do not mark a TRUE PROMISE-OVERREACH finding supported unless "
+                "at least one TRUE supplied basis finding is also supported in that check. If the "
+                "basis is unresolved, the corresponding overreach check must remain unresolved."
+            ),
+        }
     return contract
 
 

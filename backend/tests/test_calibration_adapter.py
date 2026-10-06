@@ -15,6 +15,131 @@ from model_adapters.fake import FakeModel
 from model_adapters.runtime import ProviderFailure
 
 
+def test_promise_contract_preserves_target_scope_and_historical_v4(tmp_path, manifest):
+    from domain.application import RuleJudgment
+    from model_adapters.openai import policy_contract
+
+    evaluator = BlindEvaluator(
+        synthetic()[1][0].variant.packet, FakeModel(), manifest, tmp_path / "blind"
+    )
+    model = CalibrationAdapter(ProviderConfig())
+    try:
+        argument = evaluator.task("Argument", extended=True)
+        contract = policy_contract(argument)
+        assert contract["promise_mapping"]["basis_rules"] == ()
+        assert {r["id"] for r in contract["semantic_rules"]} == {"PROMISE-OVERREACH"}
+        literature = evaluator.task("Literature", extended=True)
+        assert policy_contract(literature)["promise_mapping"]["basis_rules"] == ("NO-ADVANCE",)
+        historical = literature.model_copy(update={"policy_version": "4"})
+        assert "promise_mapping" not in policy_contract(historical)
+        candidate = FakeModel().assess(historical)
+        candidate = candidate.model_copy(
+            update={
+                "assessment": candidate.assessment.model_copy(
+                    update={
+                        "findings": (
+                            RuleJudgment(
+                                rule_id="PROMISE-OVERREACH",
+                                value="TRUE",
+                                reasoning="Synthetic unmapped historical proposal.",
+                            ),
+                        )
+                    }
+                )
+            }
+        )
+        AssessmentChecker(model).promise_mapping(historical, candidate)
+    finally:
+        evaluator.close()
+        model.close()
+
+
+@pytest.mark.parametrize("mode", ["WORKBENCH", "BASELINE"])
+@pytest.mark.parametrize("basis_value", [None, "FALSE", "UNKNOWN", "TRUE"])
+def test_promise_mapping_same_candidate_validity_and_actual_receipt(
+    tmp_path, manifest, monkeypatch, mode, basis_value
+):
+    from test_benchmarks import runner
+    from test_provider import transport
+
+    from benchmarks.calibration import configuration
+
+    def change(kind, output):
+        if kind in ("rdw_evaluation", "rdw_baseline"):
+            findings = [
+                {
+                    "rule_id": "PROMISE-OVERREACH",
+                    "value": "TRUE",
+                    "reasoning": "Synthetic overreach finding, not a research conclusion.",
+                    "verification": "unresolved",
+                    "source_refs": [],
+                }
+            ]
+            if basis_value is not None:
+                findings.append({**findings[0], "rule_id": "NO-ADVANCE", "value": basis_value})
+            output["assessment"]["findings"] = findings
+        elif kind == "rdw_checking-compact":
+            for decision in output["decisions"]:
+                decision["source_refs"] = [0]
+        return output
+
+    client, requests = transport(monkeypatch, change)
+    pc = ProviderConfig(provider="openai")
+    r, _, cases = runner(tmp_path, manifest, lambda: CalibrationAdapter(pc, client))
+    run = r.execute(cases[0], configuration(pc, "Literature", mode, "synthetic-commit"))
+    criteria = json.loads(requests[0]["input"])["criteria"]
+    assert criteria["promise_mapping"]["basis_rules"] == ["NO-ADVANCE"]
+    assert criteria["promise_mapping"]["version"] == "v5-promise-mapping-v1"
+    if basis_value == "TRUE":
+        assert run.status == "SUCCEEDED"
+        assert len(requests) == (2 if mode == "WORKBENCH" else 1)
+    else:
+        assert run.status == "FAILED" and run.failure_type == "UNMAPPED_PROMISE_OVERREACH"
+        assert run.observation is None and run.result is None
+        assert run.receipt.status == "FAILED" and len(requests) == 1
+        assert json.loads(run.output_json)["assessment"]["findings"][0]["value"] == "TRUE"
+
+
+@pytest.mark.parametrize("basis_supported", [False, True])
+def test_checker_promise_support_requires_supported_true_basis(
+    tmp_path, manifest, monkeypatch, basis_supported
+):
+    from test_benchmarks import runner
+    from test_provider import transport
+
+    from benchmarks.calibration import configuration
+
+    def change(kind, output):
+        if kind == "rdw_evaluation":
+            output["assessment"]["findings"] = [
+                {
+                    "rule_id": rule,
+                    "value": "TRUE",
+                    "reasoning": "Synthetic mapped finding, not independent verification.",
+                    "verification": "unresolved",
+                    "source_refs": [],
+                }
+                for rule in ("NO-ADVANCE", "PROMISE-OVERREACH")
+            ]
+        elif kind == "rdw_checking-compact":
+            for decision in output["decisions"]:
+                decision["source_refs"] = [0]
+                if decision["target"] == "finding:NO-ADVANCE" and not basis_supported:
+                    decision["disposition"] = "unresolved"
+        return output
+
+    client, requests = transport(monkeypatch, change)
+    pc = ProviderConfig(provider="openai")
+    r, _, cases = runner(tmp_path, manifest, lambda: CalibrationAdapter(pc, client))
+    run = r.execute(cases[0], configuration(pc, "Literature", "WORKBENCH", "synthetic-commit"))
+    assert len(requests) == 2
+    if basis_supported:
+        assert run.status == "SUCCEEDED"
+    else:
+        assert run.status == "FAILED" and run.failure_type == "UNSUPPORTED_PROMISE_MAPPING"
+        assert run.observation is None and run.receipt.status == "FAILED"
+
+
 @pytest.mark.parametrize("mode", ["WORKBENCH", "BASELINE"])
 def test_packet_citation_enums_and_brevity_are_shared_without_changing_baseline(
     tmp_path, manifest, monkeypatch, mode

@@ -74,7 +74,7 @@ def expand_checked(raw: CompactCheckResult, task: CheckingTask) -> CheckResult:
 class CalibrationAdapter(OpenAIAdapter):
     prompt_configuration = (
         "evaluation-v3/checking-compact-v1/workspace-v2/workspace-check-v2/"
-        "packet-citations-v2/role-bound-statements-v1/bounded-output-v1"
+        "packet-citations-v2/role-bound-statements-v1/bounded-output-v1/v5-promise-mapping-v1"
     )
     proposed_review: CandidateReview | None = None
     proposed_interpretation: Interpretation | None = None

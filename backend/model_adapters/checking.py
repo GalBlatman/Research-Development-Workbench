@@ -12,7 +12,7 @@ from domain.application import (
     Interpretation,
     InterpretationTask,
 )
-from domain.models import SourceReference, StructuralCheck, Verification
+from domain.models import SourceReference, StructuralCheck, Truth, Verification
 from domain.research import (
     WorkspaceCheckingTask,
     WorkspaceCheckResult,
@@ -20,7 +20,7 @@ from domain.research import (
     WorkspaceTask,
 )
 from domain.sources import SourceRole
-from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check
+from model_adapters.openai import DERIVED, PROMPTS, OpenAIAdapter, packet_check, policy_contract
 from model_adapters.runtime import ProviderFailure
 
 ATTRIBUTION_ROLES = {
@@ -42,6 +42,33 @@ class AssessmentChecker:
 
     def __init__(self, adapter: OpenAIAdapter):
         self.adapter = adapter
+
+    def promise_mapping(
+        self,
+        task: AssessmentTask,
+        candidate: CandidateReview,
+        supported_targets: set[str] | None = None,
+    ) -> None:
+        if task.policy_version != "5":
+            return
+        findings = {f.rule_id: f for f in candidate.assessment.findings}
+        promise = findings.get("PROMISE-OVERREACH")
+        if promise is None or promise.value != Truth.TRUE:
+            return
+        if supported_targets is not None and "finding:PROMISE-OVERREACH" not in supported_targets:
+            return
+        eligible = policy_contract(task).get("promise_mapping", {}).get("basis_rules", ())
+        if not any(
+            (basis := findings.get(rule)) is not None
+            and basis.value == Truth.TRUE
+            and (supported_targets is None or "finding:" + rule in supported_targets)
+            for rule in eligible
+        ):
+            raise ProviderFailure(
+                "UNMAPPED_PROMISE_OVERREACH"
+                if supported_targets is None
+                else "UNSUPPORTED_PROMISE_MAPPING"
+            )
 
     def references(self, context: ContextPacket, refs: Iterable[SourceReference]) -> None:
         allowed = {
@@ -133,6 +160,7 @@ class AssessmentChecker:
             if finding.rule_id not in known - DERIVED:
                 raise ProviderFailure("UNKNOWN_OR_DERIVED_FINDING")
             self.references(task.context, finding.source_refs)
+        self.promise_mapping(task, candidate)
         for rating in candidate.assessment.ratings:
             if rating.rating is not None and rating.rating >= 8:
                 benchmark = rating.benchmark
@@ -186,6 +214,11 @@ class AssessmentChecker:
                 and not check_decision.source_refs
             ):
                 raise ProviderFailure("MISSING_SOURCE_SUPPORT")
+        self.promise_mapping(
+            task,
+            candidate,
+            {d.target for d in checked.decisions if d.disposition == Verification.SUPPORTED},
+        )
         fields = candidate.assessment.model_dump()
         for rating in fields["ratings"]:
             decision = decisions.get("rating:" + str(rating["dimension"]))
