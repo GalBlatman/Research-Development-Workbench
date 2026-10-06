@@ -13,3 +13,11 @@ This repository is public. Never add private papers/conversions, builder exports
 ## Research review prompt
 
 The [single-file Baseline-Plus research review prompt](docs/tools/Baseline_Plus_Research_Review_Prompt_v1.md) is derived from the Research Development Workbench work and intended for direct use with a research idea or project packet. This exact single-file prompt has not itself been empirically validated. This repository is its canonical home, including its provenance and version history.
+
+## Research evaluation artifacts
+
+- [Baseline-Plus research review prompt](docs/tools/Baseline_Plus_Research_Review_Prompt_v1.md)
+- [Step-13 development calibration report](docs/tasks/STEP-13-calibration-report.md)
+- [Step-14 frozen validation results](docs/tasks/STEP-14-validation-report.md)
+
+The validation results do not establish a generalizing Workbench scientific advantage.
