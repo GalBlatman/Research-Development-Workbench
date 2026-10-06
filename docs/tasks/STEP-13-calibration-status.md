@@ -1,6 +1,6 @@
 # Step 13 calibration status
 
-STATUS: BLOCKED — provider HTTP 429/RATE_LIMIT after authorized DEVELOPMENT execution. Step 14 is not started.
+STATUS: PASS — Step 13 DEVELOPMENT calibration complete, October 6, 2026. Step 14 is not started.
 
 Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
@@ -154,4 +154,14 @@ Current candidate preserves 696 attempts, 504 valid and 192 failed (188 INCOMPLE
 
 Current receipt ledger: 1,123 calls, $73.7978948 known estimated cost, seven calls with incomplete reported usage. Deduplicated full history: 941 terminal attempts, 1,537 recorded calls, $99.5785001 known estimated cost, nine calls without complete usage plus two unknown-call reservations. Actual totals/billing remain unknown. Immutable blocker snapshots and detailed administrator strata remain outside Git.
 
-See [the aggregate blocker report](STEP-13-calibration-report.md) for all eight partial metrics, paper-nested fair comparison, routing/cost/error analysis, original freeze identities and continuation boundary. V5/V4 unchanged; no corpus correction or V6 candidate. VALIDATION/HELD_OUT untouched; Step 14 not ready or started; no main integration.
+See [the aggregate blocker report](STEP-13-calibration-blocked-report.md) for all eight partial metrics, paper-nested fair comparison, routing/cost/error analysis, original freeze identities and continuation boundary. V5/V4 unchanged; no corpus correction or V6 candidate. VALIDATION/HELD_OUT untouched; Step 14 not ready or started; no main integration.
+
+## Step 13 completed after pending-only credit resume
+
+The owner replenished API credit. Preflight reverified all five handoff hashes, exact 440-case/20-paper joins, unchanged runtime, clean executed commit 80f141778c64089a914a9cc40b977bd8cf0859f3 and passing exact-head PostgreSQL CI run 73. A clean isolated checkout resumed only 180 pending attempts; all 696 earlier current-candidate terminal records retained identical hashes. No existing rate-limit, uncertain or output-limit failure was replayed or relabeled.
+
+All 440/440 cases across 20/20 papers now have both mode states. The archive holds 876 current attempts (660 valid, 216 failed), two older uncertain terminal attempts and two older interrupted reservations; zero pending/new unfinished states. There are 283 valid pairs. Workbench has 301 valid current outputs, baseline 359; both early-idea/proposal packages passed all 20 cases in both modes. Completion includes documented failures and does not establish a clear Workbench scientific advantage.
+
+Current receipt ledger: 1,367 calls, $88.0613104 known estimated cost, seven calls without complete usage. Deduplicated full history: 1,121 terminal attempts, 1,781 recorded calls, $113.8419157 known estimated cost, nine unknown-usage calls plus two unknown-call reservations. Actual billing remains unknown. The resume added 244 calls/$14.2634156 with no new unknown usage.
+
+The [final report](STEP-13-calibration-report.md) contains all eight metrics, availability and case/paper aggregation, fair paired comparison, errors A–I, checks, frozen identities and cost/latency. Detailed scientific strata and authoritative final-freeze-v2.json remain administrator-only outside Git. The [historical blocker report](STEP-13-calibration-blocked-report.md) and original blocked snapshots are retained. V5/V4 unchanged; no corpus correction/V6 candidate. Current execution blockers: none. Frozen Step-14 candidate technically ready subject to owner review/authorization; Step 14 not started. VALIDATION/HELD_OUT untouched; no main merge.
