@@ -1,6 +1,6 @@
 # Step 13 calibration status
 
-STATUS: IN PROGRESS — October 5, 2026. Step 14 is not started.
+STATUS: BLOCKED — provider HTTP 429/RATE_LIMIT after authorized DEVELOPMENT execution. Step 14 is not started.
 
 Task branch: codex/step-13-calibration. Closure commit: 849f99b24dfc940bf3cdb634c615d6fb10a4d072. Base: 2fa9873bbf9171844c676fa8a09e441fa0c55129. The owner authorized the task-branch push; it succeeded. Main integration is not authorized.
 
@@ -145,3 +145,13 @@ Classification B/C boundary: V5 section 8.3 and the existing deterministic engin
 General repair: v5-promise-mapping-v1 projects the existing basis-rule relationship into the versioned shared criteria, restricted to semantic rules already admitted by the canonical task. If no basis rule is available within that scope, a TRUE overreach finding is unavailable; retain UNKNOWN and describe the unresolved concern without widening the task or inventing a rule. Both baseline and Workbench reject an unmapped TRUE proposal before checking, with the same UNMAPPED_PROMISE_OVERREACH terminal diagnosis. A supported TRUE overreach check also requires a supported TRUE existing basis in that same check; otherwise UNSUPPORTED_PROMISE_MAPPING rejects it before the unchanged deterministic policy engine. No claim is automatically relabeled or verified, and no new penalty, score formula, source or hidden expectation is introduced.
 
 V4 criteria/validation retain their historical behavior. V5/V4 source bytes, manifests, deterministic engine, paper splits, gold, routing and baseline-v3 text remain unchanged. Prompt receipts hash the actual augmented criteria. Regressions cover both modes, absent/FALSE/UNKNOWN/TRUE bases, mapped checking success, unsupported checking failure, exact targeted scope and the historical V4 boundary. Budgets, provider/model and privacy controls remain unchanged. Required full checks, a clean committed candidate, fresh exact-head PostgreSQL CI PASS and a bounded affected/regression pilot precede further paid calls. No Step 14, VALIDATION/HELD_OUT execution or main integration.
+
+## Current provider rate-limit blocker and preserved partial calibration
+
+Executed evaluator 80f141778c64089a914a9cc40b977bd8cf0859f3 passed exact-head CI run 73 (37394139197), all jobs including PostgreSQL, before its eight-attempt regression pilot and broader run. The pilot produced seven valid outputs; all records remain unchanged. The broader runner stopped at EXTERNAL_PROVIDER_BLOCKER:RATE_LIMIT after two concurrent Workbench failures exhausted the unchanged retry allowance. Graceful shutdown left zero new unfinished reservations. No new provider calls are authorized by this report, and the existing owner authorization persists without needing repetition.
+
+Current candidate preserves 696 attempts, 504 valid and 192 failed (188 INCOMPLETE_OUTPUT, two uncertain transport, two RATE_LIMIT). All 20 papers were attempted; 320/440 cases have terminal states in both modes, 197 pairs are valid and 180 mode/case states remain pending. Workbench has 377 current terminal attempts (248 valid); baseline 319 (256 valid). Two earlier uncertain terminal attempts and two earlier interrupted reservations remain unavailable under their original identities. No full-set completion, final Step-14 evaluator freeze or clear scientific advantage is claimed.
+
+Current receipt ledger: 1,123 calls, $73.7978948 known estimated cost, seven calls with incomplete reported usage. Deduplicated full history: 941 terminal attempts, 1,537 recorded calls, $99.5785001 known estimated cost, nine calls without complete usage plus two unknown-call reservations. Actual totals/billing remain unknown. Immutable blocker snapshots and detailed administrator strata remain outside Git.
+
+See [the aggregate blocker report](STEP-13-calibration-report.md) for all eight partial metrics, paper-nested fair comparison, routing/cost/error analysis, original freeze identities and continuation boundary. V5/V4 unchanged; no corpus correction or V6 candidate. VALIDATION/HELD_OUT untouched; Step 14 not ready or started; no main integration.
